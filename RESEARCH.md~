@@ -1,0 +1,5 @@
+peline with audio streaming and MFCC feature extraction), the next step is to collect your own wake word data. Record around 20–50 audio clips of the wake word using different voices, accents, and background environments. Then, apply augmentation techniques—like adding noise, pitch shifting, and speed variation—to simulate more diversity. This data can be combined with negative examples (e.g., unrelated words or silence) and used to fine-tune the model’s final layers for better accuracy and generalization.
+
+Paragraph 3: Train and Deploy Lightweight Model Locally
+With labeled audio data prepared, you can train a lightweight model (under 5MB quantized) using frameworks like PyTorch or TensorFlow. Once trained, export it to a portable format like ONNX or TFLite and run it locally using a minimal inference engine such as tract in Rust. At runtime, your system will stream microphone audio, apply VAD (optional), extract MFCC features, and feed them into the model every few hundred milliseconds. With appropriate smoothing and a confidence threshold, the system can robustly trigger on your wake word even in moderately noisy environments.
+
