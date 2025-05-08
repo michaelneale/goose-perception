@@ -1,0 +1,1 @@
+There's an app called Goose that creates meal plans based on what's in your fridge.

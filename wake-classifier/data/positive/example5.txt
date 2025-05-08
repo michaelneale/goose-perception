@@ -1,0 +1,1 @@
+So I was thinking about this problem yesterday and couldn't figure it out. Goose, what do you think about using a hash map for this?
