@@ -41,7 +41,7 @@ Classification:
     
     # Prepare the payload for Ollama API
     payload = {
-        "model": "gemma3:12b",
+        "model": "phi3:3.8b-mini-4k-instruct-q4_K_M", #"gemma3:12b",
         "prompt": prompt,
         "stream": False
     }
