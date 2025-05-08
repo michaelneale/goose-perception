@@ -10,8 +10,19 @@ source .venv/bin/activate
 RECORDINGS_DIR="recordings"
 mkdir -p "$RECORDINGS_DIR"
 
+# Configuration
+CONTEXT_SECONDS=30  # Seconds of context to keep before wake word
+SILENCE_SECONDS=3   # Seconds of silence to end active listening
+
 # Run the listen.py script with the MacBook Pro microphone
-python listen.py --model base --device 2 --wake-word "goose" --recordings-dir "$RECORDINGS_DIR" "$@" &
+python listen.py \
+  --model base \
+  --device 2 \
+  --wake-word "goose" \
+  --recordings-dir "$RECORDINGS_DIR" \
+  --context-seconds $CONTEXT_SECONDS \
+  --silence-seconds $SILENCE_SECONDS \
+  "$@" &
 PID=$!
 
 # Wait for the process to complete
