@@ -1,0 +1,1 @@
+During our testing, we found that saying goose doesn't activate anything. We could repeatedly say hey goose and the system remained dormant.

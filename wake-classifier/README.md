@@ -12,7 +12,6 @@ This classifier is designed to analyze transcribed speech and determine if the s
 wake-classifier/
 ├── classifier.py         # Main inference script
 ├── train_classifier.py   # Script to train the model
-├── generate_examples.py  # Script to generate synthetic training data
 ├── data/
 │   ├── positive/         # Examples addressed to Goose
 │   └── negative/         # Examples not addressed to Goose
@@ -28,12 +27,7 @@ cd ..
 pip install -r requirements.txt
 ```
 
-2. Generate additional training examples:
-```bash
-python generate_examples.py
-```
-
-3. Train the model:
+2. Train the model:
 ```bash
 python train_classifier.py
 ```

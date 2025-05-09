@@ -1,0 +1,1 @@
+I'm demonstrating that in this mode, saying goose doesn't trigger anything. I can even say hey goose directly and nothing responds.

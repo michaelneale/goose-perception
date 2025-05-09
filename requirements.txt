@@ -8,3 +8,4 @@ transformers>=4.30.0
 pandas>=1.5.0
 scikit-learn>=1.2.0
 datasets>=2.12.0
+accelerate>=0.26.0

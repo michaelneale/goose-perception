@@ -1,0 +1,1 @@
+For this demonstration, I'll say goose several times to show nothing happens. I'll even say hey goose directly, and you'll see no response.

@@ -1,0 +1,1 @@
+When the AI is disabled, I can say goose without any response. I can even say hey goose directly and nothing activates.

@@ -1,0 +1,1 @@
+In this test environment, I can say goose without triggering any response. I could even say hey goose directly and nothing would wake up.
