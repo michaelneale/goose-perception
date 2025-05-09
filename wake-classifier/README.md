@@ -38,7 +38,7 @@ python generate_examples.py
 python train_classifier.py
 ```
 
-## Usage
+### Usage
 
 ### Command Line
 
@@ -49,8 +49,8 @@ python classifier.py "Hey Goose, can you help me with this?"
 Output:
 ```
 Text: Hey Goose, can you help me with this?
+Is addressed to Goose: Yes
 Classification: ADDRESSED_TO_GOOSE
-Addressed to Goose: Yes
 Confidence: 0.9876
 ```
 
@@ -67,10 +67,14 @@ from classifier import GooseWakeClassifier
 # Initialize the classifier
 classifier = GooseWakeClassifier()
 
-# Classify some text
-result = classifier.classify("Goose, what's the weather like today?")
-print(f"Is addressed to Goose: {result['addressed_to_goose']}")
-print(f"Confidence: {result['confidence']}")
+# Simple boolean classification
+is_addressed = classifier.classify("Goose, what's the weather like today?")
+print(f"Is addressed to Goose: {is_addressed}")
+
+# Get detailed classification information
+details = classifier.classify_with_details("Goose, what's the weather like today?")
+print(f"Classification: {details['classification']}")
+print(f"Confidence: {details['confidence']}")
 ```
 
 ## Model Details
@@ -96,9 +100,17 @@ classifier = GooseWakeClassifier()
 # In the transcription processing code:
 def contains_wake_word(text, wake_word="goose", classifier=None):
     """Check if the text contains the wake word and is addressed to Goose"""
-    # Use the classifier to determine if the text is addressed to Goose
-    result = classifier.classify(text)
-    return result["addressed_to_goose"]
+    return classifier.classify(text)
+
+# When a wake word is detected:
+if transcript and contains_wake_word(transcript, args.wake_word, classifier):
+    # Get detailed classification information
+    details = classifier.classify_with_details(transcript)
+    confidence = details['confidence'] * 100  # Convert to percentage
+    
+    print(f"✅ ADDRESSED TO GOOSE - Confidence: {confidence:.1f}%")
+    
+    # Continue with active listening...
 ```
 
 ## Extending the Model

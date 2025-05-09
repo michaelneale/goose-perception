@@ -46,6 +46,38 @@ class GooseWakeClassifier:
             text (str): The text to classify
             
         Returns:
+            bool: True if addressed to Goose, False otherwise
+        """
+        if self.classifier:
+            # Use the fine-tuned model
+            try:
+                result = self.classifier(text)
+                scores = result[0]
+                
+                # Get the probability for "addressed to Goose" (label 1)
+                addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_1")
+                not_addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_0")
+                
+                # Determine classification
+                is_addressed = addressed_score > not_addressed_score
+                
+                return is_addressed
+            except Exception as e:
+                print(f"Error during classification: {e}")
+                # Fall back to rule-based classifier
+                return self._rule_based_classify(text)
+        else:
+            # Fall back to rule-based classifier
+            return self._rule_based_classify(text)
+    
+    def classify_with_details(self, text):
+        """
+        Classify with detailed information if the input text is addressed to Goose
+        
+        Args:
+            text (str): The text to classify
+            
+        Returns:
             dict: Classification result with label and confidence
         """
         if self.classifier:
@@ -70,13 +102,29 @@ class GooseWakeClassifier:
             except Exception as e:
                 print(f"Error during classification: {e}")
                 # Fall back to rule-based classifier
-                return self._rule_based_classify(text)
+                return self._rule_based_classify_with_details(text)
         else:
             # Fall back to rule-based classifier
-            return self._rule_based_classify(text)
+            return self._rule_based_classify_with_details(text)
     
     def _rule_based_classify(self, text):
         """Simple rule-based classifier as fallback"""
+        text_lower = text.lower()
+        
+        # Check for direct mentions of "goose"
+        contains_goose = "goose" in text_lower
+        
+        # Check for question or command indicators
+        question_indicators = ["?", "can you", "could you", "would you", "will you", "please"]
+        has_question = any(indicator in text_lower for indicator in question_indicators)
+        
+        # Determine if addressed to Goose
+        is_addressed = contains_goose and has_question
+        
+        return is_addressed
+    
+    def _rule_based_classify_with_details(self, text):
+        """Simple rule-based classifier as fallback with details"""
         text_lower = text.lower()
         
         # Check for direct mentions of "goose"
@@ -109,17 +157,21 @@ def main():
     args = parser.parse_args()
     
     classifier = GooseWakeClassifier(model_path=args.model)
-    result = classifier.classify(args.text)
+    
+    # Get both the boolean result and detailed result
+    is_addressed = classifier.classify(args.text)
+    details = classifier.classify_with_details(args.text)
     
     if args.json:
-        print(json.dumps(result, indent=2))
+        print(json.dumps(details, indent=2))
     else:
-        print(f"Text: {result['text']}")
-        print(f"Classification: {result['classification']}")
-        print(f"Addressed to Goose: {'Yes' if result['addressed_to_goose'] else 'No'}")
-        print(f"Confidence: {result['confidence']:.4f}")
-        if "note" in result:
-            print(f"Note: {result['note']}")
+        print(f"Text: {args.text}")
+        print(f"Is addressed to Goose: {'Yes' if is_addressed else 'No'}")
+        if is_addressed:
+            print(f"Classification: {details['classification']}")
+            print(f"Confidence: {details['confidence']:.4f}")
+        if "note" in details:
+            print(f"Note: {details['note']}")
 
 if __name__ == "__main__":
     main()

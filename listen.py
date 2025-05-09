@@ -78,8 +78,7 @@ def transcribe_audio(model, audio_file, language=None):
 def contains_wake_word(text, wake_word="goose", classifier=None):
     """Check if the text contains the wake word and is addressed to Goose"""
     # Use the classifier to determine if the text is addressed to Goose
-    result = classifier.classify(text)
-    return result["addressed_to_goose"]
+    return classifier.classify(text)
 
 def is_silence(audio_data, threshold=SILENCE_THRESHOLD):
     """Check if audio chunk is silence based on amplitude threshold"""
@@ -287,9 +286,11 @@ def main():
                     print(f"\n{'='*80}")
                     print(f"🔔 WAKE WORD DETECTED at {timestamp}!")
                     
-                    # Show the classification result
-                    result = classifier.classify(transcript)
-                    print(f"Classification: {result['classification']} (confidence: {result['confidence']:.4f})")
+                    # Get detailed classification information
+                    details = classifier.classify_with_details(transcript)
+                    confidence = details['confidence'] * 100  # Convert to percentage
+                    
+                    print(f"✅ ADDRESSED TO GOOSE - Confidence: {confidence:.1f}%")
                     
                     print(f"Switching to active listening mode...")
                     print(f"Context from the last {args.context_seconds} seconds:")
