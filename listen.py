@@ -3,7 +3,10 @@
 listen.py - Continuously listen to audio, detect wake word, and capture full conversations
 """
 
+# Set environment variables before importing libraries
 import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import tempfile
 import queue
 import threading
@@ -26,7 +29,15 @@ from classifier import GooseWakeClassifier
 # Initialize the Whisper model
 def load_model(model_name):
     print(f"Loading Whisper model: {model_name}...")
-    return whisper.load_model(model_name)
+    # Suppress the FP16 warning
+    import warnings
+    warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
+    
+    # MPS (Metal) support is still limited for some operations in Whisper
+    # For now, we'll use CPU for better compatibility
+    model = whisper.load_model(model_name)
+    print("Using CPU for Whisper model (MPS has compatibility issues with sparse tensors)")
+    return model
 
 # Audio parameters
 SAMPLE_RATE = 16000  # Whisper expects 16kHz audio
@@ -50,6 +61,16 @@ def signal_handler(sig, frame):
     print("\nReceived interrupt signal. Shutting down...")
     running = False
 
+def cleanup_resources():
+    """Clean up any resources that might be in use"""
+    try:
+        # Try to reset the audio system
+        sd._terminate()
+        sd._initialize()
+        print("Audio system reset.")
+    except Exception as e:
+        print(f"Error during audio system reset: {e}")
+        
 def audio_callback(indata, frames, time_info, status):
     """This is called for each audio block."""
     if status:
@@ -78,7 +99,11 @@ def transcribe_audio(model, audio_file, language=None):
 def contains_wake_word(text, wake_word="goose", classifier=None):
     """Check if the text contains the wake word and is addressed to Goose"""
     # Use the classifier to determine if the text is addressed to Goose
-    return classifier.classify(text)
+    if wake_word in text.lower():
+        print(f"Detected wake word '{wake_word}'.... checking classifier now..")
+        if classifier:
+            return classifier.classify(text)
+    return False
 
 def is_silence(audio_data, threshold=SILENCE_THRESHOLD):
     """Check if audio chunk is silence based on amplitude threshold"""
@@ -89,6 +114,7 @@ def main():
     parser.add_argument("--model", type=str, default="base", help="Whisper model size (tiny, base, small, medium, large)")
     parser.add_argument("--language", type=str, default=None, help="Language code (optional, e.g., 'en', 'es', 'fr')")
     parser.add_argument("--device", type=int, default=None, help="Audio input device index")
+    parser.add_argument("--channels", type=int, default=CHANNELS, help="Number of audio channels (default: 1)")
     parser.add_argument("--list-devices", action="store_true", help="List available audio devices and exit")
     parser.add_argument("--wake-word", type=str, default="goose", help="Wake word to listen for (default: goose)")
     parser.add_argument("--recordings-dir", type=str, default="recordings", help="Directory to save long transcriptions")
@@ -114,7 +140,7 @@ def main():
     
     # Initialize the wake word classifier
     print("Initializing wake word classifier...")
-    classifier = GooseWakeClassifier()
+    classifier = GooseWakeClassifier.get_instance()
     print("Wake word classifier initialized.")
     
     # Create a temporary directory for audio chunks
@@ -146,14 +172,22 @@ def main():
 
     try:
         # Start the audio stream
-        stream = sd.InputStream(
-            samplerate=SAMPLE_RATE,
-            channels=CHANNELS,
-            dtype=DTYPE,
-            callback=audio_callback,
-            device=args.device
-        )
-        stream.start()
+        try:
+            stream = sd.InputStream(
+                samplerate=SAMPLE_RATE,
+                channels=args.channels,
+                dtype=DTYPE,
+                callback=audio_callback,
+                device=args.device
+            )
+            stream.start()
+        except Exception as e:
+            print(f"\nError opening audio input stream: {e}")
+            print("\nAvailable audio devices:")
+            print(sd.query_devices())
+            print("\nTry specifying a different device with --device <number>")
+            print("or a different number of channels with --channels <number>")
+            return
         
         print("\nListening... Press Ctrl+C to stop.\n")
         
@@ -358,6 +392,9 @@ def main():
         if stream is not None and stream.active:
             stream.stop()
             stream.close()
+        
+        # Reset audio system
+        cleanup_resources()
         
         # Clean up temporary files
         all_temp_files = set()

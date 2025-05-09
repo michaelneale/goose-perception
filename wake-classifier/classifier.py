@@ -3,7 +3,10 @@
 classifier.py - Wake word classifier for detecting if text is addressed to Goose
 """
 
+# Set environment variables before importing libraries
 import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import argparse
 import json
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
@@ -13,6 +16,15 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), "model/final")
 
 class GooseWakeClassifier:
     """Classifier to determine if text is addressed to Goose"""
+    
+    _instance = None  # Singleton instance
+    
+    @classmethod
+    def get_instance(cls, model_path=MODEL_PATH):
+        """Get or create a singleton instance of the classifier"""
+        if cls._instance is None:
+            cls._instance = cls(model_path)
+        return cls._instance
     
     def __init__(self, model_path=MODEL_PATH):
         """Initialize the classifier with the given model path"""
@@ -156,7 +168,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output result as JSON")
     args = parser.parse_args()
     
-    classifier = GooseWakeClassifier(model_path=args.model)
+    classifier = GooseWakeClassifier.get_instance(model_path=args.model)
     
     # Get both the boolean result and detailed result
     is_addressed = classifier.classify(args.text)

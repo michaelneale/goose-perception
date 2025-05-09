@@ -21,6 +21,8 @@ Or run with specific options:
 python listen.py --model [tiny|base|small|medium|large] --device [device_number]
 ```
 
+> **Note:** The application sets `TOKENIZERS_PARALLELISM=false` to avoid warnings from the Hugging Face tokenizers library. If you run into any issues with tokenizers, you can manually set this environment variable: `export TOKENIZERS_PARALLELISM=false`
+
 ## Available Commands
 
 - List audio devices:
