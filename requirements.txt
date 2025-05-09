@@ -1,4 +1,10 @@
+# Combined requirements for Goose Voice and Wake Classifier
 openai-whisper>=20240930
 sounddevice>=0.5.1
 soundfile>=0.12.1
 numpy>=1.24.0
+torch>=2.0.0
+transformers>=4.30.0
+pandas>=1.5.0
+scikit-learn>=1.2.0
+datasets>=2.12.0

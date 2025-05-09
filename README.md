@@ -51,6 +51,14 @@ python listen.py --wake-word "hey there" --context-seconds 20 --silence-seconds 
 
 The application uses a multi-scale transcription approach to balance responsiveness with context:
 
+### Wake Word Detection
+
+The system uses an ML-based classifier to determine if speech is addressed to Goose:
+
+- Uses a fine-tuned DistilBERT model to determine if speech is addressed to Goose
+- More accurate and context-aware than simple text matching
+- Can distinguish between mentions of "goose" and actual commands to Goose
+
 ### Multi-Scale Transcription System
 
 1. **Short Chunks (5 seconds)**

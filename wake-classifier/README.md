@@ -13,7 +13,6 @@ wake-classifier/
 ├── classifier.py         # Main inference script
 ├── train_classifier.py   # Script to train the model
 ├── generate_examples.py  # Script to generate synthetic training data
-├── requirements.txt      # Dependencies
 ├── data/
 │   ├── positive/         # Examples addressed to Goose
 │   └── negative/         # Examples not addressed to Goose
@@ -24,6 +23,8 @@ wake-classifier/
 
 1. Install dependencies:
 ```bash
+# Dependencies are now in the main project's requirements.txt file
+cd ..
 pip install -r requirements.txt
 ```
 
@@ -82,25 +83,22 @@ print(f"Confidence: {result['confidence']}")
 
 ## Integration with Voice System
 
-This classifier is designed to work with the Goose Voice system to determine if transcribed speech is addressed to the Goose assistant. It can be integrated into the `listen.py` script to replace the wake word detection logic.
+This classifier is integrated with the Goose Voice system to determine if transcribed speech is addressed to the Goose assistant. It's used in the `listen.py` script to enhance wake word detection.
 
-Example integration:
+Current integration:
 
 ```python
-from wake_classifier.classifier import GooseWakeClassifier
+from classifier import GooseWakeClassifier
 
 # Initialize the classifier
-wake_classifier = GooseWakeClassifier()
+classifier = GooseWakeClassifier()
 
-# In your transcription processing code:
-def process_transcription(text):
-    result = wake_classifier.classify(text)
-    if result["addressed_to_goose"]:
-        # Handle as command to Goose
-        handle_goose_command(text)
-    else:
-        # Handle as ambient speech
-        pass
+# In the transcription processing code:
+def contains_wake_word(text, wake_word="goose", classifier=None):
+    """Check if the text contains the wake word and is addressed to Goose"""
+    # Use the classifier to determine if the text is addressed to Goose
+    result = classifier.classify(text)
+    return result["addressed_to_goose"]
 ```
 
 ## Extending the Model

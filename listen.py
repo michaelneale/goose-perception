@@ -15,6 +15,13 @@ import whisper
 import argparse
 from datetime import datetime
 from collections import deque
+import sys
+
+# Add the wake-classifier directory to the path
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-classifier'))
+
+# Import the wake classifier
+from classifier import GooseWakeClassifier
 
 # Initialize the Whisper model
 def load_model(model_name):
@@ -68,9 +75,11 @@ def transcribe_audio(model, audio_file, language=None):
         print(f"Transcription error: {e}")
         return ""
 
-def contains_wake_word(text, wake_word="goose"):
-    """Check if the text contains the wake word (case insensitive)"""
-    return wake_word.lower() in text.lower()
+def contains_wake_word(text, wake_word="goose", classifier=None):
+    """Check if the text contains the wake word and is addressed to Goose"""
+    # Use the classifier to determine if the text is addressed to Goose
+    result = classifier.classify(text)
+    return result["addressed_to_goose"]
 
 def is_silence(audio_data, threshold=SILENCE_THRESHOLD):
     """Check if audio chunk is silence based on amplitude threshold"""
@@ -103,6 +112,11 @@ def main():
     model = load_model(args.model)
     print(f"Model loaded. Using {'default' if args.device is None else f'device {args.device}'} for audio input.")
     print(f"Listening for wake word: '{args.wake_word}'")
+    
+    # Initialize the wake word classifier
+    print("Initializing wake word classifier...")
+    classifier = GooseWakeClassifier()
+    print("Wake word classifier initialized.")
     
     # Create a temporary directory for audio chunks
     temp_dir = tempfile.mkdtemp()
@@ -262,10 +276,21 @@ def main():
                     print(f"Heard: {snippet} [{datetime.now().strftime('%H:%M:%S')}]", end="\r")
                 
                 # Check for wake word
-                if transcript and contains_wake_word(transcript, args.wake_word):
+                if transcript:
+                    # Show a snippet of what was heard
+                    snippet = transcript[:30] + "..." if len(transcript) > 30 else transcript
+                    print(f"Heard: {snippet} [{datetime.now().strftime('%H:%M:%S')}]", end="\r")
+                
+                # Check for wake word using the classifier
+                if transcript and contains_wake_word(transcript, args.wake_word, classifier):
                     timestamp = datetime.now().strftime('%H:%M:%S')
                     print(f"\n{'='*80}")
                     print(f"🔔 WAKE WORD DETECTED at {timestamp}!")
+                    
+                    # Show the classification result
+                    result = classifier.classify(transcript)
+                    print(f"Classification: {result['classification']} (confidence: {result['confidence']:.4f})")
+                    
                     print(f"Switching to active listening mode...")
                     print(f"Context from the last {args.context_seconds} seconds:")
                     
