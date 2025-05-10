@@ -1,5 +1,7 @@
 # Goose Voice
 
+<img src="goose.png" alt="Goose Logo" width="150" align="right"/>
+
 A real-time audio transcription tool using Whisper, with wake word detection and conversation capture.
 
 ## Setup
@@ -60,6 +62,60 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
 - Uses a fine-tuned DistilBERT model to determine if speech is addressed to Goose
 - More accurate and context-aware than simple text matching
 - Can distinguish between mentions of "goose" and actual commands to Goose
+
+```
+                                     ┌───────────────────────┐
+                                     │                       │
+                                     │    Audio Recording    │
+                                     │                       │
+                                     └───────────┬───────────┘
+                                                 │
+                                                 ▼
+                                     ┌───────────────────────┐
+                                     │                       │
+                                     │  Whisper Transcription│
+                                     │                       │
+                                     └───────────┬───────────┘
+                                                 │
+                                                 ▼
+                                     ┌──────────────────────┐
+                                     │                      │
+┌─────────────────────┐             │  Contains "goose"?    │ 
+│                     │             │                       │
+│  Continue Passive   │◄────No──────┤                       |
+│    Listening        │             │                       │
+│                     │             └───────────┬───────────┘
+└─────────────────────┘                         │            
+                                                │
+                                               Yes
+                                                │
+                                                ▼
+                                     ┌───────────────────────┐
+                                     │                       │
+                                     │  Wake Word Classifier │
+                                     │  (DistilBERT Model)   │
+                                     │                       │
+                                     └───────────┬───────────┘
+                                                 │
+                                                 │
+                 ┌───────────────────────────────┴───────────────────────────────┐
+                 │                                                               │
+                 ▼                                                               ▼
+     ┌───────────────────────┐                                       ┌───────────────────────┐
+     │                       │                                       │                       │
+     │ Addressed to Goose?   │                                       │ Not Addressed to Goose│
+     │ (Confidence > 0.5)    │                                       │ (Confidence ≤ 0.5)    │
+     │                       │                                       │                       │
+     └───────────┬───────────┘                                       └───────────┬───────────┘
+                 │                                                               │
+                 ▼                                                               ▼
+     ┌───────────────────────┐                                       ┌───────────────────────┐
+     │                       │                                       │                       │
+     │  Activate Assistant   │                                       │  Continue Passive     │
+     │  (Active Listening)   │                                       │     Listening         │
+     │                       │                                       │                       │
+     └───────────────────────┘                                       └───────────────────────┘
+```
 
 ### Multi-Scale Transcription System
 
