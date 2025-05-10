@@ -96,11 +96,11 @@ def transcribe_audio(model, audio_file, language=None):
         print(f"Transcription error: {e}")
         return ""
 
-def contains_wake_word(text, wake_word="goose", classifier=None):
-    """Check if the text contains the wake word and is addressed to Goose"""
+def contains_wake_word(text, classifier=None):
+    """Check if the text contains the wake word 'goose' and is addressed to Goose"""
     # Use the classifier to determine if the text is addressed to Goose
-    if wake_word in text.lower():
-        print(f"Detected wake word '{wake_word}'.... checking classifier now..")
+    if "goose" in text.lower():
+        print(f"Detected wake word 'goose'.... checking classifier now..")
         if classifier:
             return classifier.classify(text)
     return False
@@ -116,7 +116,6 @@ def main():
     parser.add_argument("--device", type=int, default=None, help="Audio input device index")
     parser.add_argument("--channels", type=int, default=CHANNELS, help="Number of audio channels (default: 1)")
     parser.add_argument("--list-devices", action="store_true", help="List available audio devices and exit")
-    parser.add_argument("--wake-word", type=str, default="goose", help="Wake word to listen for (default: goose)")
     parser.add_argument("--recordings-dir", type=str, default="recordings", help="Directory to save long transcriptions")
     parser.add_argument("--context-seconds", type=int, default=CONTEXT_DURATION, 
                         help=f"Seconds of context to keep before wake word (default: {CONTEXT_DURATION})")
@@ -136,7 +135,7 @@ def main():
     # Load the Whisper model
     model = load_model(args.model)
     print(f"Model loaded. Using {'default' if args.device is None else f'device {args.device}'} for audio input.")
-    print(f"Listening for wake word: '{args.wake_word}'")
+    print(f"Listening for wake word: 'goose'")
     
     # Initialize the wake word classifier
     print("Initializing wake word classifier...")
@@ -315,7 +314,7 @@ def main():
                     print(f"Heard: {snippet} [{datetime.now().strftime('%H:%M:%S')}]", end="\r")
                 
                 # Check for wake word using the classifier
-                if transcript and contains_wake_word(transcript, args.wake_word, classifier):
+                if transcript and contains_wake_word(transcript, classifier):
                     timestamp = datetime.now().strftime('%H:%M:%S')
                     print(f"\n{'='*80}")
                     print(f"🔔 WAKE WORD DETECTED at {timestamp}!")

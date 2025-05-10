@@ -49,7 +49,6 @@ python listen.py \
   --model base \
   --device $DEVICE \
   --channels $CHANNELS \
-  --wake-word "goose" \
   --recordings-dir "$RECORDINGS_DIR" \
   --context-seconds $CONTEXT_SECONDS \
   --silence-seconds $SILENCE_SECONDS \

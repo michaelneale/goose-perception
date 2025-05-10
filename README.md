@@ -125,7 +125,7 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
 1. Captures audio from your microphone in real-time
 2. Processes the audio in 5-second chunks
 3. Maintains a rolling buffer of recent speech (default: 30 seconds)
-4. Continuously monitors for the wake word ("goose" by default)
+4. Continuously monitors for the wake word "goose"
 5. Shows minimal output to indicate it's working
 
 ### Active Listening Mode
@@ -146,7 +146,6 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `--wake-word` | Word or phrase that triggers active listening | "goose" |
 | `--context-seconds` | Seconds of speech to keep before wake word | 30 |
 | `--silence-seconds` | Seconds of silence to end active listening | 3 |
 | `--recordings-dir` | Directory to save audio and transcripts | "recordings" |
