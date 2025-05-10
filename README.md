@@ -25,31 +25,6 @@ python listen.py --model [tiny|base|small|medium|large] --device [device_number]
 
 > **Note:** The application sets `TOKENIZERS_PARALLELISM=false` to avoid warnings from the Hugging Face tokenizers library. If you run into any issues with tokenizers, you can manually set this environment variable: `export TOKENIZERS_PARALLELISM=false`
 
-## Available Commands
-
-- List audio devices:
-```bash
-python listen.py --list-devices
-```
-
-- Use a specific model:
-```bash
-python listen.py --model tiny  # Fastest
-python listen.py --model base  # Default
-python listen.py --model small  # Better quality
-python listen.py --model medium  # Even better quality
-python listen.py --model large  # Best quality but slowest
-```
-
-- Specify a language (optional):
-```bash
-python listen.py --language en
-```
-
-- Customize wake word detection:
-```bash
-python listen.py --wake-word "hey there" --context-seconds 20 --silence-seconds 5
-```
 
 ## How It Works
 
