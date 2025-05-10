@@ -152,6 +152,7 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
 | `--model` | Whisper model size | "base" |
 | `--language` | Language code (optional) | None (auto-detect) |
 | `--device` | Audio input device number | None (default) |
+| `--transcription-threads` | Number of threads for transcription | 2 |
 
 ### Note on Chunk Size
 
@@ -162,5 +163,16 @@ The system processes audio in 5-second chunks, which represents a balance betwee
 - **Processing efficiency**: Optimizes CPU and memory usage
 
 Shorter chunks would improve responsiveness but reduce transcription quality, while longer chunks would improve transcription but increase latency.
+
+### Concurrent Transcription
+
+The system uses a multi-threaded approach to transcription:
+
+- **Worker Thread Pool**: Dedicated threads handle transcription tasks while the main thread remains responsive
+- **Priority Queue**: Wake word detection has higher priority than periodic long transcriptions
+- **Non-blocking Design**: Audio capture and processing continue even during transcription
+- **Responsive Wake Word Detection**: The system can detect wake words even while processing previous audio
+
+This design ensures that the system remains responsive to wake words at all times, even during intensive transcription operations.
 
 Press Ctrl+C to stop the application.

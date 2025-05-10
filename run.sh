@@ -13,6 +13,7 @@ mkdir -p "$RECORDINGS_DIR"
 # Configuration
 CONTEXT_SECONDS=30  # Seconds of context to keep before wake word
 SILENCE_SECONDS=3   # Seconds of silence to end active listening
+TRANSCRIPTION_THREADS=2  # Number of threads for transcription
 
 # Set environment variables to suppress warnings
 export TOKENIZERS_PARALLELISM=false
@@ -52,6 +53,7 @@ python listen.py \
   --recordings-dir "$RECORDINGS_DIR" \
   --context-seconds $CONTEXT_SECONDS \
   --silence-seconds $SILENCE_SECONDS \
+  --transcription-threads $TRANSCRIPTION_THREADS \
   "$@" &
 PID=$!
 
