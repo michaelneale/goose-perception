@@ -17,38 +17,10 @@ SILENCE_SECONDS=3   # Seconds of silence to end active listening
 # Set environment variables to suppress warnings
 export TOKENIZERS_PARALLELISM=false
 
-# Find the first available input device and its channel count
-echo "Detecting available audio input devices..."
-DEVICE_INFO=$(python -c "
-import sounddevice as sd
-import json
-
-devices = sd.query_devices()
-input_devices = [(i, d) for i, d in enumerate(devices) if d['max_input_channels'] > 0]
-
-if input_devices:
-    idx, device = input_devices[0]
-    print(json.dumps({'device': idx, 'channels': device['max_input_channels']}))
-else:
-    print(json.dumps({'device': 'None', 'channels': 0}))
-")
-
-# Parse the JSON output
-DEVICE=$(echo $DEVICE_INFO | python -c "import sys, json; print(json.load(sys.stdin)['device'])")
-CHANNELS=$(echo $DEVICE_INFO | python -c "import sys, json; print(json.load(sys.stdin)['channels'])")
-
-if [ "$DEVICE" == "None" ]; then
-    echo "Error: No audio input device found. Please check your microphone connection."
-    exit 1
-fi
-
-echo "Using audio input device: $DEVICE with $CHANNELS channel(s)"
-
-# Run the listen.py script with the detected microphone
+# Run the listen.py script with default device detection
+# The script already has device detection capabilities
 python listen.py \
   --model base \
-  --device $DEVICE \
-  --channels $CHANNELS \
   --recordings-dir "$RECORDINGS_DIR" \
   --context-seconds $CONTEXT_SECONDS \
   --silence-seconds $SILENCE_SECONDS \
