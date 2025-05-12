@@ -9,3 +9,5 @@ pandas>=1.5.0
 scikit-learn>=1.2.0
 datasets>=2.12.0
 accelerate>=0.26.0
+fuzzywuzzy>=0.18.0
+python-Levenshtein>=0.27.1

@@ -60,25 +60,28 @@ The system maintains continuous audio capture throughout all these steps, ensuri
 
 ### Wake Word Detection
 
-The system uses an ML-based classifier to determine if speech is addressed to Goose:
+The system uses an enhanced ML-based classifier to determine if speech is addressed to Goose:
 
-- Uses a fine-tuned DistilBERT model to determine if speech is addressed to Goose
-- More accurate and context-aware than simple text matching
-- Can distinguish between mentions of "goose" and actual commands to Goose
+- **Two-Model Approach**: Uses a lightweight model (tiny) for wake word detection and a higher-quality model for full transcription
+- **Fuzzy Text Matching**: Can detect variations of "goose" using fuzzy string matching
+- **Confidence Thresholds**: Configurable confidence threshold for wake word classification
+- **ML-Based Classification**: Uses a fine-tuned DistilBERT model to determine if speech is addressed to Goose
+- **More accurate and context-aware** than simple text matching
+- **Can distinguish** between mentions of "goose" and actual commands to Goose
 
 ```
 ┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐
 │                    │     │                    │     │                    │
-│   Audio Capture    │────▶│  5-second Chunks   │────▶│    Transcription   │
-│  (Background)      │     │  (Main Thread)     │     │  (Background)      │
+│   Audio Capture    │────▶│  5-second Chunks   │────▶│ Quick Transcription│
+│  (Background)      │     │  (Main Thread)     │     │ (Lightweight Model)│
 │                    │     │                    │     │                    │
 └────────────────────┘     └────────────────────┘     └──────────┬─────────┘
                                                                  │
                                                                  ▼
 ┌────────────────────┐                             ┌─────────────────────────┐
 │                    │                             │                         │
-│  Passive Listening │◀────────── No ─────────────┤  Contains "goose"?      │
-│                    │                             │                         │
+│  Passive Listening │◀────────── No ─────────────┤ Contains "goose"?       │
+│                    │                             │ (Fuzzy Match)           │
 └────────────────────┘                             └─────────────┬───────────┘
                                                                  │
                                                                 Yes
@@ -93,11 +96,11 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
                                                                 Yes
                                                                  │
                                                                  ▼
-┌────────────────────┐                             ┌─────────────────────────┐
-│                    │                             │                         │
-│  Active Listening  │◀────────────────────────────┤  Switch to Active Mode  │
-│                    │                             │                         │
-└─────────┬──────────┘                             └─────────────────────────┘
+┌────────────────────┐     ┌────────────────────┐  ┌─────────────────────────┐
+│                    │     │                    │  │                         │
+│  Active Listening  │◀────┤ Full Transcription │◀─┤  Switch to Active Mode  │
+│                    │     │  (Main Model)      │  │                         │
+└─────────┬──────────┘     └────────────────────┘  └─────────────────────────┘
           │
           │                                        ┌─────────────────────────┐
           │                                        │                         │
@@ -165,6 +168,30 @@ During active listening, the system prioritizes capturing the complete conversat
 - Each conversation includes speech from before the wake word was detected
 - The system also saves periodic transcriptions every minute
 
+### Agent Integration
+
+The system can invoke an external agent script when a conversation is complete:
+
+- Specify an agent script with `--agent path/to/agent.py`
+- The agent receives the transcript and audio file paths as arguments
+- A default agent.py is provided that demonstrates basic intent detection
+- The agent runs as a subprocess, allowing for independent processing
+- Agents can be written in any language as long as they accept the transcript and audio paths
+
+Example agent invocation:
+```bash
+./agent.py path/to/transcript.txt path/to/audio.wav
+```
+
+#### Continuous Conversation Support
+
+The system supports continuous conversations without requiring silence between commands:
+
+- During active listening, it continues to monitor for additional wake words
+- If a wake word is detected during active listening, the silence counter is reset
+- This allows for chained commands without waiting for silence
+- Example: "Hey Goose, what's the weather? Hey Goose, set a timer for 5 minutes."
+
 ## Configuration Options
 
 | Parameter | Description | Default |
@@ -175,6 +202,11 @@ During active listening, the system prioritizes capturing the complete conversat
 | `--model` | Whisper model size | "base" |
 | `--language` | Language code (optional) | None (auto-detect) |
 | `--device` | Audio input device number | None (default) |
+| `--use-lightweight-model` | Use lightweight model for wake word detection | True |
+| `--no-lightweight-model` | Don't use lightweight model for wake word detection | False |
+| `--fuzzy-threshold` | Fuzzy matching threshold for wake word (0-100) | 80 |
+| `--classifier-threshold` | Confidence threshold for classifier (0-1) | 0.6 |
+| `--agent` | Path to agent script to invoke when conversation is complete | None |
 
 ### Note on Chunk Size
 

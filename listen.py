@@ -19,6 +19,7 @@ import argparse
 from datetime import datetime
 from collections import deque
 import sys
+from fuzzywuzzy import fuzz
 
 # Add the wake-classifier directory to the path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-classifier'))
@@ -26,28 +27,47 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-c
 # Import the wake classifier
 from classifier import GooseWakeClassifier
 
-# Initialize the Whisper model
-def load_model(model_name):
-    print(f"Loading Whisper model: {model_name}...")
+# Initialize the Whisper models
+def load_model(model_name, use_tiny_for_wake_word=True):
+    print(f"Loading Whisper models...")
     # Suppress the FP16 warning
     import warnings
     warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
     
     # MPS (Metal) support is still limited for some operations in Whisper
     # For now, we'll use CPU for better compatibility
-    model = whisper.load_model(model_name)
-    print("Using CPU for Whisper model (MPS has compatibility issues with sparse tensors)")
-    return model
+    
+    # Load the main model for full transcription
+    print(f"Loading main model: {model_name}...")
+    main_model = whisper.load_model(model_name)
+    
+    # Load a lightweight model for wake word detection if requested
+    wake_word_model = None
+    if use_tiny_for_wake_word and model_name != "tiny":
+        print(f"Loading lightweight model: tiny (for wake word detection)...")
+        wake_word_model = whisper.load_model("tiny")
+    else:
+        # If the main model is already tiny or user disabled the feature, use the same model
+        print(f"Using {model_name} model for both wake word detection and full transcription")
+        wake_word_model = main_model
+    
+    print("Using CPU for Whisper models (MPS has compatibility issues with sparse tensors)")
+    return main_model, wake_word_model
 
-# Audio parameters
+# Audio parameters - technical settings that rarely need changing
 SAMPLE_RATE = 16000  # Whisper expects 16kHz audio
 CHANNELS = 1  # Mono audio
 DTYPE = 'float32'
-BUFFER_DURATION = 5  # Duration in seconds for each audio chunk
+BUFFER_DURATION = 2  # Duration in seconds for each audio chunk
 LONG_BUFFER_DURATION = 60  # Duration in seconds for the longer context (1 minute)
-CONTEXT_DURATION = 30  # Duration in seconds to keep before wake word
 SILENCE_THRESHOLD = 0.01  # Threshold for silence detection
-SILENCE_DURATION = 3  # Duration of silence to end active listening
+
+# Default configuration - these can be overridden by command line arguments
+# and should match the defaults in run.sh
+DEFAULT_CONTEXT_DURATION = 30  # Duration in seconds to keep before wake word
+DEFAULT_SILENCE_DURATION = 3   # Duration of silence to end active listening
+DEFAULT_FUZZY_THRESHOLD = 80   # Fuzzy matching threshold (0-100)
+DEFAULT_CLASSIFIER_THRESHOLD = 0.6  # Confidence threshold for classifier (0-1)
 
 # Queue for audio chunks
 audio_queue = queue.Queue()
@@ -132,6 +152,22 @@ def start_transcription(model, audio_file, language=None):
     transcription_thread.daemon = True
     transcription_thread.start()
 
+def quick_transcribe(model, audio_file, language=None):
+    """
+    Perform a quick transcription for wake word detection.
+    This is a blocking call but uses the lightweight model.
+    """
+    try:
+        options = {}
+        if language:
+            options["language"] = language
+        
+        result = model.transcribe(audio_file, **options)
+        return result["text"].strip()
+    except Exception as e:
+        print(f"Quick transcription error: {e}")
+        return ""
+
 def get_transcription_result(timeout=None):
     """Get the result of the transcription, waiting if necessary."""
     # Wait for the transcription to complete
@@ -146,13 +182,57 @@ def get_transcription_result(timeout=None):
     
     return result
 
-def contains_wake_word(text, classifier=None):
-    """Check if the text contains the wake word 'goose' and is addressed to Goose"""
-    # Use the classifier to determine if the text is addressed to Goose
-    if "goose" in text.lower():
-        print(f"Detected wake word 'goose'.... checking classifier now..")
+def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_threshold=0.6):
+    """
+    Check if the text contains the wake word 'goose' and is addressed to Goose
+    
+    Args:
+        text (str): The text to check for wake word
+        classifier (GooseWakeClassifier): The classifier to use
+        fuzzy_threshold (int): Minimum fuzzy match score (0-100) for wake word detection
+        classifier_threshold (float): Minimum confidence threshold (0-1) for classifier
+        
+    Returns:
+        bool: True if wake word detected and addressed to Goose, False otherwise
+    """
+    text_lower = text.lower()
+    
+    # First check: exact match for "goose"
+    if "goose" in text_lower:
+        print(f"Detected exact wake word 'goose'... checking classifier now..")
         if classifier:
-            return classifier.classify(text)
+            details = classifier.classify_with_details(text)
+            is_addressed = details["addressed_to_goose"]
+            confidence = details["confidence"]
+            
+            # Check if confidence meets threshold
+            if is_addressed and confidence >= classifier_threshold:
+                print(f"Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                return True
+            elif is_addressed:
+                print(f"Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+            return False
+    
+    # Second check: fuzzy match for "goose" (only if exact match failed)
+    # Split text into words and check each one
+    words = text_lower.split()
+    for word in words:
+        # Calculate fuzzy match score
+        score = fuzz.ratio("goose", word)
+        if score >= fuzzy_threshold:
+            print(f"Detected fuzzy wake word match: '{word}' with score {score}... checking classifier now..")
+            if classifier:
+                details = classifier.classify_with_details(text)
+                is_addressed = details["addressed_to_goose"]
+                confidence = details["confidence"]
+                
+                # Check if confidence meets threshold
+                if is_addressed and confidence >= classifier_threshold:
+                    print(f"Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                    return True
+                elif is_addressed:
+                    print(f"Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+    
     return False
 
 def is_silence(audio_data, threshold=SILENCE_THRESHOLD):
@@ -167,10 +247,20 @@ def main():
     parser.add_argument("--channels", type=int, default=CHANNELS, help="Number of audio channels (default: 1)")
     parser.add_argument("--list-devices", action="store_true", help="List available audio devices and exit")
     parser.add_argument("--recordings-dir", type=str, default="recordings", help="Directory to save long transcriptions")
-    parser.add_argument("--context-seconds", type=int, default=CONTEXT_DURATION, 
-                        help=f"Seconds of context to keep before wake word (default: {CONTEXT_DURATION})")
-    parser.add_argument("--silence-seconds", type=int, default=SILENCE_DURATION,
-                        help=f"Seconds of silence to end active listening (default: {SILENCE_DURATION})")
+    parser.add_argument("--context-seconds", type=int, default=DEFAULT_CONTEXT_DURATION, 
+                        help=f"Seconds of context to keep before wake word (default: {DEFAULT_CONTEXT_DURATION})")
+    parser.add_argument("--silence-seconds", type=int, default=DEFAULT_SILENCE_DURATION,
+                        help=f"Seconds of silence to end active listening (default: {DEFAULT_SILENCE_DURATION})")
+    parser.add_argument("--use-lightweight-model", action="store_true", default=True,
+                        help="Use lightweight model (tiny) for wake word detection (default: True)")
+    parser.add_argument("--no-lightweight-model", action="store_false", dest="use_lightweight_model",
+                        help="Don't use lightweight model for wake word detection")
+    parser.add_argument("--fuzzy-threshold", type=int, default=DEFAULT_FUZZY_THRESHOLD,
+                        help=f"Fuzzy matching threshold for wake word detection (0-100, default: {DEFAULT_FUZZY_THRESHOLD})")
+    parser.add_argument("--classifier-threshold", type=float, default=DEFAULT_CLASSIFIER_THRESHOLD,
+                        help=f"Confidence threshold for wake word classifier (0-1, default: {DEFAULT_CLASSIFIER_THRESHOLD})")
+    parser.add_argument("--agent", type=str, default=None,
+                        help="Path to agent script to invoke when conversation is complete")
     args = parser.parse_args()
 
     if args.list_devices:
@@ -183,9 +273,9 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     # Load the Whisper model
-    model = load_model(args.model)
-    print(f"Model loaded. Using {'default' if args.device is None else f'device {args.device}'} for audio input.")
-    print(f"Listening for wake word: 'goose'")
+    main_model, wake_word_model = load_model(args.model, args.use_lightweight_model)
+    print(f"Models loaded. Using {'default' if args.device is None else f'device {args.device}'} for audio input.")
+    print(f"Listening for wake word: 'goose' (fuzzy threshold: {args.fuzzy_threshold}, classifier threshold: {args.classifier_threshold})")
     
     # Initialize the wake word classifier
     print("Initializing wake word classifier...")
@@ -271,140 +361,181 @@ def main():
             # Check for silence if in active listening mode
             current_is_silence = is_silence(audio_data)
             
-            # If a transcription is in progress, check if it's complete
-            if transcription_in_progress:
+            if is_active_listening:
+                # In active listening mode, use the main model for high-quality transcription
+                if not transcription_in_progress:
+                    # Start transcribing with the main model
+                    start_transcription(main_model, temp_file, args.language)
+                    transcription_in_progress = True
+                    current_temp_file = temp_file
+                
+                # If a transcription is in progress, check if it's complete
                 if transcription_event.is_set():
                     # Get the result
                     transcript = get_transcription_result()
                     transcription_in_progress = False
                     
-                    # Process the transcribed chunk
-                    if is_active_listening:
-                        # We're in active listening mode after wake word detection
-                        
-                        # Add the previous chunk to the active conversation
-                        if current_temp_file:
-                            active_conversation_chunks.append((audio_data, current_temp_file, transcript))
-                        
-                        # Print what we're hearing
-                        print(f"🎙️ Active: {transcript}")
-                        
-                        # Check for silence to potentially end the active listening
-                        if current_is_silence:
-                            silence_counter += 1
-                            print(f"Detected silence ({silence_counter}/{args.silence_seconds // BUFFER_DURATION})...")
-                        else:
-                            silence_counter = 0
-                        
-                        # If we've had enough consecutive silence chunks, end the active listening
-                        if silence_counter >= (args.silence_seconds // BUFFER_DURATION):
-                            print("\n" + "="*80)
-                            print(f"📢 CONVERSATION COMPLETE - DETECTED {args.silence_seconds}s OF SILENCE")
-                            
-                            # Process the full conversation (context + active)
-                            all_audio = []
-                            all_transcripts = []
-                            
-                            # First add the context buffer
-                            for context_audio, _, context_transcript in context_buffer:
-                                all_audio.append(context_audio)
-                                if context_transcript:
-                                    all_transcripts.append(context_transcript)
-                            
-                            # Then add the active conversation
-                            for conv_audio, _, conv_transcript in active_conversation_chunks:
-                                all_audio.append(conv_audio)
-                                if conv_transcript:
-                                    all_transcripts.append(conv_transcript)
-                            
-                            # Concatenate all audio
-                            if all_audio:
-                                full_audio = np.concatenate(all_audio)
-                                
-                                # Save the full conversation
-                                conversation_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                conversation_file = os.path.join(
-                                    args.recordings_dir, 
-                                    f"conversation_{conversation_timestamp}.wav"
-                                )
-                                save_audio_chunk(full_audio, conversation_file)
-                                
-                                # Create the full transcript
-                                full_transcript = " ".join(all_transcripts)
-                                
-                                # Save the transcript
-                                transcript_file = os.path.join(
-                                    args.recordings_dir, 
-                                    f"conversation_{conversation_timestamp}.txt"
-                                )
-                                with open(transcript_file, "w") as f:
-                                    f.write(full_transcript)
-                                
-                                print(f"📝 FULL CONVERSATION TRANSCRIPT:")
-                                print("-"*80)
-                                print(full_transcript)
-                                print("-"*80)
-                                print(f"✅ Saved conversation to {conversation_file}")
-                                print(f"✅ Saved transcript to {transcript_file}")
-                                conversation_counter += 1
-                            
-                            # Reset for next conversation
-                            is_active_listening = False
-                            active_conversation_chunks = []
-                            silence_counter = 0
-                            print("="*80)
-                            print("Returning to passive listening mode. Waiting for wake word...")
+                    # Add the previous chunk to the active conversation
+                    if current_temp_file:
+                        active_conversation_chunks.append((audio_data, current_temp_file, transcript))
+                    
+                    # Print what we're hearing
+                    print(f"🎙️ Active: {transcript}")
+                    
+                    # Check for wake word during active listening
+                    # This allows for chained commands without waiting for silence
+                    if contains_wake_word(transcript, classifier, args.fuzzy_threshold, args.classifier_threshold):
+                        print(f"\n🔔 ADDITIONAL WAKE WORD DETECTED DURING ACTIVE LISTENING!")
+                        print(f"Continuing to listen...")
+                        # Reset the silence counter to keep listening
+                        silence_counter = 0
+                    
+                    # Check for silence to potentially end the active listening
+                    if current_is_silence:
+                        silence_counter += 1
+                        print(f"Detected silence ({silence_counter}/{args.silence_seconds // BUFFER_DURATION})...")
                     else:
-                        # We're in passive listening mode, waiting for wake word
+                        silence_counter = 0
+                    
+                    # If we've had enough consecutive silence chunks, end the active listening
+                    if silence_counter >= (args.silence_seconds // BUFFER_DURATION):
+                        print("\n" + "="*80)
+                        print(f"📢 CONVERSATION COMPLETE - DETECTED {args.silence_seconds}s OF SILENCE")
                         
-                        # Add to context buffer
-                        context_buffer.append((audio_data, current_temp_file, transcript))
+                        # Process the full conversation (context + active)
+                        all_audio = []
+                        all_transcripts = []
                         
-                        # Print a short status update occasionally
-                        if transcript:
-                            # Show a snippet of what was heard
-                            snippet = transcript[:30] + "..." if len(transcript) > 30 else transcript
-                            print(f"Heard: {snippet} [{datetime.now().strftime('%H:%M:%S')}]", end="\r")
+                        # First add the context buffer
+                        for context_audio, _, context_transcript in context_buffer:
+                            all_audio.append(context_audio)
+                            if context_transcript:
+                                all_transcripts.append(context_transcript)
                         
-                        # Check for wake word using the classifier
-                        if transcript and contains_wake_word(transcript, classifier):
-                            timestamp = datetime.now().strftime('%H:%M:%S')
-                            print(f"\n{'='*80}")
-                            print(f"🔔 WAKE WORD DETECTED at {timestamp}!")
+                        # Then add the active conversation
+                        for conv_audio, _, conv_transcript in active_conversation_chunks:
+                            all_audio.append(conv_audio)
+                            if conv_transcript:
+                                all_transcripts.append(conv_transcript)
+                        
+                        # Concatenate all audio
+                        if all_audio:
+                            full_audio = np.concatenate(all_audio)
                             
-                            # Get detailed classification information
-                            details = classifier.classify_with_details(transcript)
-                            confidence = details['confidence'] * 100  # Convert to percentage
+                            # Save the full conversation
+                            conversation_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            conversation_file = os.path.join(
+                                args.recordings_dir, 
+                                f"conversation_{conversation_timestamp}.wav"
+                            )
+                            save_audio_chunk(full_audio, conversation_file)
                             
-                            print(f"✅ ADDRESSED TO GOOSE - Confidence: {confidence:.1f}%")
+                            # Create the full transcript
+                            full_transcript = " ".join(all_transcripts)
                             
-                            print(f"Switching to active listening mode...")
-                            print(f"Context from the last {args.context_seconds} seconds:")
+                            # Save the transcript
+                            transcript_file = os.path.join(
+                                args.recordings_dir, 
+                                f"conversation_{conversation_timestamp}.txt"
+                            )
+                            with open(transcript_file, "w") as f:
+                                f.write(full_transcript)
                             
-                            # Print the context from before the wake word
-                            context_transcripts = [chunk[2] for chunk in context_buffer if chunk[2]]
-                            if context_transcripts:
-                                context_text = " ".join(context_transcripts)
-                                print(f"📜 CONTEXT: {context_text}")
-                            else:
-                                print("(No speech detected in context window)")
+                            print(f"📝 FULL CONVERSATION TRANSCRIPT:")
+                            print("-"*80)
+                            print(full_transcript)
+                            print("-"*80)
+                            print(f"✅ Saved conversation to {conversation_file}")
+                            print(f"✅ Saved transcript to {transcript_file}")
+                            conversation_counter += 1
                             
-                            print(f"Wake word detected in: {transcript}")
-                            print("Now actively listening until silence is detected...")
-                            print(f"{'='*80}")
-                            
-                            # Switch to active listening mode
-                            is_active_listening = True
-                            active_conversation_chunks = list(context_buffer)  # Start with the context
-                            silence_counter = 0
-            
-            # Start a new transcription if none is in progress
-            if not transcription_in_progress:
-                # Start transcribing the current chunk
-                start_transcription(model, temp_file, args.language)
-                transcription_in_progress = True
-                current_temp_file = temp_file
-            
+                            # If an agent is specified, invoke it with the transcript and audio file
+                            if args.agent:
+                                try:
+                                    import subprocess
+                                    print(f"🤖 Invoking agent: {args.agent}")
+                                    
+                                    # Run the agent as a subprocess
+                                    agent_process = subprocess.Popen(
+                                        [args.agent, transcript_file, conversation_file],
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        text=True
+                                    )
+                                    
+                                    # Get the output and error
+                                    agent_output, agent_error = agent_process.communicate()
+                                    
+                                    # Check if the agent ran successfully
+                                    if agent_process.returncode == 0:
+                                        if agent_output.strip():
+                                            print(f"Agent output:\n{agent_output.strip()}")
+                                    else:
+                                        print(f"⚠️ Agent error (code {agent_process.returncode}):\n{agent_error}")
+                                except Exception as e:
+                                    print(f"⚠️ Error invoking agent: {e}")
+                        
+                        # Reset for next conversation
+                        is_active_listening = False
+                        active_conversation_chunks = []
+                        silence_counter = 0
+                        print("="*80)
+                        print("Returning to passive listening mode. Waiting for wake word...")
+            else:
+                # In passive listening mode, use the lightweight model for wake word detection
+                # This is a quick, blocking call but with the tiny model it should be fast
+                quick_transcript = quick_transcribe(wake_word_model, temp_file, args.language)
+                
+                # Add to context buffer with the quick transcript
+                context_buffer.append((audio_data, temp_file, quick_transcript))
+                
+                # Print a short status update
+                if quick_transcript:
+                    # Show a snippet of what was heard
+                    snippet = quick_transcript[:30] + "..." if len(quick_transcript) > 30 else quick_transcript
+                    print(f"Heard: {snippet} [{datetime.now().strftime('%H:%M:%S')}]", end="\r")
+                
+                # Check for wake word using the classifier with our thresholds
+                if quick_transcript and contains_wake_word(quick_transcript, classifier, 
+                                                         args.fuzzy_threshold, args.classifier_threshold):
+                    timestamp = datetime.now().strftime('%H:%M:%S')
+                    print(f"\n{'='*80}")
+                    print(f"🔔 WAKE WORD DETECTED at {timestamp}!")
+                    
+                    # Get detailed classification information
+                    details = classifier.classify_with_details(quick_transcript)
+                    confidence = details['confidence'] * 100  # Convert to percentage
+                    
+                    print(f"✅ ADDRESSED TO GOOSE - Confidence: {confidence:.1f}%")
+                    
+                    print(f"Switching to active listening mode...")
+                    print(f"Context from the last {args.context_seconds} seconds:")
+                    
+                    # Print the context from before the wake word
+                    context_transcripts = [chunk[2] for chunk in context_buffer if chunk[2]]
+                    if context_transcripts:
+                        context_text = " ".join(context_transcripts)
+                        print(f"📜 CONTEXT: {context_text}")
+                    else:
+                        print("(No speech detected in context window)")
+                    
+                    print(f"Wake word detected in: {quick_transcript}")
+                    print("Now actively listening until silence is detected...")
+                    print(f"{'='*80}")
+                    
+                    # Switch to active listening mode
+                    is_active_listening = True
+                    active_conversation_chunks = list(context_buffer)  # Start with the context
+                    silence_counter = 0
+                    
+                    # Start a high-quality transcription of the current chunk with the main model
+                    start_transcription(main_model, temp_file, args.language)
+                    transcription_in_progress = True
+                    current_temp_file = temp_file
+                
+                # If we're not in active mode and not processing wake word, 
+                # we don't need to start a background transcription
+                
             # Check if it's time for a long transcription (every minute)
             current_time = time.time()
             if current_time - last_long_transcription_time >= LONG_BUFFER_DURATION:
