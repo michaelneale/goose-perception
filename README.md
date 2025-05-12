@@ -28,7 +28,35 @@ python listen.py --model [tiny|base|small|medium|large] --device [device_number]
 
 ## How It Works
 
-The application uses a multi-scale transcription approach to balance responsiveness with context:
+The application uses a sequential processing approach with continuous audio capture:
+
+### Wake Word Detection Flow
+
+1. **Audio Capture** (continuous background thread)
+   - Captures audio from the microphone in real-time
+   - Buffers audio in a queue for processing
+   - Runs in a separate thread that never blocks
+
+2. **Audio Processing** (main thread)
+   - Collects 5-second chunks of audio from the queue
+   - Saves each chunk to a temporary file
+   - Submits the chunk for transcription in a background thread
+
+3. **Transcription** (background thread)
+   - Transcribes the audio chunk using Whisper
+   - Runs in a background thread to avoid blocking audio capture
+   - Returns the transcribed text to the main thread
+
+4. **Wake Word Detection** (main thread)
+   - Checks if the transcribed text contains "goose"
+   - If found, uses the classifier to determine if it's addressed to Goose
+   - The classifier check is fast and doesn't block audio capture
+
+5. **Mode Switching**
+   - If addressed to Goose: switches to active listening mode
+   - If not: stays in passive listening mode
+
+The system maintains continuous audio capture throughout all these steps, ensuring no audio is missed during processing or classification.
 
 ### Wake Word Detection
 
@@ -39,57 +67,50 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
 - Can distinguish between mentions of "goose" and actual commands to Goose
 
 ```
-                                     ┌───────────────────────┐
-                                     │                       │
-                                     │    Audio Recording    │
-                                     │                       │
-                                     └───────────┬───────────┘
-                                                 │
-                                                 ▼
-                                     ┌───────────────────────┐
-                                     │                       │
-                                     │  Whisper Transcription│
-                                     │                       │
-                                     └───────────┬───────────┘
-                                                 │
-                                                 ▼
-                                     ┌──────────────────────┐
-                                     │                      │
-┌─────────────────────┐             │  Contains "goose"?    │ 
-│                     │             │                       │
-│  Continue Passive   │◄────No──────┤                       |
-│    Listening        │             │                       │
-│                     │             └───────────┬───────────┘
-└─────────────────────┘                         │            
-                                                │
-                                               Yes
-                                                │
-                                                ▼
-                                     ┌───────────────────────┐
-                                     │                       │
-                                     │  Wake Word Classifier │
-                                     │  (DistilBERT Model)   │
-                                     │                       │
-                                     └───────────┬───────────┘
-                                                 │
-                                                 │
-                 ┌───────────────────────────────┴───────────────────────────────┐
-                 │                                                               │
-                 ▼                                                               ▼
-     ┌───────────────────────┐                                       ┌───────────────────────┐
-     │                       │                                       │                       │
-     │ Addressed to Goose?   │                                       │ Not Addressed to Goose│
-     │ (Confidence > 0.5)    │                                       │ (Confidence ≤ 0.5)    │
-     │                       │                                       │                       │
-     └───────────┬───────────┘                                       └───────────┬───────────┘
-                 │                                                               │
-                 ▼                                                               ▼
-     ┌───────────────────────┐                                       ┌───────────────────────┐
-     │                       │                                       │                       │
-     │  Activate Assistant   │                                       │  Continue Passive     │
-     │  (Active Listening)   │                                       │     Listening         │
-     │                       │                                       │                       │
-     └───────────────────────┘                                       └───────────────────────┘
+┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐
+│                    │     │                    │     │                    │
+│   Audio Capture    │────▶│  5-second Chunks   │────▶│    Transcription   │
+│  (Background)      │     │  (Main Thread)     │     │  (Background)      │
+│                    │     │                    │     │                    │
+└────────────────────┘     └────────────────────┘     └──────────┬─────────┘
+                                                                 │
+                                                                 ▼
+┌────────────────────┐                             ┌─────────────────────────┐
+│                    │                             │                         │
+│  Passive Listening │◀────────── No ─────────────┤  Contains "goose"?      │
+│                    │                             │                         │
+└────────────────────┘                             └─────────────┬───────────┘
+                                                                 │
+                                                                Yes
+                                                                 │
+                                                                 ▼
+┌────────────────────┐                             ┌─────────────────────────┐
+│                    │                             │                         │
+│  Passive Listening │◀────────── No ─────────────┤  Addressed to Goose?    │
+│                    │                             │  (Classifier Check)     │
+└────────────────────┘                             └─────────────┬───────────┘
+                                                                 │
+                                                                Yes
+                                                                 │
+                                                                 ▼
+┌────────────────────┐                             ┌─────────────────────────┐
+│                    │                             │                         │
+│  Active Listening  │◀────────────────────────────┤  Switch to Active Mode  │
+│                    │                             │                         │
+└─────────┬──────────┘                             └─────────────────────────┘
+          │
+          │                                        ┌─────────────────────────┐
+          │                                        │                         │
+          └────────────────────────────────────────▶  Monitor Until Silence  │
+                                                   │                         │
+                                                   └─────────────┬───────────┘
+                                                                 │
+                                                                 ▼
+                                                   ┌─────────────────────────┐
+                                                   │                         │
+                                                   │   Save Conversation     │
+                                                   │                         │
+                                                   └─────────────────────────┘
 ```
 
 ### Multi-Scale Transcription System
@@ -121,20 +142,22 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
 
 ### Operating Modes
 
-### Passive Listening Mode
-1. Captures audio from your microphone in real-time
-2. Processes the audio in 5-second chunks
+#### Passive Listening Mode
+1. Captures audio from your microphone in real-time (continuous)
+2. Processes the audio in 5-second chunks (sequential)
 3. Maintains a rolling buffer of recent speech (default: 30 seconds)
 4. Continuously monitors for the wake word "goose"
 5. Shows minimal output to indicate it's working
 
-### Active Listening Mode
-1. Triggered when the wake word is detected
-2. Displays the context from before the wake word was spoken
+#### Active Listening Mode
+1. Triggered when the wake word is detected and verified by the classifier
+2. Preserves the context from before the wake word was spoken
 3. Continues actively transcribing all speech
 4. Monitors for a period of silence (default: 3 seconds)
 5. When silence is detected, saves the entire conversation (context + active speech)
 6. Returns to passive listening mode
+
+During active listening, the system prioritizes capturing the complete conversation. It continues to buffer audio in the background, ensuring no speech is missed even during transcription.
 
 ### Conversation Capture
 - Complete conversations are saved as both audio (.wav) and text (.txt) files
