@@ -96,16 +96,24 @@ The system uses an enhanced ML-based classifier to determine if speech is addres
                                                                 Yes
                                                                  │
                                                                  ▼
-┌────────────────────┐     ┌────────────────────┐  ┌─────────────────────────┐
-│                    │     │                    │  │                         │
-│  Active Listening  │◀────┤ Full Transcription │◀─┤  Switch to Active Mode  │
-│                    │     │  (Main Model)      │  │                         │
-└─────────┬──────────┘     └────────────────────┘  └─────────────────────────┘
-          │
-          │                                        ┌─────────────────────────┐
-          │                                        │                         │
-          └────────────────────────────────────────▶  Monitor Until Silence  │
+┌────────────────────┐                             ┌─────────────────────────┐
+│                    │                             │                         │
+│  Switch to Active  │─────────────────────────────▶  Active Listening      │
+│  Mode              │                             │  (Main Model)           │
+└────────────────────┘                             └─────────────┬───────────┘
+                                                                 │
+                                                                 ▼
+                                                   ┌─────────────────────────┐
                                                    │                         │
+                                                   │  Monitor Until Silence  │
+                                                   │                         │
+                                                   └─────────────┬───────────┘
+                                                                 │
+                                                                 ▼
+                                                   ┌─────────────────────────┐
+                                                   │                         │
+                                                   │  Full Transcription     │
+                                                   │  (Combine All Chunks)   │
                                                    └─────────────┬───────────┘
                                                                  │
                                                                  ▼
@@ -113,6 +121,13 @@ The system uses an enhanced ML-based classifier to determine if speech is addres
                                                    │                         │
                                                    │   Save Conversation     │
                                                    │                         │
+                                                   └─────────────┬───────────┘
+                                                                 │
+                                                                 ▼
+                                                   ┌─────────────────────────┐
+                                                   │                         │
+                                                   │   Invoke Agent          │
+                                                   │   (if configured)       │
                                                    └─────────────────────────┘
 ```
 
