@@ -2,7 +2,7 @@
 
 <img src="goose.png" alt="Goose Logo" width="150" align="right"/>
 
-A real-time audio transcription tool using Whisper, with wake word detection and conversation capture.
+A real-time audio agent activation tool using local transcription models, with custom wake word detection model and conversation capture.
 
 ## Setup
 
@@ -60,25 +60,28 @@ The system maintains continuous audio capture throughout all these steps, ensuri
 
 ### Wake Word Detection
 
-The system uses an ML-based classifier to determine if speech is addressed to Goose:
+The system uses an enhanced ML-based classifier to determine if speech is addressed to Goose:
 
-- Uses a fine-tuned DistilBERT model to determine if speech is addressed to Goose
-- More accurate and context-aware than simple text matching
-- Can distinguish between mentions of "goose" and actual commands to Goose
+- **Two-Model Approach**: Uses a lightweight model (tiny) for wake word detection and a higher-quality model for full transcription
+- **Fuzzy Text Matching**: Can detect variations of "goose" using fuzzy string matching
+- **Confidence Thresholds**: Configurable confidence threshold for wake word classification
+- **ML-Based Classification**: Uses a fine-tuned DistilBERT model to determine if speech is addressed to Goose
+- **More accurate and context-aware** than simple text matching
+- **Can distinguish** between mentions of "goose" and actual commands to Goose
 
 ```
 ┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐
 │                    │     │                    │     │                    │
-│   Audio Capture    │────▶│  5-second Chunks   │────▶│    Transcription   │
-│  (Background)      │     │  (Main Thread)     │     │  (Background)      │
+│   Audio Capture    │────▶│  5-second Chunks   │────▶│ Quick Transcription│
+│  (Background)      │     │  (Main Thread)     │     │ (Lightweight Model)│
 │                    │     │                    │     │                    │
 └────────────────────┘     └────────────────────┘     └──────────┬─────────┘
                                                                  │
                                                                  ▼
 ┌────────────────────┐                             ┌─────────────────────────┐
 │                    │                             │                         │
-│  Passive Listening │◀────────── No ─────────────┤  Contains "goose"?      │
-│                    │                             │                         │
+│  Passive Listening │◀────────── No ─────────────┤ Contains "goose"?       │
+│                    │                             │ (Fuzzy Match)           │
 └────────────────────┘                             └─────────────┬───────────┘
                                                                  │
                                                                 Yes
@@ -95,14 +98,22 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
                                                                  ▼
 ┌────────────────────┐                             ┌─────────────────────────┐
 │                    │                             │                         │
-│  Active Listening  │◀────────────────────────────┤  Switch to Active Mode  │
-│                    │                             │                         │
-└─────────┬──────────┘                             └─────────────────────────┘
-          │
-          │                                        ┌─────────────────────────┐
-          │                                        │                         │
-          └────────────────────────────────────────▶  Monitor Until Silence  │
+│  Switch to Active  │─────────────────────────────▶  Active Listening      │
+│  Mode              │                             │  (Main Model)           │
+└────────────────────┘                             └─────────────┬───────────┘
+                                                                 │
+                                                                 ▼
+                                                   ┌─────────────────────────┐
                                                    │                         │
+                                                   │  Monitor Until Silence  │
+                                                   │                         │
+                                                   └─────────────┬───────────┘
+                                                                 │
+                                                                 ▼
+                                                   ┌─────────────────────────┐
+                                                   │                         │
+                                                   │  Full Transcription     │
+                                                   │  (Using Main Model)     │
                                                    └─────────────┬───────────┘
                                                                  │
                                                                  ▼
@@ -110,6 +121,20 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
                                                    │                         │
                                                    │   Save Conversation     │
                                                    │                         │
+                                                   └─────────────┬───────────┘
+                                                                 │
+                                                                 ▼
+                                                   ┌─────────────────────────┐
+                                                   │                         │
+                                                   │   Invoke Goose Agent    │
+                                                   │   (via agent.py)        │
+                                                   └─────────────┬───────────┘
+                                                                 │
+                                                                 ▼
+                                                   ┌─────────────────────────┐
+                                                   │                         │
+                                                   │   Goose Process         │
+                                                   │   (Background Thread)   │
                                                    └─────────────────────────┘
 ```
 
@@ -133,6 +158,7 @@ The system uses an ML-based classifier to determine if speech is addressed to Go
 4. **Full Conversations**
    - Combines context buffer + active listening period
    - Captures speech before, during, and after wake word
+   - Re-transcribes the entire audio using the main model
    - Saved as complete audio and transcript files
 
 5. **Periodic Long Transcriptions (60 seconds)**
@@ -165,6 +191,49 @@ During active listening, the system prioritizes capturing the complete conversat
 - Each conversation includes speech from before the wake word was detected
 - The system also saves periodic transcriptions every minute
 
+### Agent Integration
+
+The system directly integrates with Goose through the `agent.py` module:
+
+- When a conversation is complete, `listen.py` directly calls `agent.process_conversation()`
+- The agent reads the transcript and prepares it for Goose with appropriate instructions
+- Goose is invoked with the command: `goose run --name voice -t "The user has spoken the following..."`
+- The Goose process runs in a separate thread to avoid blocking the main application
+- All Goose interactions happen in the `~/Documents/voice` directory
+
+#### Concurrency Model
+
+The system uses a multi-threaded approach to handle Goose interactions:
+
+1. **Main Thread (listen.py)**
+   - Detects wake words, processes conversations
+   - Calls `agent.process_conversation()` when a conversation is complete
+   - Continues listening for new wake words immediately
+
+2. **Agent Thread (agent.py)**
+   - Created by `agent.process_conversation()`
+   - Runs `run_goose_in_background()` in a daemon thread
+   - Daemon threads don't block program exit
+
+3. **Goose Process**
+   - Started by the agent thread using `subprocess.call()`
+   - Runs the Goose CLI with the transcript
+   - Operates independently from the main application
+
+This design ensures that:
+- The voice recognition system continues to function while Goose processes requests
+- Multiple conversations can be handled sequentially
+- The application remains responsive during Goose processing
+
+#### Continuous Conversation Support
+
+The system supports continuous conversations without requiring silence between commands:
+
+- During active listening, it continues to monitor for additional wake words
+- If a wake word is detected during active listening, the silence counter is reset
+- This allows for chained commands without waiting for silence
+- Example: "Hey Goose, what's the weather? Hey Goose, set a timer for 5 minutes."
+
 ## Configuration Options
 
 | Parameter | Description | Default |
@@ -175,6 +244,10 @@ During active listening, the system prioritizes capturing the complete conversat
 | `--model` | Whisper model size | "base" |
 | `--language` | Language code (optional) | None (auto-detect) |
 | `--device` | Audio input device number | None (default) |
+| `--use-lightweight-model` | Use lightweight model for wake word detection | True |
+| `--no-lightweight-model` | Don't use lightweight model for wake word detection | False |
+| `--fuzzy-threshold` | Fuzzy matching threshold for wake word (0-100) | 80 |
+| `--classifier-threshold` | Confidence threshold for classifier (0-1) | 0.6 |
 
 ### Note on Chunk Size
 
