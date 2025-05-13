@@ -126,8 +126,15 @@ The system uses an enhanced ML-based classifier to determine if speech is addres
                                                                  ▼
                                                    ┌─────────────────────────┐
                                                    │                         │
-                                                   │   Invoke Agent          │
-                                                   │   (if configured)       │
+                                                   │   Invoke Goose Agent    │
+                                                   │   (via agent.py)        │
+                                                   └─────────────┬───────────┘
+                                                                 │
+                                                                 ▼
+                                                   ┌─────────────────────────┐
+                                                   │                         │
+                                                   │   Goose Process         │
+                                                   │   (Background Thread)   │
                                                    └─────────────────────────┘
 ```
 
@@ -186,18 +193,37 @@ During active listening, the system prioritizes capturing the complete conversat
 
 ### Agent Integration
 
-The system can invoke an external agent script when a conversation is complete:
+The system directly integrates with Goose through the `agent.py` module:
 
-- Specify an agent script with `--agent path/to/agent.py`
-- The agent receives the transcript and audio file paths as arguments
-- A default agent.py is provided that demonstrates basic intent detection
-- The agent runs as a subprocess, allowing for independent processing
-- Agents can be written in any language as long as they accept the transcript and audio paths
+- When a conversation is complete, `listen.py` directly calls `agent.process_conversation()`
+- The agent reads the transcript and prepares it for Goose with appropriate instructions
+- Goose is invoked with the command: `goose run --name voice -t "The user has spoken the following..."`
+- The Goose process runs in a separate thread to avoid blocking the main application
+- All Goose interactions happen in the `~/Documents/voice` directory
 
-Example agent invocation:
-```bash
-./agent.py path/to/transcript.txt path/to/audio.wav
-```
+#### Concurrency Model
+
+The system uses a multi-threaded approach to handle Goose interactions:
+
+1. **Main Thread (listen.py)**
+   - Detects wake words, processes conversations
+   - Calls `agent.process_conversation()` when a conversation is complete
+   - Continues listening for new wake words immediately
+
+2. **Agent Thread (agent.py)**
+   - Created by `agent.process_conversation()`
+   - Runs `run_goose_in_background()` in a daemon thread
+   - Daemon threads don't block program exit
+
+3. **Goose Process**
+   - Started by the agent thread using `subprocess.call()`
+   - Runs the Goose CLI with the transcript
+   - Operates independently from the main application
+
+This design ensures that:
+- The voice recognition system continues to function while Goose processes requests
+- Multiple conversations can be handled sequentially
+- The application remains responsive during Goose processing
 
 #### Continuous Conversation Support
 
@@ -222,7 +248,6 @@ The system supports continuous conversations without requiring silence between c
 | `--no-lightweight-model` | Don't use lightweight model for wake word detection | False |
 | `--fuzzy-threshold` | Fuzzy matching threshold for wake word (0-100) | 80 |
 | `--classifier-threshold` | Confidence threshold for classifier (0-1) | 0.6 |
-| `--agent` | Path to agent script to invoke when conversation is complete | None |
 
 ### Note on Chunk Size
 

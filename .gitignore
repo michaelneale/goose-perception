@@ -3,3 +3,4 @@ recordings
 wake-classifier/mlruns
 wake-classifier/__pycache__
 wake-classifier/model
+__pycache__

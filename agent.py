@@ -47,6 +47,9 @@ def process_conversation(transcript_path, audio_path):
     Args:
         transcript_path (str): Path to the transcript file
         audio_path (str): Path to the audio file
+        
+    Returns:
+        dict: Information about the processed conversation
     """
     # Read the transcript
     try:

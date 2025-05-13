@@ -21,6 +21,10 @@ from collections import deque
 import sys
 from fuzzywuzzy import fuzz
 
+# Import our agent module
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import agent
+
 # Add the wake-classifier directory to the path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-classifier'))
 
@@ -255,8 +259,6 @@ def main():
                         help=f"Fuzzy matching threshold for wake word detection (0-100, default: {DEFAULT_FUZZY_THRESHOLD})")
     parser.add_argument("--classifier-threshold", type=float, default=DEFAULT_CLASSIFIER_THRESHOLD,
                         help=f"Confidence threshold for wake word classifier (0-1, default: {DEFAULT_CLASSIFIER_THRESHOLD})")
-    parser.add_argument("--agent", type=str, default=None,
-                        help="Path to agent script to invoke when conversation is complete")
     args = parser.parse_args()
 
     if args.list_devices:
@@ -443,30 +445,17 @@ def main():
                             conversation_counter += 1
                             
                             # If an agent is specified, invoke it with the transcript and audio file
-                            if args.agent:
-                                try:
-                                    import subprocess
-                                    print(f"🤖 Invoking agent: {args.agent}")
-                                    
-                                    # Run the agent as a subprocess
-                                    agent_process = subprocess.Popen(
-                                        [args.agent, transcript_file, conversation_file],
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE,
-                                        text=True
-                                    )
-                                    
-                                    # Get the output and error
-                                    agent_output, agent_error = agent_process.communicate()
-                                    
-                                    # Check if the agent ran successfully
-                                    if agent_process.returncode == 0:
-                                        if agent_output.strip():
-                                            print(f"Agent output:\n{agent_output.strip()}")
-                                    else:
-                                        print(f"⚠️ Agent error (code {agent_process.returncode}):\n{agent_error}")
-                                except Exception as e:
-                                    print(f"⚠️ Error invoking agent: {e}")
+                            try:
+                                print(f"🤖 Invoking agent module directly")
+                                # Call the agent's process_conversation function directly
+                                agent_result = agent.process_conversation(transcript_file, conversation_file)
+                                
+                                if agent_result and agent_result.get("background_process_started"):
+                                    print(f"✅ Agent started processing in background")
+                                else:
+                                    print(f"⚠️ Agent may not have started properly")
+                            except Exception as e:
+                                print(f"⚠️ Error invoking agent: {e}")
                         
                         # Reset for next conversation
                         is_active_listening = False
