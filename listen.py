@@ -400,19 +400,14 @@ def main():
                         
                         # Process the full conversation (context + active)
                         all_audio = []
-                        all_transcripts = []
                         
-                        # First add the context buffer
-                        for context_audio, _, context_transcript in context_buffer:
+                        # First add the context buffer audio (ignore lightweight transcripts)
+                        for context_audio, _, _ in context_buffer:
                             all_audio.append(context_audio)
-                            if context_transcript:
-                                all_transcripts.append(context_transcript)
                         
-                        # Then add the active conversation
-                        for conv_audio, _, conv_transcript in active_conversation_chunks:
+                        # Then add the active conversation audio
+                        for conv_audio, _, _ in active_conversation_chunks:
                             all_audio.append(conv_audio)
-                            if conv_transcript:
-                                all_transcripts.append(conv_transcript)
                         
                         # Concatenate all audio
                         if all_audio:
@@ -426,8 +421,10 @@ def main():
                             )
                             save_audio_chunk(full_audio, conversation_file)
                             
-                            # Create the full transcript
-                            full_transcript = " ".join(all_transcripts)
+                            # Re-transcribe the entire audio with the main model for high quality
+                            print("Re-transcribing full conversation with main model...")
+                            full_result = main_model.transcribe(conversation_file, language=args.language)
+                            full_transcript = full_result["text"].strip()
                             
                             # Save the transcript
                             transcript_file = os.path.join(
@@ -437,7 +434,7 @@ def main():
                             with open(transcript_file, "w") as f:
                                 f.write(full_transcript)
                             
-                            print(f"📝 FULL CONVERSATION TRANSCRIPT:")
+                            print(f"📝 FULL CONVERSATION TRANSCRIPT (transcribed with main model):")
                             print("-"*80)
                             print(full_transcript)
                             print("-"*80)

@@ -113,7 +113,7 @@ The system uses an enhanced ML-based classifier to determine if speech is addres
                                                    ┌─────────────────────────┐
                                                    │                         │
                                                    │  Full Transcription     │
-                                                   │  (Combine All Chunks)   │
+                                                   │  (Using Main Model)     │
                                                    └─────────────┬───────────┘
                                                                  │
                                                                  ▼
@@ -151,6 +151,7 @@ The system uses an enhanced ML-based classifier to determine if speech is addres
 4. **Full Conversations**
    - Combines context buffer + active listening period
    - Captures speech before, during, and after wake word
+   - Re-transcribes the entire audio using the main model
    - Saved as complete audio and transcript files
 
 5. **Periodic Long Transcriptions (60 seconds)**

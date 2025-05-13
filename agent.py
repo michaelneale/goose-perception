@@ -1,20 +1,48 @@
 #!/usr/bin/env python3
 """
-agent.py - Process transcribed conversations and take actions based on them
+agent.py - Process transcribed conversations and invoke Goose with the transcript
 
-This is a simple agent that can be invoked by listen.py when a conversation is complete.
-It receives the transcript and audio file paths as arguments and can take actions based on the content.
+This agent is invoked by listen.py when a conversation is complete.
+It reads the transcript and passes it to the Goose CLI with appropriate instructions.
+The Goose process runs in the background to avoid blocking the main process.
 """
 
 import argparse
 import sys
-import json
 import os
+import subprocess
+import threading
 from datetime import datetime
+
+def run_goose_in_background(full_input, voice_dir):
+    """
+    Run the Goose command in a background thread
+    
+    Args:
+        full_input (str): The complete input to pass to Goose
+        voice_dir (str): The directory to run Goose from
+    """
+    try:
+        # Save current directory
+        current_dir = os.getcwd()
+        
+        # Change to voice directory
+        os.chdir(voice_dir)
+        
+        # Execute the command
+        cmd = f"goose run --name voice -t \"{full_input}\""
+        print(f"Executing: {cmd}")
+        subprocess.call(cmd, shell=True)
+        
+        # Change back to original directory
+        os.chdir(current_dir)
+        
+    except Exception as e:
+        print(f"Error in Goose thread: {e}")
 
 def process_conversation(transcript_path, audio_path):
     """
-    Process a conversation transcript and take appropriate actions
+    Process a conversation transcript and invoke Goose in a non-blocking way
     
     Args:
         transcript_path (str): Path to the transcript file
@@ -44,62 +72,86 @@ def process_conversation(transcript_path, audio_path):
     print(transcript)
     print("-"*80)
     
-    # Here you would add your agent logic to:
-    # 1. Parse the transcript for intent
-    # 2. Extract relevant information
-    # 3. Take appropriate actions
+    # Prepare the instruction to prefix the transcript
+    instruction = "The user has spoken the following, please note this is a transcription so some may be not relevant: "
     
-    # For now, we'll just do a simple keyword analysis
-    keywords = {
-        "weather": "I detected a question about weather. I would check a weather API.",
-        "time": "I detected a question about time. Current time is " + datetime.now().strftime("%H:%M:%S"),
-        "reminder": "I detected a request to set a reminder. I would create a reminder.",
-        "search": "I detected a search request. I would perform a web search.",
-        "play": "I detected a request to play media. I would start playing requested content.",
-    }
+    # Combine instruction and transcript
+    full_input = instruction + transcript
     
-    detected_intents = []
-    for keyword, response in keywords.items():
-        if keyword in transcript.lower():
-            detected_intents.append(response)
+    # Change to the voice directory
+    voice_dir = os.path.expanduser("~/Documents/voice")
     
-    if detected_intents:
-        print("DETECTED INTENTS:")
-        for intent in detected_intents:
-            print(f"• {intent}")
-    else:
-        print("No specific intents detected. I would ask for clarification.")
+    # Ensure the directory exists
+    if not os.path.exists(voice_dir):
+        print(f"Creating directory: {voice_dir}")
+        os.makedirs(voice_dir)
     
-    # Create a response object that could be used by other systems
-    response = {
+    # Invoke Goose with the transcript in a background thread
+    print(f"Invoking Goose from {voice_dir} in background...")
+    
+    # Create and start the thread
+    goose_thread = threading.Thread(
+        target=run_goose_in_background,
+        args=(full_input, voice_dir),
+        daemon=True  # Make it a daemon thread so it doesn't block program exit
+    )
+    goose_thread.start()
+    
+    print("Goose process started in background. Continuing...")
+    print("="*80)
+    
+    # Return immediately, allowing the main process to continue
+    return {
         "timestamp": timestamp,
         "transcript": transcript,
         "transcript_path": transcript_path,
         "audio_path": audio_path,
-        "detected_intents": detected_intents,
+        "background_process_started": True
     }
-    
-    # You could save this to a file, send it to another service, etc.
-    # For now, just print it as JSON
-    print("-"*80)
-    print("AGENT RESPONSE OBJECT:")
-    print(json.dumps(response, indent=2))
-    print("="*80)
-    
-    return response
 
 def main():
-    parser = argparse.ArgumentParser(description="Process transcribed conversations")
-    parser.add_argument("transcript", help="Path to the transcript file")
-    parser.add_argument("audio", help="Path to the audio file")
-    parser.add_argument("--json", action="store_true", help="Output only JSON response")
+    parser = argparse.ArgumentParser(description="Process transcribed conversations and invoke Goose")
+    parser.add_argument("transcript", help="Path to the transcript file", nargs='?')
+    parser.add_argument("audio", help="Path to the audio file", nargs='?')
+    parser.add_argument("--test", action="store_true", help="Run a test with a sample message")
     args = parser.parse_args()
     
-    response = process_conversation(args.transcript, args.audio)
+    if args.test:
+        # Create a temporary transcript file with a test message
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+            temp_file.write("Can you write hello.txt with a joke in it please")
+            temp_transcript = temp_file.name
+        
+        print(f"Created test transcript file: {temp_transcript}")
+        
+        # Use a dummy audio path
+        temp_audio = "test_audio.wav"
+        
+        # Process the test conversation
+        process_conversation(temp_transcript, temp_audio)
+        
+        # Wait a bit to see some output
+        print("Test mode: Waiting for a few seconds to see output...")
+        import time
+        for i in range(10):
+            time.sleep(1)
+            print(f"Waiting... ({i+1}/10 seconds)")
+        
+        # Clean up the temporary file
+        try:
+            os.unlink(temp_transcript)
+            print(f"Cleaned up test transcript file")
+        except:
+            pass
     
-    if args.json and response:
-        # If JSON output is requested, print only the JSON response
-        print(json.dumps(response))
+    elif args.transcript and args.audio:
+        # Normal operation with provided files
+        process_conversation(args.transcript, args.audio)
+    
+    else:
+        parser.print_help()
+        print("\nTip: Run with --test to try a test message")
 
 if __name__ == "__main__":
     main()
