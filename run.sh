@@ -27,7 +27,6 @@ export TOKENIZERS_PARALLELISM=false
 # Run the listen.py script with default device detection
 # The script already has device detection capabilities
 python listen.py \
-  --model base \
   --recordings-dir "$RECORDINGS_DIR" \
   --context-seconds $CONTEXT_SECONDS \
   --silence-seconds $SILENCE_SECONDS \

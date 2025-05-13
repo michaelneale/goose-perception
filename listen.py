@@ -28,7 +28,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-c
 from classifier import GooseWakeClassifier
 
 # Initialize the Whisper models
-def load_model(model_name, use_tiny_for_wake_word=True):
+def load_models():
     print(f"Loading Whisper models...")
     # Suppress the FP16 warning
     import warnings
@@ -38,18 +38,11 @@ def load_model(model_name, use_tiny_for_wake_word=True):
     # For now, we'll use CPU for better compatibility
     
     # Load the main model for full transcription
-    print(f"Loading main model: {model_name}...")
-    main_model = whisper.load_model(model_name)
+    print(f"Loading main transcription model ...")
+    main_model = whisper.load_model("small")
     
-    # Load a lightweight model for wake word detection if requested
-    wake_word_model = None
-    if use_tiny_for_wake_word and model_name != "tiny":
-        print(f"Loading lightweight model: tiny (for wake word detection)...")
-        wake_word_model = whisper.load_model("tiny")
-    else:
-        # If the main model is already tiny or user disabled the feature, use the same model
-        print(f"Using {model_name} model for both wake word detection and full transcription")
-        wake_word_model = main_model
+    print(f"Loading lightweight model for wake word detection...")
+    wake_word_model = whisper.load_model("base")
     
     print("Using CPU for Whisper models (MPS has compatibility issues with sparse tensors)")
     return main_model, wake_word_model
@@ -207,10 +200,12 @@ def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_thr
             
             # Check if confidence meets threshold
             if is_addressed and confidence >= classifier_threshold:
-                print(f"Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
                 return True
             elif is_addressed:
-                print(f"Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+                print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+            else:
+                print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
             return False
     
     # Second check: fuzzy match for "goose" (only if exact match failed)
@@ -228,10 +223,12 @@ def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_thr
                 
                 # Check if confidence meets threshold
                 if is_addressed and confidence >= classifier_threshold:
-                    print(f"Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                    print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
                     return True
                 elif is_addressed:
-                    print(f"Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+                    print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+                else:
+                    print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
     
     return False
 
@@ -241,7 +238,6 @@ def is_silence(audio_data, threshold=SILENCE_THRESHOLD):
 
 def main():
     parser = argparse.ArgumentParser(description="Listen to audio and transcribe using Whisper")
-    parser.add_argument("--model", type=str, default="base", help="Whisper model size (tiny, base, small, medium, large)")
     parser.add_argument("--language", type=str, default=None, help="Language code (optional, e.g., 'en', 'es', 'fr')")
     parser.add_argument("--device", type=int, default=None, help="Audio input device index")
     parser.add_argument("--channels", type=int, default=CHANNELS, help="Number of audio channels (default: 1)")
@@ -273,7 +269,7 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     # Load the Whisper model
-    main_model, wake_word_model = load_model(args.model, args.use_lightweight_model)
+    main_model, wake_word_model = load_models()
     print(f"Models loaded. Using {'default' if args.device is None else f'device {args.device}'} for audio input.")
     print(f"Listening for wake word: 'goose' (fuzzy threshold: {args.fuzzy_threshold}, classifier threshold: {args.classifier_threshold})")
     

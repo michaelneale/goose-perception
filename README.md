@@ -2,7 +2,7 @@
 
 <img src="goose.png" alt="Goose Logo" width="150" align="right"/>
 
-A real-time audio transcription tool using Whisper, with wake word detection and conversation capture.
+A real-time audio agent activation tool using local transcription models, with custom wake word detection model and conversation capture.
 
 ## Setup
 
