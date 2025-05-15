@@ -179,7 +179,7 @@ def get_transcription_result(timeout=None):
     
     return result
 
-def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_threshold=0.6):
+def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_threshold=0.6, recordings_dir="recordings"):
     """
     Check if the text contains the wake word 'goose' and is addressed to Goose
     
@@ -188,14 +188,19 @@ def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_thr
         classifier (GooseWakeClassifier): The classifier to use
         fuzzy_threshold (int): Minimum fuzzy match score (0-100) for wake word detection
         classifier_threshold (float): Minimum confidence threshold (0-1) for classifier
+        recordings_dir (str): Directory to save activation logs
         
     Returns:
         bool: True if wake word detected and addressed to Goose, False otherwise
     """
     text_lower = text.lower()
+    wake_word_detected = False
+    is_addressed = False
+    confidence = 0.0
     
     # First check: exact match for "goose"
     if "goose" in text_lower:
+        wake_word_detected = True
         print(f"Detected exact wake word 'goose'... checking classifier now..")
         if classifier:
             details = classifier.classify_with_details(text)
@@ -205,36 +210,78 @@ def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_thr
             # Check if confidence meets threshold
             if is_addressed and confidence >= classifier_threshold:
                 print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                # Log the successful activation
+                log_activation_transcript(text, True, confidence, recordings_dir)
                 return True
             elif is_addressed:
                 print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
             else:
                 print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
+            
+            # Log the bypassed activation
+            log_activation_transcript(text, False, confidence, recordings_dir)
             return False
     
     # Second check: fuzzy match for "goose" (only if exact match failed)
     # Split text into words and check each one
-    words = text_lower.split()
-    for word in words:
-        # Calculate fuzzy match score
-        score = fuzz.ratio("goose", word)
-        if score >= fuzzy_threshold:
-            print(f"Detected fuzzy wake word match: '{word}' with score {score}... checking classifier now..")
-            if classifier:
-                details = classifier.classify_with_details(text)
-                is_addressed = details["addressed_to_goose"]
-                confidence = details["confidence"]
-                
-                # Check if confidence meets threshold
-                if is_addressed and confidence >= classifier_threshold:
-                    print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
-                    return True
-                elif is_addressed:
-                    print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
-                else:
-                    print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
+    if not wake_word_detected:
+        words = text_lower.split()
+        for word in words:
+            # Calculate fuzzy match score
+            score = fuzz.ratio("goose", word)
+            if score >= fuzzy_threshold:
+                wake_word_detected = True
+                print(f"Detected fuzzy wake word match: '{word}' with score {score}... checking classifier now..")
+                if classifier:
+                    details = classifier.classify_with_details(text)
+                    is_addressed = details["addressed_to_goose"]
+                    confidence = details["confidence"]
+                    
+                    # Check if confidence meets threshold
+                    if is_addressed and confidence >= classifier_threshold:
+                        print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                        # Log the successful activation
+                        log_activation_transcript(text, True, confidence, recordings_dir)
+                        return True
+                    elif is_addressed:
+                        print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+                    else:
+                        print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
+                    
+                    # Log the bypassed activation
+                    log_activation_transcript(text, False, confidence, recordings_dir)
+                break
     
     return False
+
+def log_activation_transcript(text, triggered, confidence, recordings_dir):
+    """
+    Log activation transcripts for analysis and retraining
+    
+    Args:
+        text (str): The transcript text
+        triggered (bool): Whether this activation triggered Goose
+        confidence (float): The classifier confidence score
+        recordings_dir (str): Directory to save logs
+    """
+    try:
+        # Create a timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        prefix = "activation_triggered" if triggered else "activation_bypassed"
+        filename = f"{prefix}_{timestamp}.txt"
+        filepath = os.path.join(recordings_dir, filename)
+        
+        # Save the transcript with metadata
+        with open(filepath, "w") as f:
+            f.write(f"TIMESTAMP: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"CONFIDENCE: {confidence:.4f}\n")
+            f.write(f"TRIGGERED: {triggered}\n")
+            f.write("TRANSCRIPT:\n")
+            f.write(text)
+        
+        print(f"Saved activation transcript to {filepath}")
+    except Exception as e:
+        print(f"Error saving activation transcript: {e}")
 
 def is_silence(audio_data, threshold=SILENCE_THRESHOLD):
     """Check if audio chunk is silence based on amplitude threshold"""
@@ -382,7 +429,7 @@ def main():
                     
                     # Check for wake word during active listening
                     # This allows for chained commands without waiting for silence
-                    if contains_wake_word(transcript, classifier, args.fuzzy_threshold, args.classifier_threshold):
+                    if contains_wake_word(transcript, classifier, args.fuzzy_threshold, args.classifier_threshold, args.recordings_dir):
                         print(f"\n🔔 ADDITIONAL WAKE WORD DETECTED DURING ACTIVE LISTENING!")
                         print(f"Continuing to listen...")
                         # Reset the silence counter to keep listening
@@ -479,7 +526,8 @@ def main():
                 
                 # Check for wake word using the classifier with our thresholds
                 if quick_transcript and contains_wake_word(quick_transcript, classifier, 
-                                                         args.fuzzy_threshold, args.classifier_threshold):
+                                                         args.fuzzy_threshold, args.classifier_threshold,
+                                                         args.recordings_dir):
                     timestamp = datetime.now().strftime('%H:%M:%S')
                     print(f"\n{'='*80}")
                     print(f"🔔 WAKE WORD DETECTED at {timestamp}!")

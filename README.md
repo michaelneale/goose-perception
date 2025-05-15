@@ -191,6 +191,13 @@ During active listening, the system prioritizes capturing the complete conversat
 - Each conversation includes speech from before the wake word was detected
 - The system also saves periodic transcriptions every minute
 
+### Activation Logging for Training
+- The system logs all wake word activations for analysis and model improvement
+- Successful activations are saved as `activation_triggered_[timestamp].txt`
+- Bypassed activations (when "goose" is detected but not addressed to Goose) are saved as `activation_bypassed_[timestamp].txt`
+- Each log includes the transcript, confidence score, and timestamp
+- These logs can be used to retrain the wake word classifier to improve accuracy
+
 ### Agent Integration
 
 The system directly integrates with Goose through the `agent.py` module:
