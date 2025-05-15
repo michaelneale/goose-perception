@@ -29,6 +29,10 @@ def run_goose_in_background(full_input, voice_dir):
         # Change to voice directory
         os.chdir(voice_dir)
         
+        # Notify user that Goose is running
+        notify_cmd = "osascript -e 'display notification \"Task is currently running...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'"
+        subprocess.call(notify_cmd, shell=True)
+
         # Execute the command
         cmd = f"goose run --name voice -t \"{full_input}\""
         print(f"Executing: {cmd}")
