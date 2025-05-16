@@ -30,13 +30,6 @@ train-classifier: setup-venv
     uv pip install accelerate
     cd wake-classifier && python train_classifier.py
 
-# Generate additional training examples
-generate-examples: setup-venv
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Generating additional training examples..."
-    source .venv/bin/activate
-    cd wake-classifier && python generate_examples.py
 
 # Test the classifier with a sample text
 test-classifier TEXT="Hey Goose, what's the weather like today?": setup-venv
@@ -64,6 +57,3 @@ clean:
     find . -type f -name "*.pyc" -delete
     echo "Cleanup complete!"
 
-# Full workflow: generate examples, train classifier, and test
-full-workflow: generate-examples train-classifier
-    @echo "Full workflow completed successfully!"
