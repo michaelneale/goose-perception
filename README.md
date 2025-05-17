@@ -6,6 +6,8 @@ A real-time audio agent activation tool using local transcription models, with c
 
 ## Setup
 
+Good luck as this is WIP - still early stages. It will download models but the first time you will still need to run the wake-classifier training run via `just train-classifier` 
+
 1. Create a virtual environment and install dependencies:
 ```bash
 uv venv
