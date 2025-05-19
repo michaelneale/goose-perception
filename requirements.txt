@@ -11,3 +11,5 @@ datasets>=2.12.0
 accelerate>=0.26.0
 fuzzywuzzy>=0.18.0
 python-Levenshtein>=0.27.1
+speechbrain>=0.5.16
+scipy>=1.10.0

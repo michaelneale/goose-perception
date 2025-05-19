@@ -20,10 +20,12 @@ from datetime import datetime
 from collections import deque
 import sys
 from fuzzywuzzy import fuzz
+import soundfile as sf
 
 # Import our agent module
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import agent
+import diarization
 
 # Add the wake-classifier directory to the path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-classifier'))
@@ -105,7 +107,6 @@ def audio_callback(indata, frames, time_info, status):
 
 def save_audio_chunk(audio_data, filename):
     """Save audio data to a WAV file."""
-    import soundfile as sf
     sf.write(filename, audio_data, SAMPLE_RATE)
 
 def transcribe_audio_thread(model, audio_file, language=None):
@@ -470,10 +471,45 @@ def main():
                             )
                             save_audio_chunk(full_audio, conversation_file)
                             
-                            # Re-transcribe the entire audio with the main model for high quality
-                            print("Re-transcribing full conversation with main model...")
-                            full_result = main_model.transcribe(conversation_file, language=args.language)
-                            full_transcript = full_result["text"].strip()
+                            # Get a transcript with timing information to find wake word segments
+                            quick_result = wake_word_model.transcribe(
+                                conversation_file,
+                                language=args.language,
+                                word_timestamps=True
+                            )
+                            
+                            # Find segments containing wake word
+                            wake_segments = []
+                            for segment in quick_result["segments"]:
+                                if "goose" in segment["text"].lower():
+                                    wake_segments.append(segment)
+                            
+                            # Try to get just the wake word speaker's audio
+                            speaker_audio, sample_rate = diarization.get_speaker_audio(
+                                conversation_file, 
+                                wake_segments
+                            )
+                            
+                            if speaker_audio is not None:
+                                # Save speaker audio temporarily
+                                speaker_file = os.path.join(temp_dir, "wake_speaker.wav")
+                                sf.write(speaker_file, speaker_audio, sample_rate)
+                                
+                                # Transcribe just the wake word speaker's audio
+                                print("Transcribing wake word speaker's audio...")
+                                speaker_result = main_model.transcribe(speaker_file, language=args.language)
+                                full_transcript = speaker_result["text"].strip()
+                                
+                                # Clean up temporary speaker file
+                                try:
+                                    os.remove(speaker_file)
+                                except:
+                                    pass
+                            else:
+                                print("Could not isolate wake word speaker, using full conversation audio")
+                                # Fall back to transcribing the full conversation
+                                full_result = main_model.transcribe(conversation_file, language=args.language)
+                                full_transcript = full_result["text"].strip()
                             
                             # Save the transcript
                             transcript_file = os.path.join(
@@ -483,7 +519,7 @@ def main():
                             with open(transcript_file, "w") as f:
                                 f.write(full_transcript)
                             
-                            print(f"📝 FULL CONVERSATION TRANSCRIPT (transcribed with main model):")
+                            print(f"📝 FULL CONVERSATION TRANSCRIPT:")
                             print("-"*80)
                             print(full_transcript)
                             print("-"*80)
