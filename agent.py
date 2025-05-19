@@ -12,7 +12,54 @@ import sys
 import os
 import subprocess
 import threading
+import json
 from datetime import datetime
+
+notify_cmd = "osascript -e 'display notification \"Task is currently running...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'"
+
+
+def update_history(transcript, voice_dir, max_history=20):
+    """
+    Update the history.json file with the latest transcript, keeping only the last max_history entries
+    
+    Args:
+        transcript (str): The transcript to add to history
+        voice_dir (str): The directory where history.json is stored
+        max_history (int): Maximum number of transcripts to keep in history
+        
+    Returns:
+        list: The updated history list
+    """
+    history_path = os.path.join(voice_dir, "history.json")
+    history = []
+    
+    # Load existing history if it exists
+    if os.path.exists(history_path):
+        try:
+            with open(history_path, 'r') as f:
+                history = json.load(f)
+        except json.JSONDecodeError:
+            print("Error reading history.json, starting with empty history")
+            history = []
+    
+    # Add new transcript with timestamp
+    history.append({
+        "timestamp": datetime.now().isoformat(),
+        "transcript": transcript
+    })
+    
+    # Keep only the last max_history entries
+    if len(history) > max_history:
+        history = history[-max_history:]
+    
+    # Save the updated history
+    try:
+        with open(history_path, 'w') as f:
+            json.dump(history, f, indent=2)
+    except Exception as e:
+        print(f"Error saving history.json: {e}")
+    
+    return history
 
 def run_goose_in_background(full_input, voice_dir):
     """
@@ -30,11 +77,10 @@ def run_goose_in_background(full_input, voice_dir):
         os.chdir(voice_dir)
         
         # Notify user that Goose is running
-        notify_cmd = "osascript -e 'display notification \"Task is currently running...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'"
         subprocess.call(notify_cmd, shell=True)
 
         # Execute the command
-        cmd = f"goose run --name voice -t \"{full_input}\""
+        cmd = f"goose run -t \"{full_input}\""
         print(f"Executing: {cmd}")
         subprocess.call(cmd, shell=True)
         
@@ -79,12 +125,6 @@ def process_conversation(transcript_path, audio_path):
     print(transcript)
     print("-"*80)
     
-    # Prepare the instruction to prefix the transcript
-    instruction = "The user has spoken the following, please note this is a transcription so some may be not relevant: "
-    
-    # Combine instruction and transcript
-    full_input = instruction + transcript
-    
     # Change to the voice directory
     voice_dir = os.path.expanduser("~/Documents/voice")
     
@@ -93,13 +133,30 @@ def process_conversation(transcript_path, audio_path):
         print(f"Creating directory: {voice_dir}")
         os.makedirs(voice_dir)
     
+    # Update history with the new transcript
+    history = update_history(transcript, voice_dir)
+    print(f"Updated history.json with the latest transcript (keeping last 20)")
+    
+    # Prepare the instruction to prefix the transcript
+    prompt = f"""
+    You are a helpful assistant responding to spoken commands/discussion.  
+    You can look in the history.json file if you need past conversation history if required from the transcript of the command below.
+    Please try to act on the request witout expecting further input from the user.
+    You can use a command like {notify_cmd} to notify the user if you wish to get their attention.
+    You can also use the `say` command to speak the response back to the user if needed.
+
+    Command:
+    {transcript}
+    """
+    
+    
     # Invoke Goose with the transcript in a background thread
     print(f"Invoking Goose from {voice_dir} in background...")
     
     # Create and start the thread
     goose_thread = threading.Thread(
         target=run_goose_in_background,
-        args=(full_input, voice_dir),
+        args=(prompt, voice_dir),
         daemon=True  # Make it a daemon thread so it doesn't block program exit
     )
     goose_thread.start()
