@@ -163,10 +163,6 @@ The system uses an enhanced ML-based classifier to determine if speech is addres
    - Re-transcribes the entire audio using the main model
    - Saved as complete audio and transcript files
 
-5. **Periodic Long Transcriptions (60 seconds)**
-   - Regular checkpoints saved every minute
-   - Independent of wake word detection
-   - Provides backup transcriptions of all audio
 
 ### Operating Modes
 
@@ -191,7 +187,6 @@ During active listening, the system prioritizes capturing the complete conversat
 - Complete conversations are saved as both audio (.wav) and text (.txt) files
 - Files are stored in the `recordings` directory with timestamps
 - Each conversation includes speech from before the wake word was detected
-- The system also saves periodic transcriptions every minute
 
 ### Activation Logging for Training
 - The system logs all wake word activations for analysis and model improvement

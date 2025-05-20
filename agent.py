@@ -78,14 +78,20 @@ def run_goose_in_background(full_input, voice_dir):
         
         # Notify user that Goose is running
         subprocess.call(notify_cmd, shell=True)
+        import tempfile
 
-        # Execute the command
-        cmd = f"goose run -t \"{full_input}\""
-        print(f"Executing: {cmd}")
-        subprocess.call(cmd, shell=True)
-        
-        # Change back to original directory
-        os.chdir(current_dir)
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+            f.write(full_input)
+            f.flush()
+
+            # Execute the command
+            print("Running Goose with the following input file:", f.name)
+            cmd = f"goose run -i {f.name}"
+            print(f"Executing: {cmd}")
+            subprocess.call(cmd, shell=True)
+            
+            # Change back to original directory
+            os.chdir(current_dir)
         
     except Exception as e:
         print(f"Error in Goose thread: {e}")
@@ -139,9 +145,10 @@ def process_conversation(transcript_path, audio_path):
     
     # Prepare the instruction to prefix the transcript
     prompt = f"""
-    You are a helpful assistant responding to spoken commands/discussion.  
-    You can look in the history.json file if you need past conversation history if required from the transcript of the command below.
-    Please try to act on the request witout expecting further input from the user.
+    You are a helpful assistant responding to spoken commands.
+    You can look in the history.json file if you need past conversation history if required from the transcript of the command below, take care to see if they are relevant or not.
+    Append any steps you take to actions.md in the same directory as this file which can be consulted in the future.
+    Please try to act on the request witout expecting further input from the user, noting that transcripts may have irrelevant information or sometimes be confusing.
     You can use a command like {notify_cmd} to notify the user if you wish to get their attention.
     You can also use the `say` command to speak the response back to the user if needed.
 
