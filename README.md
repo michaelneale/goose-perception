@@ -6,23 +6,10 @@ A real-time audio agent activation tool using local transcription models, with c
 
 ## Setup
 
-Good luck as this is WIP - still early stages. It will download models but the first time you will still need to run the wake-classifier training run via `just train-classifier` 
+Good luck as this is WIP - still early stages. It will download models but the first time they are needed, and train the wake classifier the first time.
 
-1. Create a virtual environment and install dependencies:
 ```bash
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
-```
-
-2. Run the application:
-```bash
-./run.sh
-```
-
-Or run with specific options:
-```bash
-python listen.py --model [tiny|base|small|medium|large] --device [device_number]
+just run
 ```
 
 > **Note:** The application sets `TOKENIZERS_PARALLELISM=false` to avoid warnings from the Hugging Face tokenizers library. If you run into any issues with tokenizers, you can manually set this environment variable: `export TOKENIZERS_PARALLELISM=false`

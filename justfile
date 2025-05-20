@@ -43,6 +43,10 @@ test-classifier TEXT="Hey Goose, what's the weather like today?": setup-venv
 run: setup-venv
     #!/usr/bin/env bash
     set -euo pipefail
+    if [ ! -d "wake-classifier/model/final" ]; then
+        echo "Error: Wake classifier model not found. Please run 'just train-classifier' first."
+        exit 1
+    fi
     echo "Starting Goose Voice..."
     source .venv/bin/activate
     ./run.sh
