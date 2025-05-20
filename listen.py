@@ -57,7 +57,12 @@ CHANNELS = 1  # Mono audio
 DTYPE = 'float32'
 BUFFER_DURATION = 2  # Duration in seconds for each audio chunk
 LONG_BUFFER_DURATION = 60  # Duration in seconds for the longer context (1 minute)
-SILENCE_THRESHOLD = 0.01  # Threshold for silence detection
+
+# Audio threshold settings
+SILENCE_THRESHOLD = 0.01  # Base threshold for silence detection
+NOISE_FLOOR_THRESHOLD = 0.005  # Threshold for background noise floor
+SPEECH_ACTIVITY_THRESHOLD = 0.02  # Threshold for detecting actual speech
+MAX_NOISE_RATIO = 0.7  # Maximum ratio of noise to signal for accepting audio
 
 # Default configuration - these can be overridden by command line arguments
 # and should match the defaults in run.sh
@@ -287,6 +292,55 @@ def is_silence(audio_data, threshold=SILENCE_THRESHOLD):
     """Check if audio chunk is silence based on amplitude threshold"""
     return np.mean(np.abs(audio_data)) < threshold
 
+def analyze_audio(audio_data):
+    """
+    Analyze audio data to determine if it contains speech or just noise.
+    
+    Returns:
+        dict: Analysis results containing:
+            - is_silence: Whether the audio is below silence threshold
+            - is_speech: Whether the audio appears to contain speech
+            - signal_level: The average signal level
+            - noise_ratio: Estimated ratio of noise to signal
+    """
+    # Calculate basic metrics
+    abs_data = np.abs(audio_data)
+    mean_level = np.mean(abs_data)
+    
+    # Calculate more advanced metrics
+    std_dev = np.std(abs_data)  # Standard deviation helps distinguish noise from speech
+    peak_level = np.max(abs_data)  # Peak level
+    
+    # Zero-crossing rate can help distinguish speech from noise
+    # Speech typically has lower zero-crossing rate than noise
+    zero_crossings = np.sum(np.diff(np.signbit(audio_data).astype(int)) != 0)
+    zero_crossing_rate = zero_crossings / len(audio_data)
+    
+    # Calculate noise ratio (lower is better)
+    # For speech, std_dev is usually higher relative to mean
+    noise_ratio = 0.0
+    if peak_level > 0:
+        noise_ratio = mean_level / (peak_level * std_dev + 1e-10)
+    
+    # Determine if this is silence
+    is_silence = mean_level < SILENCE_THRESHOLD
+    
+    # Determine if this is likely speech vs noise
+    # Speech typically has higher variance and lower zero-crossing rate than noise
+    is_speech = (
+        mean_level >= SPEECH_ACTIVITY_THRESHOLD and
+        noise_ratio < MAX_NOISE_RATIO and
+        zero_crossing_rate < 0.5  # Typical threshold for speech
+    )
+    
+    return {
+        "is_silence": is_silence,
+        "is_speech": is_speech,
+        "signal_level": mean_level,
+        "noise_ratio": noise_ratio,
+        "zero_crossing_rate": zero_crossing_rate
+    }
+
 def main():
     parser = argparse.ArgumentParser(description="Listen to audio and transcribe using Whisper")
     parser.add_argument("--language", type=str, default=None, help="Language code (optional, e.g., 'en', 'es', 'fr')")
@@ -306,6 +360,16 @@ def main():
                         help=f"Fuzzy matching threshold for wake word detection (0-100, default: {DEFAULT_FUZZY_THRESHOLD})")
     parser.add_argument("--classifier-threshold", type=float, default=DEFAULT_CLASSIFIER_THRESHOLD,
                         help=f"Confidence threshold for wake word classifier (0-1, default: {DEFAULT_CLASSIFIER_THRESHOLD})")
+    parser.add_argument("--silence-threshold", type=float, default=SILENCE_THRESHOLD,
+                        help=f"Threshold for silence detection (default: {SILENCE_THRESHOLD})")
+    parser.add_argument("--speech-threshold", type=float, default=SPEECH_ACTIVITY_THRESHOLD,
+                        help=f"Threshold for speech activity detection (default: {SPEECH_ACTIVITY_THRESHOLD})")
+    parser.add_argument("--noise-ratio", type=float, default=MAX_NOISE_RATIO,
+                        help=f"Maximum noise-to-signal ratio to accept audio (default: {MAX_NOISE_RATIO})")
+    parser.add_argument("--noise-reduction", action="store_true", default=True,
+                        help="Enable enhanced noise reduction (default: True)")
+    parser.add_argument("--no-noise-reduction", action="store_false", dest="noise_reduction",
+                        help="Disable enhanced noise reduction")
     args = parser.parse_args()
 
     if args.list_devices:
@@ -566,30 +630,6 @@ def main():
                 # If we're not in active mode and not processing wake word, 
                 # we don't need to start a background transcription
                 
-            # Check if it's time for a long transcription (every minute)
-            current_time = time.time()
-            if current_time - last_long_transcription_time >= LONG_BUFFER_DURATION:
-                # Process the context buffer for a periodic long transcription
-                if context_buffer and not is_active_listening:
-                    # Concatenate all audio chunks in the buffer
-                    buffer_audio = [chunk[0] for chunk in context_buffer]
-                    if buffer_audio:
-                        long_audio = np.concatenate(buffer_audio)
-                        
-                        # Save the long audio to a file in the recordings directory
-                        long_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        long_file = os.path.join(args.recordings_dir, f"periodic_{long_timestamp}.wav")
-                        save_audio_chunk(long_audio, long_file)
-                        
-                        # We'll transcribe this in the background when we have a chance
-                        # For now, just save the audio file
-                        print("\n" + "-"*80)
-                        print(f"📝 PERIODIC AUDIO SAVED [{datetime.now().strftime('%H:%M:%S')}]")
-                        print(f"📜 Saved to {long_file}")
-                        print("-"*80)
-                
-                # Reset the timer
-                last_long_transcription_time = current_time
             
             # Clean up the temporary file if it's not in use
             if temp_file != current_temp_file and \
