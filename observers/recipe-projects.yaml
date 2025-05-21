@@ -2,7 +2,7 @@ version: 1.0.0
 title: Conversations
 author:
   contact: mic
-description: Who has the user talked to in the past 2 days in slack
+description: project analysis
 instructions: use the glean extension but be careful to not fetch too much data
 extensions:
 - type: stdio
@@ -16,9 +16,5 @@ extensions:
   description: Glean search of company knowledge with personal perspective  
 
 prompt: |
-  who has mic interacted with in slack in the past 2 days
-  what topics were discussed
-  look at last 2 days of sent emails
-  extract themes and project names
-
-  Save this report to ~/.local/share/goose-perception/INTERACTIONS.md
+  look in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md and use glean to clarify what project names or initivives are being worked on. 
+  You can update WORK.md with clarifications for this in the last paragraph if needed.

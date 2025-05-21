@@ -12,6 +12,11 @@ mkdir -p "$SCREENSHOT_DIR"
 PERCEPTION_DIR="$HOME/.local/share/goose-perception"
 mkdir -p "$PERCEPTION_DIR"
 
+# initialize with data
+#goose run --recipe recipe-contributions.yaml --no-session
+#goose run --recipe recipe-interactions.yaml --no-session
+#goose run --recipe recipe-projects.yaml --no-session
+
 # Function to capture screenshots of all displays
 capture_screenshots() {
   # Get current timestamp for unique filenames
