@@ -1,0 +1,24 @@
+version: 1.0.0
+title: Conversations
+author:
+  contact: mic
+description: Who has the user talked to in the past 2 days in slack
+instructions: Your job is to work out who the user has communicated to recently
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+
+- type: stdio
+  name: glean
+  cmd: uvx
+  args:
+  - mcp_glean@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: Search QAI's index directly from goose  
+
+prompt: who has micn talked to in slack in the last 2 days (use glean)
