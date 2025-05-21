@@ -10,7 +10,6 @@ extensions:
   display_name: Developer
   timeout: 300
   bundled: true
-
 - type: stdio
   name: glean
   cmd: uvx
@@ -19,6 +18,6 @@ extensions:
   envs: {}
   env_keys: []
   timeout: null
-  description: Search QAI's index directly from goose  
+  description: Glean search of company knowledge with personal perspective  
 
 prompt: who has micn talked to in slack in the last 2 days (use glean)

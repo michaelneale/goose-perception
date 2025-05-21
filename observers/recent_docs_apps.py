@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-recent.py - A script to show recently modified files and running applications on macOS
+recent_docs_apps.py - A script to show recently modified files and running applications on macOS
+Runs every 30 minutes and writes output to ~/.local/share/goose-perception/files-docs.txt
 """
 
 import os
 import subprocess
 import datetime
 import sys
+import time
 from pathlib import Path
 
 def run_command(command):
@@ -19,7 +21,7 @@ def run_command(command):
         print(f"Error executing command: {e}")
         return ""
 
-def get_recent_files(directory="~/", days=7, limit=20):
+def get_recent_files(directory="~/", days=2, limit=200):
     """Get recently modified files in the specified directory"""
     home_dir = os.path.expanduser(directory)
     print(f"\n\033[1m🕒 Recently Modified Files in {directory} (last {days} days):\033[0m")
@@ -96,20 +98,52 @@ def get_open_windows():
     else:
         print("Unable to retrieve window information")
 
+def generate_report(days=7, limit=20):
+    """Generate the report and return it as a string"""
+    # Create a string buffer to capture the output
+    import io
+    from contextlib import redirect_stdout
+    
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        print("\033[1m===== Recent Files and Running Applications =====\033[0m")
+        print(f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Get recent files
+        get_recent_files("~/", days, limit)
+        
+        # Get running apps
+        get_running_apps(limit)
+        
+        # Get open windows
+        get_open_windows()
+        
+        print("\n\033[1m===== End of Report =====\033[0m")
+    
+    return buffer.getvalue()
+
+def write_to_file(content, filepath):
+    """Write content to the specified file"""
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, 'w') as f:
+        f.write(content)
+    print(f"Report written to: {filepath}")
+
 def main():
     """Main function to run the script"""
-    print("\033[1m===== Recent Files and Running Applications =====\033[0m")
-    print(f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
     # Parse command line arguments
     days = 7
     limit = 20
+    run_once = False
     
     if len(sys.argv) > 1:
-        try:
-            days = int(sys.argv[1])
-        except ValueError:
-            print(f"Invalid days value: {sys.argv[1]}. Using default: 7")
+        if sys.argv[1] == "--once":
+            run_once = True
+        else:
+            try:
+                days = int(sys.argv[1])
+            except ValueError:
+                print(f"Invalid days value: {sys.argv[1]}. Using default: 7")
     
     if len(sys.argv) > 2:
         try:
@@ -117,19 +151,33 @@ def main():
         except ValueError:
             print(f"Invalid limit value: {sys.argv[2]}. Using default: 20")
     
-    # Get recent files
-    get_recent_files("~/", days, limit)
+    # Output file path
+    output_file = os.path.expanduser("~/.local/share/goose-perception/files-docs.txt")
     
-    # Get running apps
-    get_running_apps(limit)
+    if run_once:
+        # Run once and exit
+        report = generate_report(days, limit)
+        write_to_file(report, output_file)
+        print(report)
+    else:
+        # Run continuously every 30 minutes
+        print(f"Running in continuous mode. Writing to {output_file} every 30 minutes.")
+        print(f"Press Ctrl+C to stop.")
+        
+        try:
+            while True:
+                report = generate_report(days, limit)
+                write_to_file(report, output_file)
+                print(f"Report generated at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                # Sleep for 30 minutes (1800 seconds)
+                time.sleep(1800)
+        except KeyboardInterrupt:
+            print("\nScript terminated by user.")
     
-    # Get open windows
-    get_open_windows()
-    
-    print("\n\033[1m===== End of Report =====\033[0m")
-    print(f"Usage: {sys.argv[0]} [days] [limit]")
+    print(f"Usage: {sys.argv[0]} [days] [limit] [--once]")
     print(f"  days: Number of days to look back (default: 7)")
     print(f"  limit: Maximum number of items to show (default: 20)")
+    print(f"  --once: Run once and exit (default: run continuously every 30 minutes)")
 
 if __name__ == "__main__":
     main()

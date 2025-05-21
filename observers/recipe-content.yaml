@@ -1,0 +1,22 @@
+version: 1.0.0
+title: Conversations
+author:
+  contact: mic
+description: Analysis of document and code activity
+instructions: anaylise last weeks contributions
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+
+prompt: |
+  using the GH cli, look at this users contributions to github repos for the past week and summarize them
+  using google drive, also look at documents interacted with (edited or commented in) and summarize that activity
+  Establish themes, and also repos/projects worked on in a summary format

@@ -8,6 +8,10 @@
 SCREENSHOT_DIR="/tmp/screenshots"
 mkdir -p "$SCREENSHOT_DIR"
 
+# Create goose-perception directory if it doesn't exist
+PERCEPTION_DIR="$HOME/.local/share/goose-perception"
+mkdir -p "$PERCEPTION_DIR"
+
 # Function to capture screenshots of all displays
 capture_screenshots() {
   # Get current timestamp for unique filenames
@@ -37,7 +41,7 @@ run_summarize() {
   echo "$(date): Running summarization..."
   
   # Run the summarize script logic
-  goose run -t "please look in /tmp/screenshots for screenshots of work activity. I am working on various projects so you are to summarize work going on as best you can. Look at ~/WORK.md last paragraph or so if there is one to get an idea of how to classify/improve, and write a fresh summary and add to that file from that screenshot. Please also look at windows that are open titles to consider things. You can guess/discover names as you go and improve them for future summaries. Include time in summary and cover any changes since last"
+  goose run --no-session --recipe recipe-work.yaml
   
   # Clean up screenshots after summarization
   rm /tmp/screenshots/*
