@@ -16,10 +16,13 @@ setup-venv:
         echo "Creating virtual environment..."
         uv venv
     fi
-    echo "Activating virtual environment and installing dependencies..."
-    source .venv/bin/activate
-    uv pip install -r requirements.txt
+    echo "Installing dependencies with uv..."
+    uv pip install --requirement pyproject.toml
     echo "Virtual environment setup complete!"
+
+# Generate requirements.lock from pyproject.toml
+lock:
+    uv pip compile pyproject.toml --output-file requirements.lock
 
 # Train the wake word classifier
 train-classifier: setup-venv
@@ -27,9 +30,7 @@ train-classifier: setup-venv
     set -euo pipefail
     echo "Training wake word classifier..."
     source .venv/bin/activate
-    uv pip install accelerate
     cd wake-classifier && python train_classifier.py
-
 
 # Test the classifier with a sample text
 test-classifier TEXT="Hey Goose, what's the weather like today?": setup-venv
@@ -59,5 +60,5 @@ clean:
     find . -type d -name "__pycache__" -exec rm -rf {} +
     find . -type d -name "*.egg-info" -exec rm -rf {} +
     find . -type f -name "*.pyc" -delete
+    rm -rf .venv
     echo "Cleanup complete!"
-
