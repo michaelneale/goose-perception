@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Enable strict mode to exit on errors and unset variables
+set -euo pipefail
+
+
+# Function for logging
+log() {
+    local MESSAGE="$1"
+    echo "$(date +'%Y-%m-%d %H:%M:%S') - $MESSAGE"
+}
+
+# Trap errors and log them before exiting
+trap 'log "An error occurred. Exiting with status $?."' ERR
+
+# Create .hermit-working directory if it doesn't exist
+if [ ! -d ".hermit-working" ]; then
+    mkdir -p .hermit-working/bin
+    mkdir -p .hermit-working/cache
+    log "Created .hermit-working directory structure"
+fi
+
+# Set hermit state directory to be local
+export HERMIT_STATE_DIR="$(pwd)/.hermit-working/cache"
+
+# Update PATH to include our local hermit bin
+export PATH="$(pwd)/.hermit-working/bin:$PATH"
+
+# Check if hermit binary exists and download if not
+if [ ! -f ".hermit-working/bin/hermit" ]; then
+    log "Hermit binary not found. Downloading hermit binary."
+    curl -fsSL "https://github.com/cashapp/hermit/releases/download/stable/hermit-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/').gz" \
+        | gzip -dc > .hermit-working/bin/hermit && chmod +x .hermit-working/bin/hermit
+    log "Hermit binary downloaded and made executable."
+else
+    log "Hermit binary already exists. Skipping download."
+fi
+
+
+# Initialize hermit if not already initialized
+if [ ! -f ".hermit-working/hermit.hcl" ]; then
+    log "Initializing hermit."
+    (cd .hermit-working && hermit init)
+    log "Hermit initialized."
+else
+    log "Hermit already initialized."
+fi
+
+# Install Python 3.12
+log "Installing Python 3.12 with hermit."
+(cd .hermit-working && hermit install python3@3.12)
+log "Python 3.12 installed."
+
+# Install UV if not already installed
+(cd .hermit-working && hermit install uv)
+
+# Setup Python environment if not already done
+if [ ! -d ".venv" ]; then
+    log "Setting up Python virtual environment."
+    uv venv ./.venv
+    log "Installing dependencies from pyproject.toml."
+    uv pip install --requirement ./pyproject.toml
+    log "Python environment setup complete."
+else
+    log "Python virtual environment already exists."
+fi
+
+# Execute the command that was passed to this script
+if [ $# -gt 0 ]; then
+    log "Executing command: $*"
+    # Source the virtual environment and execute the command
+    source .venv/bin/activate
+    exec "$@"
+else
+    log "No command specified to execute."
+    echo "Environment is ready. You can now run commands with the Python environment."
+fi
+
+log "Bootstrap script completed successfully."

@@ -12,3 +12,4 @@ dist/
 *.egg-info/
 requirements.lock
 .gromastate
+.hermit-working
