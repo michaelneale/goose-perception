@@ -3,13 +3,8 @@ title: Conversations
 author:
   contact: mic
 description: Who has the user talked to in the past 2 days in slack
-instructions: Your job is to work out who the user has communicated to recently
+instructions: use the glean extension but be careful to not fetch too much data
 extensions:
-- type: builtin
-  name: developer
-  display_name: Developer
-  timeout: 300
-  bundled: true
 - type: stdio
   name: glean
   cmd: uvx
@@ -20,4 +15,8 @@ extensions:
   timeout: null
   description: Glean search of company knowledge with personal perspective  
 
-prompt: who has micn talked to in slack in the last 2 days (use glean)
+prompt: |
+  who has mic interacted with in slack in the past 2 days
+  what topics were discussed
+  look at last 2 days of sent emails
+  extract themes and project names

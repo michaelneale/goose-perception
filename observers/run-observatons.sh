@@ -43,6 +43,10 @@ run_summarize() {
   # Run the summarize script logic
   goose run --no-session --recipe recipe-work.yaml
   
+  # Run recent_docs_apps.py to collect file and app data
+  echo "$(date): Collecting recent files and running applications data..."
+  "$(dirname "$0")/recent_docs_apps.py" 2 30
+  
   # Clean up screenshots after summarization
   rm /tmp/screenshots/*
   

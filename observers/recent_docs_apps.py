@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 recent_docs_apps.py - A script to show recently modified files and running applications on macOS
-Runs every 30 minutes and writes output to ~/.local/share/goose-perception/files-docs.txt
+One-shot script that writes output to ~/.local/share/goose-perception/files-docs.txt
+Can be called periodically from other scripts like continuous_screenshots.sh
 """
 
 import os
@@ -134,11 +135,11 @@ def main():
     # Parse command line arguments
     days = 7
     limit = 20
-    run_once = False
+    run_continuous = False
     
     if len(sys.argv) > 1:
-        if sys.argv[1] == "--once":
-            run_once = True
+        if sys.argv[1] == "--continuous":
+            run_continuous = True
         else:
             try:
                 days = int(sys.argv[1])
@@ -154,12 +155,7 @@ def main():
     # Output file path
     output_file = os.path.expanduser("~/.local/share/goose-perception/files-docs.txt")
     
-    if run_once:
-        # Run once and exit
-        report = generate_report(days, limit)
-        write_to_file(report, output_file)
-        print(report)
-    else:
+    if run_continuous:
         # Run continuously every 30 minutes
         print(f"Running in continuous mode. Writing to {output_file} every 30 minutes.")
         print(f"Press Ctrl+C to stop.")
@@ -173,11 +169,19 @@ def main():
                 time.sleep(1800)
         except KeyboardInterrupt:
             print("\nScript terminated by user.")
+    else:
+        # Default: Run once and exit
+        report = generate_report(days, limit)
+        write_to_file(report, output_file)
+        # Only print a short confirmation, not the full report
+        print(f"Report generated at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Report written to: {output_file}")
     
-    print(f"Usage: {sys.argv[0]} [days] [limit] [--once]")
-    print(f"  days: Number of days to look back (default: 7)")
-    print(f"  limit: Maximum number of items to show (default: 20)")
-    print(f"  --once: Run once and exit (default: run continuously every 30 minutes)")
+    if run_continuous:
+        print(f"Usage: {sys.argv[0]} [days] [limit] [--continuous]")
+        print(f"  days: Number of days to look back (default: 7)")
+        print(f"  limit: Maximum number of items to show (default: 20)")
+        print(f"  --continuous: Run continuously every 30 minutes (default: run once and exit)")
 
 if __name__ == "__main__":
     main()
