@@ -1,20 +1,24 @@
-# Goose Voice
+# Goose Perception
 
 <img src="goose.png" alt="Goose Logo" width="150" align="right"/>
 
-A real-time audio agent activation tool using local transcription models, with custom wake word detection model and conversation capture.
+Always watching, and listening and perceiving.
+
+This makes use of many goose powered agents to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
+
+
+It also includes a real-time audio agent activation tool using local transcription models, with custom wake word detection model and conversation capture.
 
 ## Setup
 
 Prerequisites:
 - `just` command runner
 
-
 The application will:
 1. Create a virtual environment with Python 3.12
 2. Install all required dependencies
 3. Download models when first needed
-4. Train the wake classifier on first run
+4. Train the classifiers on first run
 
 
 > **Note:** The application sets `TOKENIZERS_PARALLELISM=false` to avoid warnings from the Hugging Face tokenizers library. If you run into any issues with tokenizers, you can manually set this environment variable: `export TOKENIZERS_PARALLELISM=false`
@@ -28,6 +32,31 @@ just train-classifier # run the classifier (won't usually need to)
 
 
 ## How It Works
+
+# Observing and learning
+
+The `observers` directory has many recipes for learning about you - these will run from time to time, some continuously. 
+
+### Screen watching
+
+The `work` recipe looks at your screen content and will summarise, learn and note what you are working on, who you interact with, and what has changed. It will even work out when you are asleep (well not at your computer).
+This keeps a rolling log of activity and up to date latest one.
+
+### Interactions and contributions
+
+other recipes will examine your communications history and contributions, and form a picture and some metrics of what you have been doing recently and with whom. 
+
+... much more to be done here TBD... ... 
+
+# Actions
+
+TBD.. there is a recipes top level directory which has actions that the voice commands (or whatever) will make use of... these can factor in the background information obtained by observing. 
+
+
+
+# Voice commands
+
+Voice input is useful as it is always listening and knows the context of which you ask for something to be done. Best for async tasks, not conversation.
 
 The application uses a sequential processing approach with continuous audio capture:
 
