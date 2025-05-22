@@ -7,6 +7,7 @@ listen.py - Continuously listen to audio, detect wake word, and capture full con
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
+import subprocess
 import tempfile
 import queue
 import threading
@@ -292,6 +293,11 @@ def is_silence(audio_data, threshold=SILENCE_THRESHOLD):
     """Check if audio chunk is silence based on amplitude threshold"""
     return np.mean(np.abs(audio_data)) < threshold
 
+def notify_user(message):
+    subprocess.call(f"""
+                    osascript -e 'display notification "{message} " with title "Goose"'
+                    """, shell=True)
+
 def analyze_audio(audio_data):
     """
     Analyze audio data to determine if it contains speech or just noise.
@@ -410,8 +416,6 @@ def main():
     # Initialize a counter for the long transcriptions
     conversation_counter = 0
     
-    # Timer for long transcription
-    last_long_transcription_time = time.time()
     
     # State tracking
     is_active_listening = False
@@ -496,6 +500,7 @@ def main():
                     if contains_wake_word(transcript, classifier, args.fuzzy_threshold, args.classifier_threshold, args.recordings_dir):
                         print(f"\n🔔 ADDITIONAL WAKE WORD DETECTED DURING ACTIVE LISTENING!")
                         print(f"Continuing to listen...")
+                        notify_user("Goose is listening...")                        
                         # Reset the silence counter to keep listening
                         silence_counter = 0
                     
@@ -503,6 +508,7 @@ def main():
                     if current_is_silence:
                         silence_counter += 1
                         print(f"Detected silence ({silence_counter}/{args.silence_seconds // BUFFER_DURATION})...")
+                        notify_user("got it")
                     else:
                         silence_counter = 0
                     
