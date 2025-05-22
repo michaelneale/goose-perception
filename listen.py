@@ -555,11 +555,11 @@ def main():
                             print(f"✅ Saved transcript to {transcript_file}")
                             conversation_counter += 1
                             
-                            # If an agent is specified, invoke it with the transcript and audio file
+                            # If an agent is specified, invoke it with the transcript file only
                             try:
                                 print(f"🤖 Invoking agent module directly")
                                 # Call the agent's process_conversation function directly
-                                agent_result = agent.process_conversation(transcript_file, conversation_file)
+                                agent_result = agent.process_conversation(transcript_file)
                                 
                                 if agent_result and agent_result.get("background_process_started"):
                                     print(f"✅ Agent started processing in background")

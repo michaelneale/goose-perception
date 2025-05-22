@@ -1,0 +1,38 @@
+version: 1.0.0
+title: handle the agent activation request from the user
+author:
+  contact: mic
+description: handle the request from the user that has come from a voice activation and transcription
+instruction: |
+  handle the request from the user that has come from a voice activation and transcription
+  you are running in a headless mode and avoid stopping to ask the user for more information
+  sometimes the requests may be part of a longer set of tasks between agents you can use memory to help with this.
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: memory
+  display_name: Memory
+  timeout: 300
+  bundled: true  
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true  
+
+prompt: |
+  Following is a transcription of a request from the user which is directed to you, goose, that you are to assist with in an autonimous manner as much as possible.
+  Use tools you have available to you.
+
+  Some additional resources for context to consider (may not be needed): 
+    - ~/.local/share/goose-perception/LATEST_WORK.md contains a summary of what the user has been up to recently made by overseeing their work
+    - ~/.local/share/goose-perception/INTERACTIONS.md contains a summary of who the user has been interacting with recently
+    - ~/.local/share/goose-perception/CONTRIBUTIONS.md contains a summary of the users CONTRIBUTIONS.md
+    - ~/.local/share/goose-perception/WORK.md is a larger document with observations of work over time you may need to consult but is large   
+
+  the transcription is in /tmp/current_transcription.txt 
+  
