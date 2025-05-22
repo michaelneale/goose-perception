@@ -21,5 +21,6 @@ prompt: |
   using google drive, also look at documents interacted with (edited or commented in) and summarize that activity
   Establish themes, and also repos/projects worked on in a summary format
   Include some metrics
+  
 
   Save this report to ~/.local/share/goose-perception/CONTRIBUTIONS.md
