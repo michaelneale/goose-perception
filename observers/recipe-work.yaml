@@ -19,8 +19,10 @@ prompt: |
   if any screens are for chat or email pay attention to the people being communicated with and topics
   
   Look at ~/.local/share/goose-perception/WORK.md last paragraph or so if there is one to get an idea of how to classify/improve, and write a fresh summary and add to that file. 
-  Please also look at windows that are open titles to consider things. Y  
+  Please also look at windows that are open titles to consider things.
   Include time in summary and cover any changes since last. 
+  Note down any people interacted with you can see
+  note down any projects being worked on, directories or files.
   Save the updated summary to ~/.local/share/goose-perception/WORK.md and also save just the update to LATEST_WORK.md in same dir.
   
   
