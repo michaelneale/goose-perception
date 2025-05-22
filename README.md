@@ -8,14 +8,7 @@ A real-time audio agent activation tool using local transcription models, with c
 
 Prerequisites:
 - `just` command runner
-- `uv` Python package manager
-- Python 3.12.x (if not installed, use pyenv: `pyenv install 3.12.4`)
 
-```bash
-# Setup and run
-just setup-venv  # Creates venv and installs dependencies
-just run         # Runs the application
-```
 
 The application will:
 1. Create a virtual environment with Python 3.12
@@ -23,26 +16,14 @@ The application will:
 3. Download models when first needed
 4. Train the wake classifier on first run
 
-> **Note:** If you don't have Python 3.12 installed, you can install it using pyenv:
-> ```bash
-> # Install pyenv if you haven't already
-> brew install pyenv  # on macOS
-> 
-> # Install Python 3.12.4
-> pyenv install 3.12.4
-> pyenv global 3.12.4  # or use pyenv local for project-specific setting
-> ```
 
 > **Note:** The application sets `TOKENIZERS_PARALLELISM=false` to avoid warnings from the Hugging Face tokenizers library. If you run into any issues with tokenizers, you can manually set this environment variable: `export TOKENIZERS_PARALLELISM=false`
 
 ### Available Commands
 
 ```bash
-just                 # List all available commands
-just setup-venv      # Create venv and install deps
-just run             # Run the application
-just lock            # Generate requirements.lock file
-just clean           # Clean up generated files
+just run              # Run the application
+just train-classifier # run the classifier (won't usually need to)
 ```
 
 

@@ -3,8 +3,6 @@
 # Trap to handle script termination
 trap 'echo "Stopping script..."; kill -TERM $PID 2>/dev/null; exit' INT TERM
 
-# Activate virtual environment
-source .venv/bin/activate
 
 # Create recordings directory if it doesn't exist
 RECORDINGS_DIR="recordings"
