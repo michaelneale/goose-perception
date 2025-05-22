@@ -33,7 +33,7 @@ def run_goose_in_background(transcript):
             print("Saved transcript to /tmp/current_transcription.txt")
         
         # Execute the command
-        cmd = "goose run --no-session --recipe agent-voice-recipe.yaml"
+        cmd = "cd recipes && goose run --no-session --recipe agent-voice-recipe.yaml"
         print(f"Executing: {cmd}")
         subprocess.call(cmd, shell=True)
         
