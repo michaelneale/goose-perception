@@ -498,9 +498,9 @@ def main():
                     # Check for wake word during active listening
                     # This allows for chained commands without waiting for silence
                     if contains_wake_word(transcript, classifier, args.fuzzy_threshold, args.classifier_threshold, args.recordings_dir):
-                        print(f"\n🔔 ADDITIONAL WAKE WORD DETECTED DURING ACTIVE LISTENING!")
-                        print(f"Continuing to listen...")
-                        notify_user("Goose is listening...")                        
+                        print("\n🔔 ADDITIONAL WAKE WORD DETECTED DURING ACTIVE LISTENING!")
+                        print("Continuing to listen...")
+                        
                         # Reset the silence counter to keep listening
                         silence_counter = 0
                     
@@ -607,6 +607,7 @@ def main():
                     confidence = details['confidence'] * 100  # Convert to percentage
                     
                     print(f"✅ ADDRESSED TO GOOSE - Confidence: {confidence:.1f}%")
+                    notify_user("Goose is listening...")
                     
                     print(f"Switching to active listening mode...")
                     print(f"Context from the last {args.context_seconds} seconds:")

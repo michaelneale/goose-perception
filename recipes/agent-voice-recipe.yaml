@@ -6,7 +6,8 @@ description: handle the request from the user that has come from a voice activat
 instruction: |
   handle the request from the user that has come from a voice activation and transcription
   you are running in a headless mode and avoid stopping to ask the user for more information
-  sometimes the requests may be part of a longer set of tasks between agents you can use memory to help with this.
+  sometimes the requests may be part of a longer set of tasks between agents you can use memory to help with this
+  consider the context provided, you may not need to use tools to answer some questions but they are available
 extensions:
 - type: builtin
   name: developer
@@ -25,14 +26,29 @@ extensions:
   bundled: true  
 
 prompt: |
+
+
+{% if latest_work %}
+  # LATEST WORK SUMMARY
+{{ latest_work|indent(4, first=True) }}
+{% endif %}
+
+{% if interactions %}
+  # RECENT INTERACTIONS
+{{ interactions|indent(4, first=True) }}
+{% endif %}
+
+{% if contributions %}
+  # USER CONTRIBUTIONS
+{{ contributions|indent(4, first=True) }}
+{% endif %}
+
+
   Following is a transcription of a request from the user which is directed to you, goose, that you are to assist with in an autonimous manner as much as possible.
-  Use tools you have available to you.
+  Use tools you have available to you and using the information available above. The request:
 
-  Some additional resources for context to consider (may not be needed): 
-    - ~/.local/share/goose-perception/LATEST_WORK.md contains a summary of what the user has been up to recently made by overseeing their work
-    - ~/.local/share/goose-perception/INTERACTIONS.md contains a summary of who the user has been interacting with recently
-    - ~/.local/share/goose-perception/CONTRIBUTIONS.md contains a summary of the users CONTRIBUTIONS.md
-    - ~/.local/share/goose-perception/WORK.md is a larger document with observations of work over time you may need to consult but is large   
 
-  the transcription is in /tmp/current_transcription.txt 
+{% if transcription %}
+{{ transcription|indent(4, first=True) }}
+{% endif %}
   

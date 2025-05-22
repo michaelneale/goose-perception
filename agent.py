@@ -12,9 +12,70 @@ import sys
 import os
 import subprocess
 import threading
+import tempfile
 from datetime import datetime
+from pathlib import Path
+from jinja2 import Template
 
-notify_cmd = "osascript -e 'display notification \"Task is currently running...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'"
+notify_cmd = "osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'"
+
+def safe_read_file(file_path):
+    """
+    Safely read a file if it exists
+    
+    Args:
+        file_path (str): Path to the file
+        
+    Returns:
+        str: File content or empty string if file doesn't exist
+    """
+    path = Path(file_path).expanduser()
+    if path.exists():
+        try:
+            return path.read_text()
+        except Exception as e:
+            print(f"Warning: Could not read {file_path}: {e}")
+    return ""
+
+def render_recipe_template(transcript):
+    """
+    Render the recipe template with dynamic content
+    
+    Args:
+        transcript (str): The transcript text
+        
+    Returns:
+        str: Path to the rendered template file
+    """
+    # Define paths
+    template_path = Path("recipes/agent-voice-recipe.yaml")
+    perception_dir = Path("~/.local/share/goose-perception").expanduser()
+    
+    # Read template
+    with open(template_path, 'r') as f:
+        template_content = f.read()
+    
+    # Read additional content files
+    latest_work = safe_read_file(perception_dir / "LATEST_WORK.md")
+    interactions = safe_read_file(perception_dir / "INTERACTIONS.md")
+    contributions = safe_read_file(perception_dir / "CONTRIBUTIONS.md")
+    
+    # Create Jinja template and render
+    template = Template(template_content)
+    rendered_content = template.render(
+        latest_work=latest_work,
+        interactions=interactions,
+        contributions=contributions,
+        transcription=transcript
+    )
+    
+    # Create a temporary file for the rendered template
+    with tempfile.NamedTemporaryFile(suffix='.yaml', prefix='agent-voice-recipe-', delete=False) as tmp_file:
+        tmp_file.write(rendered_content.encode('utf-8'))
+        temp_path = tmp_file.name
+    
+    print(f"Created rendered recipe at {temp_path}")
+    return temp_path
 
 def run_goose_in_background(transcript):
     """
@@ -32,10 +93,14 @@ def run_goose_in_background(transcript):
             f.write(transcript)
             print("Saved transcript to /tmp/current_transcription.txt")
         
-        # Execute the command
-        cmd = "cd recipes && goose run --no-session --recipe agent-voice-recipe.yaml"
+        # Render the recipe template
+        temp_recipe_path = render_recipe_template(transcript)
+        
+        # Execute the command with the rendered template
+        cmd = f"goose run --no-session --recipe {temp_recipe_path}"
         print(f"Executing: {cmd}")
         subprocess.call(cmd, shell=True)
+                
         
     except Exception as e:
         print(f"Error in Goose thread: {e}")
