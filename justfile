@@ -14,7 +14,7 @@ train-classifier:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Training wake word classifier..."
-    ./.run-hermit ./wake-classifier/train.sh
+    ./.use-hermit ./wake-classifier/train.sh
 
 # Run the voice recognition system
 run: 
@@ -24,4 +24,4 @@ run:
         just train-classifier
     fi
     echo "Starting Goose Voice..."
-    ./.run-hermit ./run.sh
+    ./.use-hermit ./run.sh
