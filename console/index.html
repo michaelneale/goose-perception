@@ -112,16 +112,19 @@
             gap: 0.5rem;
         }
 
-        .textarea {
+        .content-area {
             width: 100%;
+            height: 120px;
             min-height: 120px;
+            max-height: 120px;
             background: var(--bg-color);
             border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 0.75rem;
             font-family: inherit;
             color: var(--text-color);
-            resize: vertical;
+            white-space: pre-wrap;
+            overflow-y: auto;
         }
 
         .status-card {
@@ -157,32 +160,9 @@
             }
         }
 
-        .command-section {
+        .result-section {
             max-width: 800px;
             margin: 0 auto;
-        }
-
-        .command-form {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .command-input {
-            flex: 1;
-            padding: 0.75rem;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background: var(--bg-color);
-            color: var(--text-color);
-        }
-
-        .send-btn {
-            padding: 0.75rem 1rem;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
         }
 
         .result-area {
@@ -195,6 +175,8 @@
             font-size: 0.875rem;
             white-space: pre-wrap;
             min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
         }
 
         .refresh-btn {
@@ -206,6 +188,14 @@
             color: var(--text-color);
             margin-left: auto;
             font-size: 0.75rem;
+        }
+        
+        .last-updated {
+            font-size: 0.75rem;
+            color: var(--text-color);
+            opacity: 0.6;
+            text-align: right;
+            margin-top: 0.5rem;
         }
     </style>
 </head>
@@ -226,21 +216,21 @@
                     Work Tracking
                     <button class="refresh-btn" onclick="loadContent()">↻</button>
                 </h3>
-                <textarea class="textarea" id="workTracking" placeholder="# Current Tasks..." onblur="saveContent('work', this.value)"></textarea>
+                <div class="content-area" id="workTracking">Loading...</div>
             </div>
             <div class="card">
                 <h3>
                     Collaboration
                     <button class="refresh-btn" onclick="loadContent()">↻</button>
                 </h3>
-                <textarea class="textarea" id="collaboration" placeholder="# Team Updates..." onblur="saveContent('collaboration', this.value)"></textarea>
+                <div class="content-area" id="collaboration">Loading...</div>
             </div>
             <div class="card">
                 <h3>
                     Contributions
                     <button class="refresh-btn" onclick="loadContent()">↻</button>
                 </h3>
-                <textarea class="textarea" id="contributions" placeholder="# Recent Contributions..." onblur="saveContent('contributions', this.value)"></textarea>
+                <div class="content-area" id="contributions">Loading...</div>
             </div>
         </div>
 
@@ -278,28 +268,18 @@
             </div>
         </div>
 
-        <!-- Command Section -->
-        <div class="command-section">
+        <!-- Result Section -->
+        <div class="result-section">
             <div class="card">
                 <h3>
                     Last Task Result
                     <button class="refresh-btn" onclick="loadContent()">↻</button>
                 </h3>
-                <div class="result-area" id="taskResult">No recent task results.</div>
-            </div>
-            <div class="card">
-                <h3>Command Input</h3>
-                <form class="command-form" onsubmit="sendCommand(event)">
-                    <input 
-                        type="text" 
-                        class="command-input" 
-                        placeholder="Send goose off to do something..."
-                        id="commandInput"
-                    >
-                    <button type="submit" class="send-btn">Send</button>
-                </form>
+                <div class="result-area" id="taskResult">Loading...</div>
             </div>
         </div>
+        
+        <div class="last-updated" id="lastUpdated">Last updated: Never</div>
     </div>
 
     <script>
@@ -323,65 +303,26 @@
                 const response = await fetch('/api/content');
                 const data = await response.json();
                 
-                document.getElementById('workTracking').value = data.work;
-                document.getElementById('collaboration').value = data.collaboration;
-                document.getElementById('contributions').value = data.contributions;
+                document.getElementById('workTracking').textContent = data.work;
+                document.getElementById('collaboration').textContent = data.collaboration;
+                document.getElementById('contributions').textContent = data.contributions;
                 document.getElementById('taskResult').textContent = data.lastResult;
                 document.getElementById('currentActivity').textContent = data.currentActivity;
+                
+                // Update the last updated timestamp
+                const now = new Date();
+                document.getElementById('lastUpdated').textContent = 
+                    `Last updated: ${now.toLocaleTimeString()}`;
             } catch (error) {
                 console.error('Error loading content:', error);
-            }
-        }
-
-        // Save content to server
-        async function saveContent(field, content) {
-            try {
-                await fetch('/api/save', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ field, content }),
-                });
-            } catch (error) {
-                console.error('Error saving content:', error);
-            }
-        }
-
-        // Command handling
-        async function sendCommand(event) {
-            event.preventDefault();
-            const input = document.getElementById('commandInput');
-            const result = document.getElementById('taskResult');
-            
-            if (input.value.trim()) {
-                result.textContent = `Executing: "${input.value}"\n\n🔄 Task in progress...`;
-                
-                try {
-                    await fetch('/api/command', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ command: input.value }),
-                    });
-                    
-                    // Reload content to show updated result
-                    setTimeout(loadContent, 500);
-                } catch (error) {
-                    console.error('Error sending command:', error);
-                    result.textContent = `Error: Failed to send command\n${error}`;
-                }
-                
-                input.value = '';
             }
         }
 
         // Load content on page load
         document.addEventListener('DOMContentLoaded', loadContent);
 
-        // Set up periodic refresh (every 30 seconds)
-        setInterval(loadContent, 30000);
+        // Set up periodic refresh (every 5 seconds)
+        setInterval(loadContent, 5000);
     </script>
 </body>
 </html>

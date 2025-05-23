@@ -13,3 +13,4 @@ dist/
 requirements.lock
 .gromastate
 .hermit-working
+console.log
