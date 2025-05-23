@@ -26,7 +26,7 @@ run:
     
     echo "Starting observers in background..."
     cd observers 
-    ./run-observatons.sh &
+    ./run-observations.sh &
     OBSERVER_PID=$!
     cd ..
     
