@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -197,6 +196,17 @@
             white-space: pre-wrap;
             min-height: 100px;
         }
+
+        .refresh-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 4px 8px;
+            cursor: pointer;
+            color: var(--text-color);
+            margin-left: auto;
+            font-size: 0.75rem;
+        }
     </style>
 </head>
 <body>
@@ -212,16 +222,25 @@
         <!-- Markdown Sections -->
         <div class="grid grid-3">
             <div class="card">
-                <h3>Work Tracking</h3>
-                <textarea class="textarea" placeholder="# Current Tasks..."></textarea>
+                <h3>
+                    Work Tracking
+                    <button class="refresh-btn" onclick="loadContent()">↻</button>
+                </h3>
+                <textarea class="textarea" id="workTracking" placeholder="# Current Tasks..." onblur="saveContent('work', this.value)"></textarea>
             </div>
             <div class="card">
-                <h3>Collaboration</h3>
-                <textarea class="textarea" placeholder="# Team Updates..."></textarea>
+                <h3>
+                    Collaboration
+                    <button class="refresh-btn" onclick="loadContent()">↻</button>
+                </h3>
+                <textarea class="textarea" id="collaboration" placeholder="# Team Updates..." onblur="saveContent('collaboration', this.value)"></textarea>
             </div>
             <div class="card">
-                <h3>Contributions</h3>
-                <textarea class="textarea" placeholder="# Recent Contributions..."></textarea>
+                <h3>
+                    Contributions
+                    <button class="refresh-btn" onclick="loadContent()">↻</button>
+                </h3>
+                <textarea class="textarea" id="contributions" placeholder="# Recent Contributions..." onblur="saveContent('contributions', this.value)"></textarea>
             </div>
         </div>
 
@@ -255,14 +274,17 @@
                     </svg>
                     Current Activity
                 </h3>
-                <p class="status-text">Ready for new tasks</p>
+                <p class="status-text" id="currentActivity">Ready for new tasks</p>
             </div>
         </div>
 
         <!-- Command Section -->
         <div class="command-section">
             <div class="card">
-                <h3>Last Task Result</h3>
+                <h3>
+                    Last Task Result
+                    <button class="refresh-btn" onclick="loadContent()">↻</button>
+                </h3>
                 <div class="result-area" id="taskResult">No recent task results.</div>
             </div>
             <div class="card">
@@ -295,40 +317,71 @@
             }
         }
 
+        // Load content from server
+        async function loadContent() {
+            try {
+                const response = await fetch('/api/content');
+                const data = await response.json();
+                
+                document.getElementById('workTracking').value = data.work;
+                document.getElementById('collaboration').value = data.collaboration;
+                document.getElementById('contributions').value = data.contributions;
+                document.getElementById('taskResult').textContent = data.lastResult;
+                document.getElementById('currentActivity').textContent = data.currentActivity;
+            } catch (error) {
+                console.error('Error loading content:', error);
+            }
+        }
+
+        // Save content to server
+        async function saveContent(field, content) {
+            try {
+                await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ field, content }),
+                });
+            } catch (error) {
+                console.error('Error saving content:', error);
+            }
+        }
+
         // Command handling
-        function sendCommand(event) {
+        async function sendCommand(event) {
             event.preventDefault();
             const input = document.getElementById('commandInput');
             const result = document.getElementById('taskResult');
             
             if (input.value.trim()) {
-                result.textContent = `Executing: "${input.value}"\n\n🔄 Task in progress...\nPlease wait while I process your request.\n\nStarted at: ${new Date().toLocaleTimeString()}`;
+                result.textContent = `Executing: "${input.value}"\n\n🔄 Task in progress...`;
                 
-                // Simulate a response after a delay
-                setTimeout(() => {
-                    const responses = [
-                        "Analysis complete! The data suggests the geese are migrating earlier this year.",
-                        "Honk! I've completed the requested task and found 3 potential patterns.",
-                        "Task completed successfully. Goose patterns indicate increased activity.",
-                        "Error: Unable to process request. Too many geese in the system."
-                    ];
-                    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                    result.textContent = `${randomResponse}\n\nCompleted at: ${new Date().toLocaleTimeString()}`;
-                }, 2000);
+                try {
+                    await fetch('/api/command', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ command: input.value }),
+                    });
+                    
+                    // Reload content to show updated result
+                    setTimeout(loadContent, 500);
+                } catch (error) {
+                    console.error('Error sending command:', error);
+                    result.textContent = `Error: Failed to send command\n${error}`;
+                }
                 
                 input.value = '';
             }
         }
 
-        // Auto-save textareas to localStorage
-        document.querySelectorAll('.textarea').forEach((textarea, index) => {
-            const key = `goose-section-${index}`;
-            textarea.value = localStorage.getItem(key) || '';
-            
-            textarea.addEventListener('input', () => {
-                localStorage.setItem(key, textarea.value);
-            });
-        });
+        // Load content on page load
+        document.addEventListener('DOMContentLoaded', loadContent);
+
+        // Set up periodic refresh (every 30 seconds)
+        setInterval(loadContent, 30000);
     </script>
 </body>
 </html>
