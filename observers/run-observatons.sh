@@ -13,6 +13,8 @@ mkdir -p "$SCREENSHOT_DIR"
 PERCEPTION_DIR="$HOME/.local/share/goose-perception"
 mkdir -p "$PERCEPTION_DIR"
 
+rm -f /tmp/goose-perception-halt
+
 # Function to capture screenshots of all displays
 capture_screenshots() {
   # Get current timestamp for unique filenames
@@ -97,10 +99,18 @@ DAILY_COUNTER=0
 DAILY_MAX_COUNT=4320  # 4320 * 20 seconds = 24 hours
 
 # Run daily recipes once at startup
+echo "$(date): Running daily recipes at startup..."
 run_daily_recipes
 
 # Main loop
 while true; do
+
+  # check if /tmp/goose-perception-halt exists and exit if it does
+  if [ -f "/tmp/goose-perception-halt" ]; then
+    echo "$(date): Halting observation script as requested."
+    rm -f /tmp/goose-perception-halt
+    exit 0
+  fi
   # Capture screenshots
   capture_screenshots
   

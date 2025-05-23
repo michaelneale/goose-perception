@@ -25,11 +25,13 @@ run:
     fi
     
     echo "Starting observers in background..."
-    (cd observers && ./run-observatons.sh &)
+    cd observers 
+    ./run-observatons.sh &
     OBSERVER_PID=$!
+    cd ..
     
     # Set up trap to kill the background process when this script exits
-    trap 'echo "Shutting down observation script (PID: $OBSERVER_PID)..."; kill $OBSERVER_PID 2>/dev/null || true' EXIT
+    trap 'echo "Shutting down observation script (PID: $OBSERVER_PID)..."; kill $OBSERVER_PID 2>/dev/null; touch /tmp/goose-perception-halt || true' EXIT
     
     echo "Starting Goose Voice..."
     ./.use-hermit ./run.sh
