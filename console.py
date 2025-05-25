@@ -38,8 +38,7 @@ class ConsoleHandler(http.server.SimpleHTTPRequestHandler):
                 'work': read_file(os.path.join(DATA_DIR, 'LATEST_WORK.md'), 'N/A'),
                 'collaboration': read_file(os.path.join(DATA_DIR, 'INTERACTIONS.md'), 'N/A'),
                 'contributions': read_file(os.path.join(DATA_DIR, 'CONTRIBUTIONS.md'), 'N/A'),
-                'lastResult': read_file(os.path.join(DATA_DIR, '.last-result'), 'No recent task results.'),
-                'currentActivity': read_file(os.path.join(DATA_DIR, '.current'), 'Ready for new tasks')
+                'activityLog': read_file(os.path.join(DATA_DIR, 'ACTIVITY-LOG.md'), 'No activity recorded yet.')
             }
             
             self.wfile.write(json.dumps(content).encode())

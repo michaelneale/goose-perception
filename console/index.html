@@ -262,20 +262,20 @@
                     <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 12h-2.48a2 2 0 0 0-1.93 2.52l-1.35 4.87a1 1 0 0 1-1.93-.01L9.49 9.5a1 1 0 0 0-1.93-.01l-2.36 8.36A2 2 0 0 1 3.26 20H2"></path>
                     </svg>
-                    Current Activity
+                    Observing
                 </h3>
-                <p class="status-text" id="currentActivity">Ready for new tasks</p>
+                <p class="status-text">Running background observations</p>
             </div>
         </div>
 
-        <!-- Result Section -->
+        <!-- Activity Log Section -->
         <div class="result-section">
             <div class="card">
                 <h3>
-                    Last Task Result
+                    Activity Log
                     <button class="refresh-btn" onclick="loadContent()">↻</button>
                 </h3>
-                <div class="result-area" id="taskResult">Loading...</div>
+                <div class="result-area" id="activityLog">Loading...</div>
             </div>
         </div>
         
@@ -306,8 +306,7 @@
                 document.getElementById('workTracking').textContent = data.work;
                 document.getElementById('collaboration').textContent = data.collaboration;
                 document.getElementById('contributions').textContent = data.contributions;
-                document.getElementById('taskResult').textContent = data.lastResult;
-                document.getElementById('currentActivity').textContent = data.currentActivity;
+                document.getElementById('activityLog').textContent = data.activityLog;
                 
                 // Update the last updated timestamp
                 const now = new Date();

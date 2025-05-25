@@ -35,3 +35,10 @@ run:
     
     echo "Starting Goose Voice..."
     ./.use-hermit ./run.sh
+
+# Launch the console web interface
+console:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Starting console on http://localhost:9922"
+    python3 console.py

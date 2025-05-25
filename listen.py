@@ -260,6 +260,25 @@ def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_thr
     
     return False
 
+def log_activity(message):
+    """
+    Append a message to the ACTIVITY-LOG.md file with timestamp
+    
+    Args:
+        message (str): Message to append to the log
+    """
+    try:
+        data_dir = os.path.expanduser("~/.local/share/goose-perception")
+        os.makedirs(data_dir, exist_ok=True)
+        log_file = os.path.join(data_dir, "ACTIVITY-LOG.md")
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        with open(log_file, "a") as f:
+            f.write(f"**{timestamp}**: {message}\n\n")
+    except Exception as e:
+        print(f"Error logging activity: {e}")
+
 def log_activation_transcript(text, triggered, confidence, recordings_dir):
     """
     Log activation transcripts for analysis and retraining
@@ -446,6 +465,7 @@ def main():
             return
         
         print("\nListening... Press Ctrl+C to stop.\n")
+        log_activity("Listening for wake word")
         
         # Process audio chunks
         while running:
@@ -569,6 +589,7 @@ def main():
                                 
                                 if agent_result and agent_result.get("background_process_started"):
                                     print(f"✅ Agent started processing in background")
+                                    log_activity(f"Processing conversation: \"{full_transcript[:100]}...\"")
                                 else:
                                     print(f"⚠️ Agent may not have started properly")
                             except Exception as e:
@@ -608,6 +629,7 @@ def main():
                     
                     print(f"✅ ADDRESSED TO GOOSE - Confidence: {confidence:.1f}%")
                     notify_user("Goose is listening...")
+                    log_activity(f"Wake word detected: \"{quick_transcript}\"")
                     
                     print(f"Switching to active listening mode...")
                     print(f"Context from the last {args.context_seconds} seconds:")

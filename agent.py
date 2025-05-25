@@ -77,6 +77,25 @@ def render_recipe_template(transcript):
     print(f"Created rendered recipe at {temp_path}")
     return temp_path
 
+def log_activity(message):
+    """
+    Append a message to the ACTIVITY-LOG.md file with timestamp
+    
+    Args:
+        message (str): Message to append to the log
+    """
+    try:
+        data_dir = Path("~/.local/share/goose-perception").expanduser()
+        data_dir.mkdir(parents=True, exist_ok=True)
+        log_file = data_dir / "ACTIVITY-LOG.md"
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        with open(log_file, "a") as f:
+            f.write(f"**{timestamp}**: {message}\n\n")
+    except Exception as e:
+        print(f"Error logging activity: {e}")
+
 def run_goose_in_background(transcript):
     """
     Run the Goose command in a background thread
@@ -87,6 +106,7 @@ def run_goose_in_background(transcript):
     try:
         # Notify user that Goose is running
         subprocess.call(notify_cmd, shell=True)
+        log_activity("Starting to process request")
         
         # Copy the transcript to /tmp/current_transcription.txt
         with open('/tmp/current_transcription.txt', 'w') as f:
@@ -100,6 +120,9 @@ def run_goose_in_background(transcript):
         cmd = f"goose run --no-session --recipe {temp_recipe_path}"
         print(f"Executing: {cmd}")
         subprocess.call(cmd, shell=True)
+        
+        # Log completion
+        log_activity("Completed processing request")
                 
         
     except Exception as e:

@@ -15,6 +15,14 @@ mkdir -p "$PERCEPTION_DIR"
 
 rm -f /tmp/goose-perception-halt
 
+# Function to log activity to ACTIVITY-LOG.md
+log_activity() {
+  local message="$1"
+  local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+  echo "**${timestamp}**: ${message}" >> "$PERCEPTION_DIR/ACTIVITY-LOG.md"
+  echo "$(date): $message"
+}
+
 # Function to capture screenshots of all displays
 capture_screenshots() {
   # Get current timestamp for unique filenames
@@ -42,6 +50,7 @@ capture_screenshots() {
 # Function to run the work summarization logic
 run_work_summarize() {
   echo "$(date): Running work summarization..."
+  log_activity "Starting work summarization"
   
   # Run the work summarize recipe
   goose run --no-session --recipe recipe-work.yaml || echo "Work summarization failed, continuing..."
@@ -50,6 +59,7 @@ run_work_summarize() {
   rm -f /tmp/screenshots/*
   
   echo "$(date): Work summarization complete and screenshots cleaned up."
+  log_activity "Completed work summarization"
 }
 
 # Function to run a recipe if its output file doesn't exist or is older than 24 hours
@@ -61,8 +71,9 @@ run_recipe_if_needed() {
   # Check if file doesn't exist or is older than 24 hours
   if [ ! -f "$full_output_path" ] || [ $(find "$full_output_path" -mtime +1 -print | wc -l) -gt 0 ]; then
     echo "$(date): Running $recipe recipe in background..."
+    log_activity "Starting $recipe"
     # Run recipe in background and continue regardless of success/failure
-    (goose run --no-session --recipe "$recipe" || echo "$recipe failed, but continuing...") &
+    (goose run --no-session --recipe "$recipe" && log_activity "Completed $recipe" || log_activity "Failed $recipe") &
   else
     echo "$(date): Skipping $recipe, output file is up to date."
   fi
@@ -90,6 +101,9 @@ echo "- Running work summarization every 20 minutes"
 echo "- Running other recipes once per day if needed"
 echo "Press Ctrl+C to stop"
 
+# Log startup
+log_activity "Starting observation system"
+
 # Counter to track when to run summarization
 COUNTER=0
 MAX_COUNT=60  # 60 * 20 seconds = 20 minutes
@@ -108,6 +122,7 @@ while true; do
   # check if /tmp/goose-perception-halt exists and exit if it does
   if [ -f "/tmp/goose-perception-halt" ]; then
     echo "$(date): Halting observation script as requested."
+    log_activity "Observation system stopping"
     rm -f /tmp/goose-perception-halt
     exit 0
   fi
