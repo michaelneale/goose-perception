@@ -126,6 +126,38 @@
             white-space: pre-wrap;
             overflow-y: auto;
         }
+        
+        .recipes-area {
+            width: 100%;
+            height: auto;
+            min-height: 100px;
+            max-height: 200px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.75rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            color: var(--text-color);
+            white-space: pre;
+            overflow-x: auto;
+            overflow-y: auto;
+        }
+        
+        .recipes-area table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .recipes-area th, .recipes-area td {
+            padding: 6px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .recipes-area tr:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
 
         .status-card {
             display: flex;
@@ -268,6 +300,17 @@
             </div>
         </div>
 
+        <!-- Recipes List -->
+        <div class="result-section">
+            <div class="card">
+                <h3>
+                    Obvervation recipes (running in the background)
+                    <button class="refresh-btn" onclick="loadContent()">↻</button>
+                </h3>
+                <div class="recipes-area" id="recipesList">Loading...</div>
+            </div>
+        </div>
+
         <!-- Activity Log Section -->
         <div class="result-section">
             <div class="card">
@@ -306,6 +349,7 @@
                 document.getElementById('workTracking').textContent = data.work;
                 document.getElementById('collaboration').textContent = data.collaboration;
                 document.getElementById('contributions').textContent = data.contributions;
+                document.getElementById('recipesList').innerHTML = data.recipes;
                 document.getElementById('activityLog').textContent = data.activityLog;
                 
                 // Update the last updated timestamp

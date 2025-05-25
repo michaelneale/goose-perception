@@ -10,6 +10,7 @@ import socketserver
 import os
 import sys
 import json
+import glob
 from pathlib import Path
 
 PORT = 9922
@@ -38,6 +39,7 @@ class ConsoleHandler(http.server.SimpleHTTPRequestHandler):
                 'work': read_file(os.path.join(DATA_DIR, 'LATEST_WORK.md'), 'N/A'),
                 'collaboration': read_file(os.path.join(DATA_DIR, 'INTERACTIONS.md'), 'N/A'),
                 'contributions': read_file(os.path.join(DATA_DIR, 'CONTRIBUTIONS.md'), 'N/A'),
+                'recipes': get_recipes_list(),
                 'activityLog': read_file(os.path.join(DATA_DIR, 'ACTIVITY-LOG.md'), 'No activity recorded yet.')
             }
             
@@ -55,6 +57,30 @@ def read_file(file_path, default=''):
             return f.read()
     except (FileNotFoundError, IOError):
         return default
+
+def get_recipes_list():
+    """Get a formatted list of recipe-*.yaml files in the observers directory."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    observers_dir = os.path.join(base_dir, "observers")
+    
+    if not os.path.exists(observers_dir):
+        return "No observers directory found."
+    
+    recipe_files = glob.glob(os.path.join(observers_dir, "recipe-*.yaml"))
+    
+    if not recipe_files:
+        return "No recipe files found."
+    
+    # Format as an HTML table
+    result = ["<table>", "<tr><th>Status</th><th>Path</th><th>Filename</th></tr>"]
+    
+    for recipe in sorted(recipe_files):
+        filename = os.path.basename(recipe)
+        relative_path = os.path.relpath(recipe, base_dir)
+        result.append(f'<tr><td style="color: green; text-align: center;">✓</td><td>{relative_path}</td><td>{filename}</td></tr>')
+    
+    result.append("</table>")
+    return "\n".join(result)
 
 
 def main():
