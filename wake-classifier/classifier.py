@@ -45,7 +45,7 @@ class GooseWakeClassifier:
             print(f"Model loaded from {self.model_path}")
         except Exception as e:
             print(f"Error loading model: {e}")
-            print("Falling back to default classifier")
+            print("ERROR: Failed to load classifier model. System will not function correctly.")
             self.model = None
             self.tokenizer = None
             self.classifier = None
@@ -60,27 +60,26 @@ class GooseWakeClassifier:
         Returns:
             bool: True if addressed to Goose, False otherwise
         """
-        if self.classifier:
-            # Use the fine-tuned model
-            try:
-                result = self.classifier(text)
-                scores = result[0]
-                
-                # Get the probability for "addressed to Goose" (label 1)
-                addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_1")
-                not_addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_0")
-                
-                # Determine classification
-                is_addressed = addressed_score > not_addressed_score
-                
-                return is_addressed
-            except Exception as e:
-                print(f"Error during classification: {e}")
-                # Fall back to rule-based classifier
-                return self._rule_based_classify(text)
-        else:
-            # Fall back to rule-based classifier
-            return self._rule_based_classify(text)
+        if not self.classifier:
+            print("Error: No classifier model available")
+            return False
+            
+        # Use the fine-tuned model
+        try:
+            result = self.classifier(text)
+            scores = result[0]
+            
+            # Get the probability for "addressed to Goose" (label 1)
+            addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_1")
+            not_addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_0")
+            
+            # Determine classification
+            is_addressed = addressed_score > not_addressed_score
+            
+            return is_addressed
+        except Exception as e:
+            print(f"Error during classification: {e}")
+            return False
     
     def classify_with_details(self, text):
         """
@@ -92,73 +91,43 @@ class GooseWakeClassifier:
         Returns:
             dict: Classification result with label and confidence
         """
-        if self.classifier:
-            # Use the fine-tuned model
-            try:
-                result = self.classifier(text)
-                scores = result[0]
-                
-                # Get the probability for "addressed to Goose" (label 1)
-                addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_1")
-                not_addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_0")
-                
-                # Determine classification
-                is_addressed = addressed_score > not_addressed_score
-                
-                return {
-                    "text": text,
-                    "classification": "ADDRESSED_TO_GOOSE" if is_addressed else "NOT_ADDRESSED_TO_GOOSE",
-                    "addressed_to_goose": is_addressed,
-                    "confidence": float(addressed_score if is_addressed else not_addressed_score)
-                }
-            except Exception as e:
-                print(f"Error during classification: {e}")
-                # Fall back to rule-based classifier
-                return self._rule_based_classify_with_details(text)
-        else:
-            # Fall back to rule-based classifier
-            return self._rule_based_classify_with_details(text)
-    
-    def _rule_based_classify(self, text):
-        """Simple rule-based classifier as fallback"""
-        text_lower = text.lower()
-        
-        # Check for direct mentions of "goose"
-        contains_goose = "goose" in text_lower
-        
-        # Check for question or command indicators
-        question_indicators = ["?", "can you", "could you", "would you", "will you", "please"]
-        has_question = any(indicator in text_lower for indicator in question_indicators)
-        
-        # Determine if addressed to Goose
-        is_addressed = contains_goose and has_question
-        
-        return is_addressed
-    
-    def _rule_based_classify_with_details(self, text):
-        """Simple rule-based classifier as fallback with details"""
-        text_lower = text.lower()
-        
-        # Check for direct mentions of "goose"
-        contains_goose = "goose" in text_lower
-        
-        # Check for question or command indicators
-        question_indicators = ["?", "can you", "could you", "would you", "will you", "please"]
-        has_question = any(indicator in text_lower for indicator in question_indicators)
-        
-        # Determine if addressed to Goose
-        is_addressed = contains_goose and has_question
-        
-        # Calculate a simple confidence score
-        confidence = 0.9 if is_addressed else 0.7
-        
-        return {
-            "text": text,
-            "classification": "ADDRESSED_TO_GOOSE" if is_addressed else "NOT_ADDRESSED_TO_GOOSE",
-            "addressed_to_goose": is_addressed,
-            "confidence": confidence,
-            "note": "Using rule-based fallback classifier"
-        }
+        if not self.classifier:
+            print("Error: No classifier model available")
+            return {
+                "text": text,
+                "classification": "ERROR",
+                "addressed_to_goose": False,
+                "confidence": 0.0,
+                "error": "No classifier model available"
+            }
+            
+        # Use the fine-tuned model
+        try:
+            result = self.classifier(text)
+            scores = result[0]
+            
+            # Get the probability for "addressed to Goose" (label 1)
+            addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_1")
+            not_addressed_score = next(score["score"] for score in scores if score["label"] == "LABEL_0")
+            
+            # Determine classification
+            is_addressed = addressed_score > not_addressed_score
+            
+            return {
+                "text": text,
+                "classification": "ADDRESSED_TO_GOOSE" if is_addressed else "NOT_ADDRESSED_TO_GOOSE",
+                "addressed_to_goose": is_addressed,
+                "confidence": float(addressed_score if is_addressed else not_addressed_score)
+            }
+        except Exception as e:
+            print(f"Error during classification: {e}")
+            return {
+                "text": text,
+                "classification": "ERROR",
+                "addressed_to_goose": False,
+                "confidence": 0.0,
+                "error": str(e)
+            }
 
 def main():
     """Parse command line arguments and run the classifier"""

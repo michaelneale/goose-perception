@@ -203,60 +203,154 @@ def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_thr
     wake_word_detected = False
     is_addressed = False
     confidence = 0.0
+    detected_word = ""
+    normalized_text = text
     
-    # First check: exact match for "goose"
-    if "goose" in text_lower:
-        wake_word_detected = True
-        print(f"Detected exact wake word 'goose'... checking classifier now..")
-        if classifier:
-            details = classifier.classify_with_details(text)
-            is_addressed = details["addressed_to_goose"]
-            confidence = details["confidence"]
+    # Define wake word variations to check
+    wake_words = ["goose", "gus", "guys"]
+    wake_phrases = ["hey goose", "hey gus", "hey guys"]
+    
+    # First check: exact match for any wake word
+    for word in wake_words:
+        if word in text_lower:
+            wake_word_detected = True
+            detected_word = word
+            print(f"Detected exact wake word '{word}'... checking classifier now..")
             
-            # Check if confidence meets threshold
-            if is_addressed and confidence >= classifier_threshold:
-                print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
-                # Log the successful activation
-                log_activation_transcript(text, True, confidence, recordings_dir)
-                return True
-            elif is_addressed:
-                print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+            # Normalize the text by replacing the detected wake word with "goose"
+            if word != "goose":
+                normalized_text = text_lower.replace(word, "goose")
+                print(f"Normalized text: '{normalized_text}'")
             else:
-                print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
-            
-            # Log the bypassed activation
-            log_activation_transcript(text, False, confidence, recordings_dir)
-            return False
+                normalized_text = text
+                
+            if classifier:
+                details = classifier.classify_with_details(normalized_text)
+                is_addressed = details["addressed_to_goose"]
+                confidence = details["confidence"]
+                
+                # Check if confidence meets threshold
+                if is_addressed and confidence >= classifier_threshold:
+                    print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                    # Log the successful activation
+                    log_activation_transcript(text, True, confidence, recordings_dir)
+                    return True
+                elif is_addressed:
+                    print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+                else:
+                    print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
+                
+                # Log the bypassed activation
+                log_activation_transcript(text, False, confidence, recordings_dir)
+                return False
     
-    # Second check: fuzzy match for "goose" (only if exact match failed)
-    # Split text into words and check each one
+    # Check for wake phrases
+    for phrase in wake_phrases:
+        if phrase in text_lower:
+            wake_word_detected = True
+            detected_word = phrase
+            print(f"Detected wake phrase '{phrase}'... checking classifier now..")
+            
+            # Normalize the text by replacing the detected wake phrase with "goose"
+            if phrase != "hey goose":
+                normalized_text = text_lower.replace(phrase, "hey goose")
+                print(f"Normalized text: '{normalized_text}'")
+            else:
+                normalized_text = text
+                
+            if classifier:
+                details = classifier.classify_with_details(normalized_text)
+                is_addressed = details["addressed_to_goose"]
+                confidence = details["confidence"]
+                
+                # Check if confidence meets threshold
+                if is_addressed and confidence >= classifier_threshold:
+                    print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                    # Log the successful activation
+                    log_activation_transcript(text, True, confidence, recordings_dir)
+                    return True
+                elif is_addressed:
+                    print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+                else:
+                    print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
+                
+                # Log the bypassed activation
+                log_activation_transcript(text, False, confidence, recordings_dir)
+                return False
+    
+    # Second check: fuzzy match for wake words (only if exact match failed)
+    # Split text into words and check each one against all wake words
     if not wake_word_detected:
         words = text_lower.split()
         for word in words:
-            # Calculate fuzzy match score
-            score = fuzz.ratio("goose", word)
-            if score >= fuzzy_threshold:
-                wake_word_detected = True
-                print(f"Detected fuzzy wake word match: '{word}' with score {score}... checking classifier now..")
-                if classifier:
-                    details = classifier.classify_with_details(text)
-                    is_addressed = details["addressed_to_goose"]
-                    confidence = details["confidence"]
+            # Check fuzzy match against each wake word
+            for wake_word in wake_words:
+                # Calculate fuzzy match score
+                score = fuzz.ratio(wake_word, word)
+                if score >= fuzzy_threshold:
+                    wake_word_detected = True
+                    detected_word = word
+                    print(f"Detected fuzzy wake word match: '{word}' with score {score} for '{wake_word}'... checking classifier now..")
                     
-                    # Check if confidence meets threshold
-                    if is_addressed and confidence >= classifier_threshold:
-                        print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
-                        # Log the successful activation
-                        log_activation_transcript(text, True, confidence, recordings_dir)
-                        return True
-                    elif is_addressed:
-                        print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
-                    else:
-                        print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
+                    # Normalize the text by replacing the detected fuzzy word with "goose"
+                    normalized_text = text_lower.replace(word, "goose")
+                    print(f"Normalized text: '{normalized_text}'")
                     
-                    # Log the bypassed activation
-                    log_activation_transcript(text, False, confidence, recordings_dir)
-                break
+                    if classifier:
+                        details = classifier.classify_with_details(normalized_text)
+                        is_addressed = details["addressed_to_goose"]
+                        confidence = details["confidence"]
+                        
+                        # Check if confidence meets threshold
+                        if is_addressed and confidence >= classifier_threshold:
+                            print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                            # Log the successful activation
+                            log_activation_transcript(text, True, confidence, recordings_dir)
+                            return True
+                        elif is_addressed:
+                            print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+                        else:
+                            print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
+                        
+                        # Log the bypassed activation
+                        log_activation_transcript(text, False, confidence, recordings_dir)
+                        return False
+    
+    # Check for fuzzy phrase matches
+    if not wake_word_detected:
+        # Check for phrases like "hey guys", "hey gus", etc. with fuzzy matching
+        for i in range(len(words) - 1):
+            two_word_phrase = words[i] + " " + words[i+1]
+            for wake_phrase in wake_phrases:
+                score = fuzz.ratio(wake_phrase, two_word_phrase)
+                if score >= fuzzy_threshold:
+                    wake_word_detected = True
+                    detected_word = two_word_phrase
+                    print(f"Detected fuzzy wake phrase match: '{two_word_phrase}' with score {score} for '{wake_phrase}'... checking classifier now..")
+                    
+                    # Normalize the text by replacing the detected fuzzy phrase with "hey goose"
+                    normalized_text = text_lower.replace(two_word_phrase, "hey goose")
+                    print(f"Normalized text: '{normalized_text}'")
+                    
+                    if classifier:
+                        details = classifier.classify_with_details(normalized_text)
+                        is_addressed = details["addressed_to_goose"]
+                        confidence = details["confidence"]
+                        
+                        # Check if confidence meets threshold
+                        if is_addressed and confidence >= classifier_threshold:
+                            print(f"✅ Classifier confidence: {confidence:.2f} (threshold: {classifier_threshold})")
+                            # Log the successful activation
+                            log_activation_transcript(text, True, confidence, recordings_dir)
+                            return True
+                        elif is_addressed:
+                            print(f"👎 Classifier confidence too low: {confidence:.2f} < {classifier_threshold}")
+                        else:
+                            print(f"👎 Not addressed to Goose. Score: {confidence:.2f}")
+                        
+                        # Log the bypassed activation
+                        log_activation_transcript(text, False, confidence, recordings_dir)
+                        return False
     
     return False
 
@@ -409,7 +503,7 @@ def main():
     # Load the Whisper model
     main_model, wake_word_model = load_models()
     print(f"Models loaded. Using {'default' if args.device is None else f'device {args.device}'} for audio input.")
-    print(f"Listening for wake word: 'goose' (fuzzy threshold: {args.fuzzy_threshold}, classifier threshold: {args.classifier_threshold})")
+    print(f"Listening for wake words: 'goose', 'gus', 'guys', 'hey goose', 'hey gus', 'hey guys' (fuzzy threshold: {args.fuzzy_threshold}, classifier threshold: {args.classifier_threshold})")
     
     # Initialize the wake word classifier
     print("Initializing wake word classifier...")
