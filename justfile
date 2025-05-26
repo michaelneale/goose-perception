@@ -41,4 +41,7 @@ console:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Starting console on http://localhost:9922"
+    # Start Chrome in app mode after a short delay to allow the server to start
+    (sleep 2 && "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="http://localhost:9922" &>/dev/null || true) &
+    # Run the console server (blocking)
     python3 console.py
