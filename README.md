@@ -1,5 +1,8 @@
 # Goose Perception
 
+> [!NOTE]
+> This is experimental and very much a work in progress and showcase of async goose and recipes, use at own risk
+
 <img src="goose.png" alt="Goose Logo" width="150" align="right"/>
 
 Always watching, and listening and perceiving.
