@@ -18,6 +18,7 @@ dependencies = [
     "fuzzywuzzy>=0.18.0",
     "python-Levenshtein>=0.27.1",
     "jinja2>=3.1.2",
+    "nltk>=3.9.1",
 ]
 
 [build-system]

@@ -17,10 +17,14 @@ import numpy as np
 import sounddevice as sd
 import whisper
 import argparse
+import json
 from datetime import datetime
-from collections import deque
+from collections import deque, Counter
 import sys
 from fuzzywuzzy import fuzz
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.tag import pos_tag
 
 # Import our agent module
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -354,6 +358,63 @@ def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_thr
     
     return False
 
+def update_word_frequency(transcript):
+    """
+    Update the word frequency JSON file with words from the transcript.
+    Focus on nouns and other meaningful words.
+    
+    Args:
+        transcript (str): The text transcript to analyze
+    """
+    try:
+        # Define the path for the word frequency file
+        data_dir = os.path.expanduser("~/.local/share/goose-perception")
+        os.makedirs(data_dir, exist_ok=True)
+        word_freq_file = os.path.join(data_dir, "words.json")
+        
+        # Load existing word frequency data if it exists
+        word_freq = {}
+        if os.path.exists(word_freq_file):
+            try:
+                with open(word_freq_file, 'r') as f:
+                    word_freq = json.load(f)
+            except json.JSONDecodeError:
+                print(f"Error decoding existing word frequency file. Starting fresh.")
+                word_freq = {}
+        
+        # Process the transcript to extract words
+        if transcript:
+            # Tokenize the text into words
+            words = word_tokenize(transcript.lower())
+            
+            # Get part-of-speech tags
+            tagged_words = pos_tag(words)
+            
+            # Focus on nouns (NN, NNS, NNP, NNPS) and other meaningful words
+            # NN: noun, singular
+            # NNS: noun, plural
+            # NNP: proper noun, singular
+            # NNPS: proper noun, plural
+            noun_tags = ['NN', 'NNS', 'NNP', 'NNPS']
+            
+            # Filter for nouns and count them
+            nouns = [word for word, tag in tagged_words if tag in noun_tags and len(word) > 1]
+            
+            # Update the frequency counts
+            for word in nouns:
+                if word in word_freq:
+                    word_freq[word] += 1
+                else:
+                    word_freq[word] = 1
+            
+            # Save the updated word frequency data
+            with open(word_freq_file, 'w') as f:
+                json.dump(word_freq, f, indent=2, sort_keys=True)
+                
+            print(f"Updated word frequency file with {len(nouns)} nouns from transcript")
+    except Exception as e:
+        print(f"Error updating word frequency: {e}")
+
 def log_activity(message):
     """
     Append a message to the ACTIVITY-LOG.md file with timestamp
@@ -606,6 +667,10 @@ def main():
                     if current_temp_file:
                         active_conversation_chunks.append((audio_data, current_temp_file, transcript))
                     
+                    # Update the word frequency file with the transcript
+                    if transcript:
+                        update_word_frequency(transcript)
+                    
                     # Print what we're hearing
                     print(f"🎙️ Active: {transcript}")
                     
@@ -667,6 +732,9 @@ def main():
                             with open(transcript_file, "w") as f:
                                 f.write(full_transcript)
                             
+                            # Update the word frequency file with the full transcript
+                            update_word_frequency(full_transcript)
+                            
                             print(f"📝 FULL CONVERSATION TRANSCRIPT (transcribed with main model):")
                             print("-"*80)
                             print(full_transcript)
@@ -702,6 +770,10 @@ def main():
                 
                 # Add to context buffer with the quick transcript
                 context_buffer.append((audio_data, temp_file, quick_transcript))
+                
+                # Update the word frequency file with the transcript
+                if quick_transcript:
+                    update_word_frequency(quick_transcript)
                 
                 # Print a short status update
                 if quick_transcript:
