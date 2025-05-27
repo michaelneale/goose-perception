@@ -8,13 +8,17 @@ Goose can interact with you proactively, solving and taking on tasks while you a
 This makes use of many goose powered agents (which use recipes!) to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
 It works by watching how you work (screens, interactions, collaboration) and literally listening, uses many MCPs and recipes asynchronously.
 
+<img src="example.png" alt="Example notification" width="400" align="right"/>
+
+
 It also includes a real-time audio agent activation tool using local transcription models, with custom wake word detection model and conversation capture.
 No audio leaves your machine.
+
 
 Some of the recipes for example will prompt you when appropriate with suggestions on how to order your tasks or day.
 It will communicate with you via notifications (if it must), voice, or presenting ideas and reports from time to time: 
 
-<img src="example.png" alt="Example notification" width="400" align="center"/>
+
 
 ## Usage
 
