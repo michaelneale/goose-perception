@@ -16,6 +16,10 @@ It will communicate with you via notifications (if it must), voice, or presentin
 
 <img src="example.png" alt="Example notification" width="400" align="center"/>
 
+## Usage
+
+Once running - just go about your day, you don't need to do anything, it will do something. 
+YUou can if you like ask goose to do something, just talk, mention goose, it will detect that you are talking to it (vs about it).
 
 ## Setup
 
