@@ -22,7 +22,7 @@ extensions:
 
 
 prompt: |
-  who has mic interacted with in slack in the past 2 days
+  who has the current user (use $USER var for ldap name) interacted with in slack in the past 2 days
   what topics were discussed
   look at last 2 days of sent emails
   extract themes and project names
