@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Goose Perception</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -114,24 +115,56 @@
 
         .content-area {
             width: 100%;
-            height: 120px;
-            min-height: 120px;
-            max-height: 120px;
+            height: 250px;
+            min-height: 250px;
+            max-height: 250px;
             background: var(--bg-color);
             border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 0.75rem;
             font-family: inherit;
             color: var(--text-color);
-            white-space: pre-wrap;
             overflow-y: auto;
         }
+        
+        /* Markdown styling */
+        .content-area h1, .content-area h2, .content-area h3,
+        .result-area h1, .result-area h2, .result-area h3 {
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .content-area p, .result-area p {
+            margin-bottom: 0.5rem;
+        }
+        
+        .content-area ul, .content-area ol,
+        .result-area ul, .result-area ol {
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .content-area code, .result-area code {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .content-area pre, .result-area pre {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 0.5rem;
+            border-radius: 3px;
+            overflow-x: auto;
+            margin-bottom: 0.5rem;
+        }
+        
         
         .recipes-area {
             width: 100%;
             height: auto;
-            min-height: 100px;
-            max-height: 200px;
+            min-height: 200px;
+            max-height: 250px;
             background: var(--bg-color);
             border: 1px solid var(--border-color);
             border-radius: 6px;
@@ -193,7 +226,7 @@
         }
 
         .result-section {
-            max-width: 800px;
+            width: 100%;
             margin: 0 auto;
         }
 
@@ -203,11 +236,10 @@
             border-radius: 6px;
             padding: 1rem;
             margin-bottom: 1rem;
-            font-family: monospace;
+            font-family: inherit;
             font-size: 0.875rem;
-            white-space: pre-wrap;
-            min-height: 100px;
-            max-height: 200px;
+            min-height: 250px;
+            max-height: 250px;
             overflow-y: auto;
         }
 
@@ -240,33 +272,10 @@
         <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
     </header>
 
-    <div class="container">
-        <!-- Markdown Sections -->
-        <div class="grid grid-3">
-            <div class="card">
-                <h3>
-                    Work Tracking
-                    <button class="refresh-btn" onclick="loadContent()">↻</button>
-                </h3>
-                <div class="content-area" id="workTracking">Loading...</div>
-            </div>
-            <div class="card">
-                <h3>
-                    Collaboration
-                    <button class="refresh-btn" onclick="loadContent()">↻</button>
-                </h3>
-                <div class="content-area" id="collaboration">Loading...</div>
-            </div>
-            <div class="card">
-                <h3>
-                    Contributions
-                    <button class="refresh-btn" onclick="loadContent()">↻</button>
-                </h3>
-                <div class="content-area" id="contributions">Loading...</div>
-            </div>
-        </div>
 
-        <!-- Status Indicators -->
+    <div class="container">
+
+        <!-- Status Indicators - Keep as 3 columns -->
         <div class="grid grid-3">
             <div class="card status-card">
                 <h3>
@@ -300,28 +309,56 @@
             </div>
         </div>
 
-        <!-- Recipes List -->
-        <div class="result-section">
+        <!-- Markdown Sections - Single Column -->
+        <div class="grid">
             <div class="card">
                 <h3>
-                    Obvervation recipes (running in the background)
+                    Work Tracking
                     <button class="refresh-btn" onclick="loadContent()">↻</button>
                 </h3>
-                <div class="recipes-area" id="recipesList">Loading...</div>
+                <div class="content-area" id="workTracking">Loading...</div>
+            </div>
+            <div class="card">
+                <h3>
+                    Collaboration
+                    <button class="refresh-btn" onclick="loadContent()">↻</button>
+                </h3>
+                <div class="content-area" id="collaboration">Loading...</div>
+            </div>
+            <div class="card">
+                <h3>
+                    Contributions
+                    <button class="refresh-btn" onclick="loadContent()">↻</button>
+                </h3>
+                <div class="content-area" id="contributions">Loading...</div>
             </div>
         </div>
 
-        <!-- Activity Log Section -->
-        <div class="result-section">
-            <div class="card">
-                <h3>
-                    Activity Log
-                    <button class="refresh-btn" onclick="loadContent()">↻</button>
-                </h3>
-                <div class="result-area" id="activityLog">Loading...</div>
+
+        <div class="grid grid-2">
+            <!-- Recipes List -->
+            <div class="result-section">
+                <div class="card">
+                    <h3>
+                        Observation tasks (background)
+                        <button class="refresh-btn" onclick="loadContent()">↻</button>
+                    </h3>
+                    <div class="recipes-area" id="recipesList">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Activity Log Section -->
+            <div class="result-section">
+                <div class="card">
+                    <h3>
+                        Activity Log
+                        <button class="refresh-btn" onclick="loadContent()">↻</button>
+                    </h3>
+                    <div class="result-area" id="activityLog">Loading...</div>
+                </div>
             </div>
         </div>
-        
+            
         <div class="last-updated" id="lastUpdated">Last updated: Never</div>
     </div>
 
@@ -346,11 +383,18 @@
                 const response = await fetch('/api/content');
                 const data = await response.json();
                 
-                document.getElementById('workTracking').textContent = data.work;
-                document.getElementById('collaboration').textContent = data.collaboration;
-                document.getElementById('contributions').textContent = data.contributions;
+                // Configure marked to render HTML properly
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true
+                });
+                
+                // Use marked to render markdown content
+                document.getElementById('workTracking').innerHTML = marked.parse(data.work || 'No content');
+                document.getElementById('collaboration').innerHTML = marked.parse(data.collaboration || 'No content');
+                document.getElementById('contributions').innerHTML = marked.parse(data.contributions || 'No content');
                 document.getElementById('recipesList').innerHTML = data.recipes;
-                document.getElementById('activityLog').textContent = data.activityLog;
+                document.getElementById('activityLog').innerHTML = marked.parse(data.activityLog || 'No content');
                 
                 // Update the last updated timestamp
                 const now = new Date();

@@ -72,12 +72,11 @@ def get_recipes_list():
         return "No recipe files found."
     
     # Format as an HTML table
-    result = ["<table>", "<tr><th>Status</th><th>Path</th><th>Filename</th></tr>"]
+    result = ["<table>", "<tr><th>Status</th><th>Path</th></tr>"]
     
     for recipe in sorted(recipe_files):
-        filename = os.path.basename(recipe)
         relative_path = os.path.relpath(recipe, base_dir)
-        result.append(f'<tr><td style="color: green; text-align: center;">✓</td><td>{relative_path}</td><td>{filename}</td></tr>')
+        result.append(f'<tr><td style="color: green; text-align: center;">✓</td><td>{relative_path}</td></tr>')
     
     result.append("</table>")
     return "\n".join(result)

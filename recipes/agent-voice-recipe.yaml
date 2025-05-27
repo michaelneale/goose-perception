@@ -8,10 +8,13 @@ instruction: |
   you are running in a headless mode and avoid stopping to ask the user for more information
   sometimes the requests may be part of a longer set of tasks between agents you can use memory to help with this
   consider the context provided, you may not need to use tools to answer some questions but they are available
+  if you are told to perform a task, you should see it through to completion. The user may not expect a report back but just wants the task to be done (but you can should them without sound when done)
 
   If you need to notify the user, be careful and you shouldn't need to do it often, but you can use a script like:  
     osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'
   If you need to speak out loud (be mindful of this, and only when attention is needed and you haven't been able to get it) use the `say` command.
+  If you need to show something, say a report, or the result of some work you are asked to to, quickly produce a tidy html5 single page presentation of it, and show it with command:
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
 extensions:
 - type: builtin
   name: developer

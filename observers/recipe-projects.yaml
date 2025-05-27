@@ -1,9 +1,9 @@
 version: 1.0.0
-title: Conversations
+title: Projects
 author:
   contact: mic
 description: project analysis
-instructions: use the glean extension but be careful to not fetch too much data
+instruction: use the glean extension to do project research but be careful to not fetch too much data
 extensions:
 - type: stdio
   name: glean
@@ -14,7 +14,13 @@ extensions:
   env_keys: []
   timeout: null
   description: Glean search of company knowledge with personal perspective  
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true  
+
 
 prompt: |
   look in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md and use glean to clarify what project names or initivives are being worked on. 
-  You can update WORK.md with clarifications for this in the last paragraph if needed.
+  You can update WORK.md with clarifications for this in the last paragraph if needed. You should also consult and update the PROJECTS.md file with any new projects or initiatives that are being worked on.

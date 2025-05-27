@@ -73,7 +73,13 @@ run_recipe_if_needed() {
     echo "$(date): Running $recipe recipe in background..."
     log_activity "Starting $recipe"
     # Run recipe in background and continue regardless of success/failure
-    (goose run --no-session --recipe "$recipe" && log_activity "Completed $recipe" || log_activity "Failed $recipe") &
+    (
+      goose run --no-session --recipe "$recipe" && {
+        # Touch the output file to update its timestamp even if the recipe didn't modify it
+        touch "$full_output_path"
+        log_activity "Completed $recipe"
+      } || log_activity "Failed $recipe"
+    ) &
   else
     echo "$(date): Skipping $recipe, output file is up to date."
   fi
@@ -91,6 +97,12 @@ run_daily_recipes() {
   
   # Run recipe-projects.yaml if needed
   run_recipe_if_needed "recipe-projects.yaml" "PROJECTS.md"
+
+  run_recipe_if_needed "recipe-important-email.yaml" ".important-email"
+
+  run_recipe_if_needed "recipe-interests.yaml" "INTERESTS.md"
+
+
   
   echo "$(date): Daily recipe check complete."
 }

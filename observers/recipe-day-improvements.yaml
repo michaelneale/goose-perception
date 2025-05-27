@@ -1,0 +1,55 @@
+version: 1.0.0
+title: Improvements
+author:
+  contact: mic
+description: Suggest how things can be improved based on contributions and interactions
+instruction: |
+  report on and suggest how time is spent and what can be optimised based on how the user spends their time. Use the tools like gh cli, gcal, and more to understand how this works
+  produce a beatuful HTML5 report with a timeline of what they have been doing looking back 10 days, and have suggestions
+  open the HTML report with a command like: 
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
+  once you have produced it.
+  Notify the user with a script like:  
+    osascript -e 'display notification \"Goose has produced a report on how to improve your time management...\" with title \"Improvements Report\" subtitle \"Please check it out\" sound name \"Submarine\"'
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+- type: stdio
+  name: glean
+  cmd: uvx
+  args:
+  - mcp_glean@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: Glean search of company knowledge with personal perspective  
+
+
+prompt: |
+  
+  You are helpful in time and task management, aiming to gently suggest improvements to the users workflow and habits. 
+  you can also suggest what to work on next and when. 
+  Consider their calendar, their contributions to code and documents, and their interactions with others.
+  looking in ~/.local/share/goose-perception/ for WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
+  Use calendar to also consider any booked time.
+  you can use glean to look at their recent slack and email interactions to work out what may be important if you can.
+
+  Produce a beautiful report with suggestions as html5 page, and open it with a command like: 
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."

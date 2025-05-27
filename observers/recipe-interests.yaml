@@ -1,0 +1,18 @@
+version: 1.0.0
+title: Interests
+author:
+  contact: mic
+description: Refresh interests
+  
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true  
+prompt:
+  in the  ~/.local/share/goose-perception/ directory please consult the follwing
+     WORK.md PROJECTS.md CONTRIBUTIONS.md to form a picture 
+
+  from this update INTERESTS.md as to what you think the user is interested in (consider if there is anything in there as well)
+

@@ -1,9 +1,9 @@
 version: 1.0.0
-title: Conversations
+title: Interactions
 author:
   contact: mic
-description: Who has the user talked to in the past 2 days in slack
-instructions: use the glean extension but be careful to not fetch too much data
+description: Who has the user interacted with in the past 2 days
+instruction: use the glean extension but be careful to not fetch too much data
 extensions:
 - type: stdio
   name: glean
@@ -13,7 +13,13 @@ extensions:
   envs: {}
   env_keys: []
   timeout: null
-  description: Glean search of company knowledge with personal perspective  
+  description: Glean search of company knowledge with personal perspective
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true  
+
 
 prompt: |
   who has mic interacted with in slack in the past 2 days
@@ -21,4 +27,4 @@ prompt: |
   look at last 2 days of sent emails
   extract themes and project names
 
-  Save this report to ~/.local/share/goose-perception/INTERACTIONS.md
+  Save this report to ~/.local/share/goose-perception/INTERACTIONS.md - if you are having technical issues, don't over write what is there with useless info.

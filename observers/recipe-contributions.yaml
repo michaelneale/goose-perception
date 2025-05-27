@@ -1,9 +1,9 @@
 version: 1.0.0
-title: Conversations
+title: Contributions
 author:
   contact: mic
 description: Analysis of document and code activity
-instructions: anaylise last weeks contributions
+instruction: anaylise last weeks contributions, using gh cli and google drive extension
 extensions:
 - type: builtin
   name: developer
@@ -19,6 +19,7 @@ extensions:
 prompt: |
   using the GH cli, look at this users contributions to github repos for the past week and summarize them
   using google drive, also look at documents interacted with (edited or commented in) and summarize that activity
+  Also consider what PRs have been reviewed. Consider looking at ~/.local/share/goose-perception/WORK.md in case any mention of ones looked at in thise nodes. 
   Establish themes, and also repos/projects worked on in a summary format
   Include some metrics
   
