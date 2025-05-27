@@ -1,5 +1,5 @@
 [project]
-name = "goose-voice"
+name = "goose-perception"
 version = "0.1.0"
 description = "A real-time audio agent activation tool using local transcription models"
 requires-python = ">=3.12,<3.13"
