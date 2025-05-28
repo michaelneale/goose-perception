@@ -14,15 +14,23 @@ extensions:
   timeout: 300
   bundled: true
 prompt: |
-  please look in /tmp/screenshots for screenshots of work activity which have veen taken every 20 seconds over the past 20 minutes or so.
+  please look in /tmp/screenshots for screenshots of work activity which have veen taken every 20 seconds over the past 20 minutes at least.
   The user is working on various projects so you are to summarize work going on as best you can, you can try to guess the project names being worked on from the context as more is revealed.
   if any screens are for chat or email pay attention to the people being communicated with and topics
-  
-  Look at ~/.local/share/goose-perception/WORK.md last paragraph or so if there is one to get an idea of how to classify/improve, and write a fresh summary and add to that file. 
-  Please also look at windows that are open titles to consider things.
-  Include time in summary and cover any changes since last. 
+  note what documents or files, directories, docs etc  they are working on 
+  a document, or an editor, will typically be associated with a project or some past work you can look up. 
+  note any interesting objects/visuals you see in case they are need to be searched for later
+  any key phrases or terms you see can also be noted.
   Note down any people interacted with you can see
-  note down any projects being worked on, directories or files.
+  If in a meeting, consider who they are meeting with and note that down too. 
+  ~/.local/share/goose-perception/spoken.txt has a log of recently heard conversation, which may help you understand the context of the work being done, consider it, but it may be background chatter.
+
+
+  Please also look at windows that are open titles to consider things.
+
+  Look at ~/.local/share/goose-perception/WORK.md last paragraph or so if there is one to get an idea of how to classify/improve, and write a fresh summary and add to that file. 
+  
+  Include time in summary and cover any changes since last. 
   Save the updated summary to ~/.local/share/goose-perception/WORK.md and also save just the update to LATEST_WORK.md in same dir.
   
   

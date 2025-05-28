@@ -89,20 +89,12 @@ run_recipe_if_needed() {
 run_daily_recipes() {
   echo "$(date): Checking if daily recipes need to be run..."
   
-  # Run recipe-contributions.yaml if needed
   run_recipe_if_needed "recipe-contributions.yaml" "CONTRIBUTIONS.md"
-  
-  # Run recipe-interactions.yaml if needed
   run_recipe_if_needed "recipe-interactions.yaml" "INTERACTIONS.md"
-  
-  # Run recipe-projects.yaml if needed
   run_recipe_if_needed "recipe-projects.yaml" "PROJECTS.md"
-
   run_recipe_if_needed "recipe-important-email.yaml" ".important-email"
-
   run_recipe_if_needed "recipe-interests.yaml" "INTERESTS.md"
-
-
+  run_recipe_if_needed "recipe-work-personal.yaml" ".work-personal"
   
   echo "$(date): Daily recipe check complete."
 }

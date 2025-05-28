@@ -211,8 +211,8 @@ def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_thr
     normalized_text = text
     
     # Define wake word variations to check
-    wake_words = ["goose", "gus", "guys"]
-    wake_phrases = ["hey goose", "hey gus", "hey guys"]
+    wake_words = ["goose", "gus"]
+    wake_phrases = ["hey goose", "hey gus"]
     
     # First check: exact match for any wake word
     for word in wake_words:
@@ -415,6 +415,110 @@ def update_word_frequency(transcript):
     except Exception as e:
         print(f"Error updating word frequency: {e}")
 
+def update_spoken_transcript(transcript):
+    """
+    Update the spoken.txt file with the latest transcript.
+    Maintains a buffer of 2000 words and filters out nonsense characters.
+    Only adds transcripts that contain actual speech with recognizable words.
+    
+    Args:
+        transcript (str): The text transcript to add to the file
+    """
+    try:
+        # Skip if transcript is empty
+        if not transcript or transcript.strip() == "":
+            return
+            
+        # Define the path for the spoken transcript file
+        data_dir = os.path.expanduser("~/.local/share/goose-perception")
+        os.makedirs(data_dir, exist_ok=True)
+        spoken_file = os.path.join(data_dir, "spoken.txt")
+        
+        # First level filter: Check if the transcript contains mostly valid text
+        valid_chars = sum(1 for c in transcript if c.isalnum() or c in " ,.!?-'\"():")
+        total_chars = len(transcript)
+        
+        # If less than 60% of characters are valid, consider it noise
+        if total_chars > 0 and valid_chars / total_chars < 0.6:
+            print(f"Skipping transcript update - detected noise rather than speech (character check)")
+            return
+            
+        # Second level filter: Use NLTK to check for actual words and nouns
+        # Tokenize the text into words
+        words = word_tokenize(transcript.lower())
+        
+        # Skip if there are too few words (likely noise)
+        if len(words) < 2:
+            print(f"Skipping transcript update - too few words to be meaningful speech")
+            return
+            
+        # Get part-of-speech tags
+        tagged_words = pos_tag(words)
+        
+        # Count words that are recognized parts of speech (not just symbols or numbers)
+        valid_word_tags = ['NN', 'NNS', 'NNP', 'NNPS', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 
+                          'JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'PRP', 'PRP$', 'DT']
+        valid_words = [word for word, tag in tagged_words if tag in valid_word_tags]
+        
+        # If less than 30% of the "words" are recognized parts of speech, consider it noise
+        if len(words) > 0 and len(valid_words) / len(words) < 0.3:
+            print(f"Skipping transcript update - detected noise rather than speech (POS check: {len(valid_words)}/{len(words)} valid words)")
+            return
+            
+        # Third level filter: Check if there are any nouns or verbs (essential for meaningful speech)
+        noun_tags = ['NN', 'NNS', 'NNP', 'NNPS']
+        verb_tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']
+        
+        has_nouns = any(tag in noun_tags for _, tag in tagged_words)
+        has_verbs = any(tag in verb_tags for _, tag in tagged_words)
+        
+        if not (has_nouns or has_verbs):
+            print(f"Skipping transcript update - no nouns or verbs detected (likely not meaningful speech)")
+            return
+            
+        # Fourth level filter: Check for too many numbers or symbols
+        # Count words that are primarily numeric
+        numeric_words = sum(1 for word in words if any(c.isdigit() for c in word) and not any(c.isalpha() for c in word))
+        if len(words) > 3 and numeric_words / len(words) > 0.5:
+            print(f"Skipping transcript update - too many numeric tokens ({numeric_words}/{len(words)})")
+            return
+        
+        # Load existing transcript if it exists
+        existing_text = ""
+        if os.path.exists(spoken_file):
+            with open(spoken_file, 'r') as f:
+                existing_text = f.read()
+        
+        # Split into words
+        existing_words = existing_text.split()
+        
+        # Add new transcript words (filtered to remove pure numbers and symbols)
+        new_words = [word for word in transcript.split() 
+                    if not (word.replace('.', '').replace(',', '').isdigit() or 
+                           all(not c.isalnum() for c in word))]
+        
+        if not new_words:
+            print(f"Skipping transcript update - no valid words after filtering")
+            return
+            
+        # Combine existing and new words
+        combined_words = existing_words + new_words
+        
+        # Keep only the most recent 2000 words
+        if len(combined_words) > 2000:
+            combined_words = combined_words[-2000:]
+        
+        # Join back into text
+        updated_text = " ".join(combined_words)
+        
+        # Save the updated transcript
+        with open(spoken_file, 'w') as f:
+            f.write(updated_text)
+            
+        print(f"Updated spoken transcript file with {len(new_words)} new words (total: {len(combined_words)}/2000)")
+    except Exception as e:
+        print(f"Error updating spoken transcript: {e}")
+
 def log_activity(message):
     """
     Append a message to the ACTIVITY-LOG.md file with timestamp
@@ -564,7 +668,7 @@ def main():
     # Load the Whisper model
     main_model, wake_word_model = load_models()
     print(f"Models loaded. Using {'default' if args.device is None else f'device {args.device}'} for audio input.")
-    print(f"Listening for wake words: 'goose', 'gus', 'guys', 'hey goose', 'hey gus', 'hey guys' (fuzzy threshold: {args.fuzzy_threshold}, classifier threshold: {args.classifier_threshold})")
+    print(f"Listening for wake word: 'goose' (fuzzy threshold: {args.fuzzy_threshold}, classifier threshold: {args.classifier_threshold})")
     
     # Initialize the wake word classifier
     print("Initializing wake word classifier...")
@@ -670,6 +774,8 @@ def main():
                     # Update the word frequency file with the transcript
                     if transcript:
                         update_word_frequency(transcript)
+                        # Update the spoken transcript file
+                        update_spoken_transcript(transcript)
                     
                     # Print what we're hearing
                     print(f"🎙️ Active: {transcript}")
@@ -735,6 +841,9 @@ def main():
                             # Update the word frequency file with the full transcript
                             update_word_frequency(full_transcript)
                             
+                            # Update the spoken transcript file with the full transcript
+                            update_spoken_transcript(full_transcript)
+                            
                             print(f"📝 FULL CONVERSATION TRANSCRIPT (transcribed with main model):")
                             print("-"*80)
                             print(full_transcript)
@@ -774,6 +883,8 @@ def main():
                 # Update the word frequency file with the transcript
                 if quick_transcript:
                     update_word_frequency(quick_transcript)
+                    # Update the spoken transcript file
+                    update_spoken_transcript(quick_transcript)
                 
                 # Print a short status update
                 if quick_transcript:
