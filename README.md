@@ -50,6 +50,20 @@ just train-classifier # run the classifier (won't usually need to)
 ```
 
 
+## Models and data
+
+The voice models (currently whisper) and locally trained models (distilbert based) all run locally when listening in to the environment and for commands, no audio leaves your machine. 
+Screen shots are taken periodically but cleaned out, goose is used to summarised those into a rolling log
+
+### Local models and personal data
+
+Goose will use whatever default models are configured for it, so they can be local models, but if they are remote ones then screenshots will be sent as will information that other recipes gather. 
+For running all locally, this is possibly by via goose config, but also possibly with screen analysis with ollama models which are fine tuned for screen analysis 
+(I wasn't able to run any multimodal models on my local machine, meaning that the goose agent loop won't work with the local models if images are needed on my machine, but with a more powerful one a totally local flow would be possible). 
+There are models such as `llava:3b` (ideally 13b or up) which can read screen content for summarization, but need to be used in concert with other models (think of it as mode like fancy OCR!)
+This is an emerging space so keep an eye out
+
+
 ## How It Works
 
 # Observing and learning
