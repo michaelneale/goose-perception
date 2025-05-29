@@ -90,10 +90,13 @@ run_recipe_if_needed() {
         ;;
     esac
     
-    # Run the recipe
-    echo "$(date): Running $recipe recipe ($frequency) in background..."
+    # Run the recipe with random offset based on frequency
+    local offset_minutes=$((5 + RANDOM % 11))  # Random delay 5-15 minutes for time-based recipes
+    local offset=$((offset_minutes * 60))
+    echo "$(date): Running $recipe recipe ($frequency) in background (offset: ${offset_minutes}m)..."
     log_activity "Starting $recipe ($frequency)"
     (
+      sleep $offset
       goose run --no-session --recipe "$recipe" && {
         touch "$marker_file"
         [ -n "$output_file" ] && touch "$full_output_path"
@@ -139,10 +142,38 @@ run_recipe_if_needed() {
   
   # Check if marker file doesn't exist or is older than frequency
   if [ ! -f "$marker_file" ] || [ $(find "$marker_file" $find_time -print | wc -l) -gt 0 ]; then
-    echo "$(date): Running $recipe recipe ($frequency) in background..."
+    # Calculate offset based on frequency
+    local offset_minutes
+    local offset_label
+    case "$frequency" in
+      "hourly"|*"h")
+        # For hourly+ frequencies: 5-15 minute offset
+        offset_minutes=$((5 + RANDOM % 11))
+        offset_label="${offset_minutes}m"
+        ;;
+      "daily"|*"d"|"weekly")
+        # For daily+ frequencies: 5-15 minute offset  
+        offset_minutes=$((5 + RANDOM % 11))
+        offset_label="${offset_minutes}m"
+        ;;
+      *)
+        # For shorter frequencies (minutes): 30 second - 2 minute offset
+        local offset_seconds=$((30 + RANDOM % 91))  # 30-120 seconds
+        offset_minutes=0
+        local offset=$offset_seconds
+        offset_label="${offset_seconds}s"
+        ;;
+    esac
+    
+    if [ $offset_minutes -gt 0 ]; then
+      local offset=$((offset_minutes * 60))
+    fi
+    
+    echo "$(date): Running $recipe recipe ($frequency) in background (offset: ${offset_label})..."
     log_activity "Starting $recipe ($frequency)"
     # Run recipe in background and continue regardless of success/failure
     (
+      sleep $offset
       goose run --no-session --recipe "$recipe" && {
         # Update marker file on success
         touch "$marker_file"
@@ -180,6 +211,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention"
   run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming"
   run_recipe_if_needed "recipe-what-working-on.yaml" "evening" ".working-on"
+  run_recipe_if_needed "recipe-optimize.yml" "weekly" ".optimize"
   
   
   echo "$(date): Scheduled recipe check complete."

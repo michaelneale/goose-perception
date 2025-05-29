@@ -32,4 +32,4 @@ prompt:
   can you use glean to look up any currently unread emails that appear important and may warrant attention for the user
    * if general important and unread news that is noteworthy, can notify them
    * if specific and relevant to their work which you can see in ~/.local/share/goose-perception/WORK.md, PROJECTS.md, INTERACTIONS.md and CONTRIBUTIONS.md, you can notify them and leave a note for them to follow up on it  
-   * You can add to apple notes if you note they are an apple notes user
+   * You can add to apple notes if you note they are an apple notes user, be sure to format it nicely with spacing.

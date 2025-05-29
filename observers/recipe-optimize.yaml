@@ -1,0 +1,52 @@
+version: 1.0.0
+title: optimise automate
+author:
+  contact: mic
+description: Make a hypedoc celebrating this users contributions
+instruction: |
+  suggestions to optimize the users work, what to automate
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: glean
+  cmd: uvx
+  args:
+  - mcp_glean@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: Glean search of company knowledge with personal perspective
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+
+
+prompt: |
+  
+  You are to think of ways the user is working that could possibly be automated with an agent like goose and suggest it.
+  You can look in ~/.local/share/goose-perception/WORK.md, INTERACTIONS.md and other files in there. 
+
+  You can also look up glean if you need to find out what they have been up to, gcal and more. 
+  You have other tools you can use as well, such as gh cli to look at broad github contributions (not just code), google drive and so on.
+
+  When you have this picture, consider if there are repetitive tasks that happen each day or each week, maybe they can be automated
+
+  Produce a beautiful report if you think the balance is not right with suggestions as html5 page, and open it with a command like: 
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
+
+
