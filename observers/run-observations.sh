@@ -211,7 +211,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention"
   run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming"
   run_recipe_if_needed "recipe-what-working-on.yaml" "evening" ".working-on"
-  run_recipe_if_needed "recipe-optimize.yml" "weekly" ".optimize"
+  run_recipe_if_needed "recipe-optimize.yaml" "weekly" ".optimize"
   
   
   echo "$(date): Scheduled recipe check complete."

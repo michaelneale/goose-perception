@@ -60,7 +60,7 @@ prompt: |
   WORK.md is also useful as a longer running work log.
   Use calendar to also consider any booked time.
   you can use glean to look at their recent slack and email interactions to work out what may be important if you can.
-
-  If you notice the user uses apple notes, add a note with suggestions to their apple notes be sure to format it nicely with spacing, or make a html5 report
-  you can also notify the user if you think there is something they should shift to now with a notification message.
+  
+  you can also notify the user if you think there is something they should shift to now with a notification message, remember this is interrupting them so you need to think if it is needed. 
+  you can publish a html5 page with suggestions for them for attention as well if needed
   
