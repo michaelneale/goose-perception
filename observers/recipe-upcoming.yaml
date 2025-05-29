@@ -1,0 +1,64 @@
+version: 1.0.0
+title: Upcoming
+author:
+  contact: mic
+description: Any upcoming things to prepare for 
+instruction: |
+  will be using extensions like gcal to look for upcoming things which need to be prepared for. only use glean if you need clarification what something is upcoming if you don't know and need to do company research in preparation
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+
+
+
+
+prompt: |
+  
+  you will check if the user needs to prepare for anything in the upcoming days, especially for meetings which may be in the morning, to ensure they have prepared for it
+  if preparation is needed. 
+
+  Consult below to get work context:  
+  Consider their calendar, their contributions to code and documents, and their interactions with others.
+  looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and PROJECTS.md to form a picture of what is going on in the users work world. 
+  WORK.md is also useful as a longer running work log.
+
+  then check if any upcoming meetings (which are not necessarily regular ones) will need preparation, and there aren't already notes in their apple notes or google docs about it.
+  for example, if there is a presentation required, there should be a presentation in google drive
+  If it is a deep dive type of meeting should be some notes on it or some docs relative to that recently looked at
+
+  If they need assistance, consider adding reminders for them, little reminders to their calendar ahead of time
+  can also leave apple notes (with lists or just notes/reminder deadlines on them if you can) to help them out
+  in some cases, you may be able to prep some research for them by starting a doc and then making sure they know about it if there isn't one.
+
+  

@@ -1,0 +1,35 @@
+version: 1.0.0
+title: Morning news
+author:
+  contact: mic
+description: Important news in email in the morning
+instruction: |
+  use glean to look at unread email that is important
+  for notifications: osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'
+  for leaving a note for the user - you can create a HTML5 page and leave it open as a report of actions to take and open it with "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
+  
+extensions:
+- type: stdio
+  name: glean
+  cmd: uvx
+  args:
+  - mcp_glean@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: Glean search of company knowledge with personal perspective
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true   
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true  
+prompt:
+  can you use glean to look up any currently unread emails that appear important and may warrant attention for the user
+   * if general important and unread news that is noteworthy, can notify them
+   * if specific and relevant to their work which you can see in ~/.local/share/goose-perception/WORK.md, PROJECTS.md, INTERACTIONS.md and CONTRIBUTIONS.md, you can notify them and leave a note for them to follow up on it  
+   * You can add to apple notes if you note they are an apple notes user

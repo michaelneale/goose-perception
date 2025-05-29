@@ -47,78 +47,160 @@ capture_screenshots() {
   echo "$(date): Screenshots saved to $SCREENSHOT_DIR"
 }
 
-# Function to run the work summarization logic
-run_work_summarize() {
-  echo "$(date): Running work summarization..."
-  log_activity "Starting work summarization"
-  
-  # Run the work summarize recipe
-  goose run --no-session --recipe recipe-work.yaml || echo "Work summarization failed, continuing..."
-  
-  # Clean up screenshots after summarization
-  rm -f /tmp/screenshots/*
-  
-  echo "$(date): Work summarization complete and screenshots cleaned up."
-  log_activity "Completed work summarization"
-}
 
-# Function to run a recipe if its output file doesn't exist or is older than 24 hours
+
+# Function to run a recipe if needed based on frequency
 run_recipe_if_needed() {
   local recipe="$1"
-  local output_file="$2"
+  local frequency="$2"
+  local output_file="$3"
+  local marker_file="$PERCEPTION_DIR/.recipe-last-run-$(basename "$recipe" .yaml)"
   local full_output_path="$PERCEPTION_DIR/$output_file"
   
-  # Check if file doesn't exist or is older than 24 hours
-  if [ ! -f "$full_output_path" ] || [ $(find "$full_output_path" -mtime +1 -print | wc -l) -gt 0 ]; then
-    echo "$(date): Running $recipe recipe in background..."
-    log_activity "Starting $recipe"
+  # Handle time-of-day frequencies (morning, afternoon, evening)
+  if [[ "$frequency" =~ ^(morning|afternoon|evening)$ ]]; then
+    local current_hour=$(date +%H)
+    
+    # Check if we've already run today
+    if [ -f "$marker_file" ]; then
+      local marker_date=$(date -r "$marker_file" +%Y-%m-%d)
+      local today_date=$(date +%Y-%m-%d)
+      if [ "$marker_date" = "$today_date" ]; then
+        echo "$(date): Skipping $recipe, already ran today."
+        return 0
+      fi
+    fi
+    
+    # Check if it's the right time to run
+    case "$frequency" in
+      "morning")
+        # Morning: run anytime (first thing)
+        ;;
+      "afternoon")
+        # Afternoon: only run after 12 PM
+        if [ $current_hour -lt 12 ]; then
+          return 0
+        fi
+        ;;
+      "evening")
+        # Evening: only run after 6 PM
+        if [ $current_hour -lt 18 ]; then
+          return 0
+        fi
+        ;;
+    esac
+    
+    # Run the recipe
+    echo "$(date): Running $recipe recipe ($frequency) in background..."
+    log_activity "Starting $recipe ($frequency)"
+    (
+      goose run --no-session --recipe "$recipe" && {
+        touch "$marker_file"
+        [ -n "$output_file" ] && touch "$full_output_path"
+        log_activity "Completed $recipe"
+      } || log_activity "Failed $recipe"
+    ) &
+    return 0
+  fi
+  
+  # Handle regular frequencies (hourly, daily, weekly, custom)
+  local find_time=""
+  case "$frequency" in
+    "hourly")
+      find_time="-mmin +60"
+      ;;
+    "daily")
+      find_time="-mtime +1"
+      ;;
+    "weekly")
+      find_time="-mtime +7"
+      ;;
+    *"m")
+      # Extract minutes (e.g., "20m" -> 20)
+      local minutes="${frequency%m}"
+      find_time="-mmin +$minutes"
+      ;;
+    *"h")
+      # Extract hours (e.g., "2h" -> 120 minutes)
+      local hours="${frequency%h}"
+      local minutes=$((hours * 60))
+      find_time="-mmin +$minutes"
+      ;;
+    *"d")
+      # Extract days (e.g., "3d" -> 3)
+      local days="${frequency%d}"
+      find_time="-mtime +$days"
+      ;;
+    *)
+      echo "Unknown frequency format: $frequency"
+      return 1
+      ;;
+  esac
+  
+  # Check if marker file doesn't exist or is older than frequency
+  if [ ! -f "$marker_file" ] || [ $(find "$marker_file" $find_time -print | wc -l) -gt 0 ]; then
+    echo "$(date): Running $recipe recipe ($frequency) in background..."
+    log_activity "Starting $recipe ($frequency)"
     # Run recipe in background and continue regardless of success/failure
     (
       goose run --no-session --recipe "$recipe" && {
+        # Update marker file on success
+        touch "$marker_file"
         # Touch the output file to update its timestamp even if the recipe didn't modify it
-        touch "$full_output_path"
+        [ -n "$output_file" ] && touch "$full_output_path"
         log_activity "Completed $recipe"
       } || log_activity "Failed $recipe"
     ) &
   else
-    echo "$(date): Skipping $recipe, output file is up to date."
+    echo "$(date): Skipping $recipe, ran recently (frequency: $frequency)."
   fi
 }
 
-# Function to check and run all other recipes once per day
-run_daily_recipes() {
-  echo "$(date): Checking if daily recipes need to be run..."
+# Function to check and run all recipes based on their frequencies
+run_scheduled_recipes() {
+  echo "$(date): Checking scheduled recipes..."
   
-  run_recipe_if_needed "recipe-contributions.yaml" "CONTRIBUTIONS.md"
-  run_recipe_if_needed "recipe-interactions.yaml" "INTERACTIONS.md"
-  run_recipe_if_needed "recipe-projects.yaml" "PROJECTS.md"
-  run_recipe_if_needed "recipe-important-email.yaml" ".important-email"
-  run_recipe_if_needed "recipe-interests.yaml" "INTERESTS.md"
-  run_recipe_if_needed "recipe-work-personal.yaml" ".work-personal"
+  # Work recipe (every 20 minutes)
+  run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md"
   
-  echo "$(date): Daily recipe check complete."
+  # Time-based recipes
+  run_recipe_if_needed "recipe-contributions.yaml" "evening" "CONTRIBUTIONS.md"
+  run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus"
+  run_recipe_if_needed "recipe-goose-sessions.yaml" "60m" ".goose-sessions"
+  run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
+
+  run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md"
+  run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
+  run_recipe_if_needed "recipe-day-improvements.yaml" "evening" "DAY-IMPROVEMENTS.md"
+  
+  # Regular frequency recipes
+  run_recipe_if_needed "recipe-interactions.yaml" "daily" "INTERACTIONS.md"
+  run_recipe_if_needed "recipe-important-email.yaml" "hourly" ".important-email"
+  run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
+  run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention"
+  run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming"
+  run_recipe_if_needed "recipe-what-working-on.yaml" "evening" ".working-on"
+  
+  
+  echo "$(date): Scheduled recipe check complete."
 }
 
 echo "Starting continuous screenshot and observation process..."
 echo "- Taking screenshots every 20 seconds"
-echo "- Running work summarization every 20 minutes"
-echo "- Running other recipes once per day if needed"
+echo "- Checking and running recipes based on their frequencies every 5 minutes"
+echo "- Recipes can be: hourly, daily, weekly, or custom (e.g., 20m, 2h, 3d)"
 echo "Press Ctrl+C to stop"
 
 # Log startup
 log_activity "Starting observation system"
 
-# Counter to track when to run summarization
+# Counter to track when to check recipes (every 5 minutes)
 COUNTER=0
-MAX_COUNT=60  # 60 * 20 seconds = 20 minutes
+MAX_COUNT=15  # 15 * 20 seconds = 5 minutes
 
-# Daily counter to check other recipes once per day
-DAILY_COUNTER=0
-DAILY_MAX_COUNT=4320  # 4320 * 20 seconds = 24 hours
-
-# Run daily recipes once at startup
-echo "$(date): Running daily recipes at startup..."
-run_daily_recipes
+# Run scheduled recipes once at startup
+echo "$(date): Running scheduled recipes at startup..."
+run_scheduled_recipes
 
 # Main loop
 while true; do
@@ -130,23 +212,17 @@ while true; do
     rm -f /tmp/goose-perception-halt
     exit 0
   fi
+  
   # Capture screenshots
   capture_screenshots
   
-  # Increment counters
+  # Increment counter
   COUNTER=$((COUNTER + 1))
-  DAILY_COUNTER=$((DAILY_COUNTER + 1))
   
-  # Check if it's time to run work summarization
+  # Check recipes every 5 minutes
   if [ $COUNTER -ge $MAX_COUNT ]; then
-    run_work_summarize
+    run_scheduled_recipes
     COUNTER=0
-  fi
-  
-  # Check if it's time to run daily recipes
-  if [ $DAILY_COUNTER -ge $DAILY_MAX_COUNT ]; then
-    run_daily_recipes
-    DAILY_COUNTER=0
   fi
   
   # Wait 20 seconds before next capture

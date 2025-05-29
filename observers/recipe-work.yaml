@@ -32,5 +32,6 @@ prompt: |
   
   Include time in summary and cover any changes since last. 
   Save the updated summary to ~/.local/share/goose-perception/WORK.md and also save just the update to LATEST_WORK.md in same dir.
+  IMPORTANT: clean up /tmp/screenshots after you are done so they do not accumulate, you can delete them all once you have processed them.
   
   

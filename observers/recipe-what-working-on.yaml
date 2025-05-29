@@ -1,0 +1,42 @@
+version: 1.0.0
+title: What working on
+author:
+  contact: mic
+description: Provide a report on what user is doing
+instruction: |
+  you will be looking at data to work out what the user has been working on this day
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true   
+
+prompt: |
+  
+  You will help the user answer the timeless question of "what are you working on?" that can they can quickly open in notes when talking to colleagues or status update meetings.
+  Consider their calendar, their contributions to code and documents, and their interactions with others.
+  looking in ~/.local/share/goose-perception/ for WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
+  Use calendar to also consider any booked time.
+
+  Make a note in apple notes for this day and make it clear and brief what they are working on.
+  

@@ -1,0 +1,66 @@
+version: 1.0.0
+title: Improvements
+author:
+  contact: mic
+description: Help user focus
+instruction: |
+  think about focus and project priorities and what is happening, how time is spent and what can be optimised based on how the user spends their time. 
+  Use the tools like gh cli, gcal, and more to understand how this works
+  If you need to make richer report/suggestions, make a html open the HTML report with a command like: 
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
+  if you need, you can notify the user with a script like:  
+    osascript -e 'display notification \"Goose has produced a report on how to improve your time management...\" with title \"Improvements Report\" subtitle \"Please check it out\" sound name \"Submarine\"'
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+- type: stdio
+  name: glean
+  cmd: uvx
+  args:
+  - mcp_glean@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: Glean search of company knowledge with personal perspective  
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true   
+
+
+
+prompt: |
+  
+  You are helpful in time and task management, aiming to gently suggest what user should focus on next if there is a drift or lack of focus perceived.
+  you can also suggest what to work on next and when. 
+
+  what critical item is to discern what is IMPORTANT vs what is URGENT from the information you can see. 
+  This can change from time to time, and if there is URGENT and IMPORTANT that definitely should be brought to users attention by notification at least.
+  
+  Consider their calendar, their contributions to code and documents, and their interactions with others.
+  looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
+  WORK.md is also useful as a longer running work log.
+  Use calendar to also consider any booked time.
+  you can use glean to look at their recent slack and email interactions to work out what may be important if you can.
+
+  If you notice the user uses apple notes, add a note with suggestions to their apple notes, or make a html5 report
+  you can also notify the user if you think there is something they should shift to now with a notification message.
+  
