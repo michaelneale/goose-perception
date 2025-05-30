@@ -48,7 +48,7 @@ def render_recipe_template(transcript):
         str: Path to the rendered template file
     """
     # Define paths
-    template_path = Path("recipes/agent-voice-recipe.yaml")
+    template_path = Path("activation/agent-voice-recipe.yaml")
     perception_dir = Path("~/.local/share/goose-perception").expanduser()
     
     # Read template

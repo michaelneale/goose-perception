@@ -53,6 +53,8 @@ prompt: |
   You are helpful in time and task management, aiming to gently suggest what user should focus on next if there is a drift or lack of focus perceived.
   you can also suggest what to work on next and when. 
 
+  you may want to notify the user (as desdcribed below) if there hasn't been a lot of change in what they have worked on in the ~/.local/share/goose-perception/WORK.md log
+
   what critical item is to discern what is IMPORTANT vs what is URGENT from the information you can see. 
   This can change from time to time, and if there is URGENT and IMPORTANT that definitely should be brought to users attention by notification at least.
   
