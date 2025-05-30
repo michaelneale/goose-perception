@@ -4,7 +4,9 @@ author:
   contact: mic
 description: Any upcoming things to prepare for 
 instruction: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   will be using extensions like gcal to look for upcoming things which need to be prepared for. only use glean if you need clarification what something is upcoming if you don't know and need to do company research in preparation
+  if making notes in apple notes ensure to format with linebreaks as markdown may not always come across nicely
 extensions:
 - type: builtin
   name: developer
@@ -59,6 +61,7 @@ prompt: |
 
   If they need assistance, consider adding reminders for them, little reminders to their calendar ahead of time
   can also leave apple notes (with lists or just notes/reminder deadlines on them if you can) to help them out, be sure to format it nicely with spacing.
+  Don't repeat yourselt, there may already be notes you have left.
   in some cases, you may be able to prep some research for them by starting a doc and then making sure they know about it if there isn't one.
 
   

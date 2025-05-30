@@ -3,7 +3,9 @@ title: Contributions
 author:
   contact: mic
 description: Analysis of document and code activity
-instruction: anaylise last weeks contributions, using gh cli and google drive extension
+instruction: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
+  anaylise last weeks contributions, using gh cli and google drive extension
 extensions:
 - type: builtin
   name: developer

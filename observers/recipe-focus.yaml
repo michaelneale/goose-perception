@@ -4,6 +4,7 @@ author:
   contact: mic
 description: Help user focus
 instruction: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   think about focus and project priorities and what is happening, how time is spent and what can be optimised based on how the user spends their time. 
   Use the tools like gh cli, gcal, and more to understand how this works
   If you need to make richer report/suggestions, make a html open the HTML report with a command like: 

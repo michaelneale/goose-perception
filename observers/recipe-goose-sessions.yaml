@@ -4,6 +4,7 @@ author:
   contact: mic
 description: update goose session state
 instruction: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   you will note recent goose sessions and keep the user updated with what is going on
 extensions:
 - type: builtin

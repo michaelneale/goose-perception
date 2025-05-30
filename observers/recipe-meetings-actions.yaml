@@ -4,6 +4,7 @@ author:
   contact: mic
 description: Help user focus
 instruction: |  
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   Use the tools like, gcal, and more to help understand if there are any follow ups to meetings in the past half day or so
   If you need to make richer suggestions, make a html5 single page and HTML report with a command like: 
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
