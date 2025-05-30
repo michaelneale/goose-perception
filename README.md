@@ -28,6 +28,21 @@ It will communicate with you via notifications (if it must), voice, or presentin
 Once running - just go about your day, you don't need to do anything, it will do something. 
 You can if you like ask goose to do something, just talk, mention goose, it will detect that you are talking to it (vs about it).
 
+## What it can do for you
+
+  <img src="desktop.png" alt="Goose Perception in action - AI-blurred screenshot showing Goose preparing for the day" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+  
+> [!NOTE]
+>This is a real screenshot (blurred with AI) of a meeting where it was early morning, and goose was prepping me for the day, noting any important actions in slack and email I needed to take (knowing that I am terrible at reading email until much later in the day).
+    
+Let it run for a while (ie run it all the time in the background), over time goose will start either showing things to you (with windows showing up with little web apps or reports), it will put things quietly on your calendar to remind you, prepare documents for you for up coming things.
+    
+It will also do a weekly "hype doc" summary celebrating all your hard work! There are many other things it may do, they all combine together as it learns what you do.
+
+You can also use verbal commands to ask it to do something (and it has the benefit of that learned context). 
+A normal goose session can also benefit from this context as well. 
+
+
 ## Setup
 
 Prerequisites:
@@ -63,22 +78,6 @@ For running all locally, this is possibly by via goose config, but also possibly
 There are models such as `llava:3b` (ideally 13b or up) which can read screen content for summarization, but need to be used in concert with other models (think of it as mode like fancy OCR!)
 This is an emerging space so keep an eye out
 
-
-## What it can do for you
-
-<div style="display: flex; align-items: flex-start; gap: 20px; margin: 20px 0;">
-  <img src="desktop.png" alt="Goose Perception in action - AI-blurred screenshot showing Goose preparing for the day" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
-  <div>
-    <p>This is a real screenshot (blurred with AI) of a meeting where it was early morning, and goose was prepping me for the day, noting any important actions in slack and email I needed to take (knowing that I am terrible at reading email until much later in the day).</p>
-    
-    <p>Let it run for a while (ie run it all the time in the background), over time goose will start either showing things to you (with windows showing up with little web apps or reports), it will put things quietly on your calendar to remind you, prepare documents for you for up coming things.</p>
-    
-    <p>It will also do a weekly "hype doc" summary celebrating all your hard work! There are many other things it may do, they all combine together as it learns what you do.</p>
-  </div>
-</div>
-
-You can also use verbal commands to ask it to do something (and it has the benefit of that learned context). 
-A normal goose session can also benefit from this context as well. 
 
 ## How It Works
 
