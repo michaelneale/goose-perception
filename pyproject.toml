@@ -1,7 +1,7 @@
 [project]
 name = "goose-perception"
 version = "0.1.0"
-description = "A real-time audio agent activation tool using local transcription models"
+description = "A real-time audio and hotkey agent activation tool using local transcription models and screen capture"
 requires-python = ">=3.12,<3.13"
 
 dependencies = [
@@ -19,6 +19,7 @@ dependencies = [
     "python-Levenshtein>=0.27.1",
     "jinja2>=3.1.2",
     "nltk>=3.9.1",
+    "pynput>=1.8.0",
 ]
 
 [build-system]

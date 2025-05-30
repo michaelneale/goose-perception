@@ -63,6 +63,7 @@ prompt: |
   WORK.md is also useful as a longer running work log.
   Use calendar to also consider any booked time.
   you can use glean to look at their recent slack and email interactions to work out what may be important if you can.
+  PROJECTS.md will help with a picture of the manage projects, it is good to help the user not forget things that have been worked on, as they work on many things at once.
   
   you can also notify the user if you think there is something they should shift to now with a notification message, remember this is interrupting them so you need to think if it is needed. 
   you can make a html5 page with suggestions for them for attention as well if needed and open it to show them if needed which will draw their attention  

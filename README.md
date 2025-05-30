@@ -26,7 +26,14 @@ It will communicate with you via notifications (if it must), voice, or presentin
 ## Usage
 
 Once running - just go about your day, you don't need to do anything, it will do something. 
-You can if you like ask goose to do something, just talk, mention goose, it will detect that you are talking to it (vs about it).
+
+### Voice Activation
+You can ask goose to do something by talking - just mention "goose", it will detect that you are talking to it (vs about it).
+
+### Hotkey Activation  
+Press `Cmd+Shift+G` to capture your screen and give Goose an instruction about what to do with it.
+
+Both methods work asynchronously and Goose will process your requests in the background.
 
 ## What it can do for you
 
@@ -37,7 +44,8 @@ You can if you like ask goose to do something, just talk, mention goose, it will
     
 Let it run for a while (ie run it all the time in the background), over time goose will start either showing things to you (with windows showing up with little web apps or reports), it will put things quietly on your calendar to remind you, prepare documents for you for up coming things.
     
-It will also do a weekly "hype doc" summary celebrating all your hard work! There are many other things it may do, they all combine together as it learns what you do.
+For example it will do a weekly "hype doc" summary celebrating all your hard work! There are many other things it may do, they all combine together as it learns what you do.
+it knows when you are in a meeting, and can use the dialog to help you not miss follow up items and take action on them.
 
 You can also use verbal commands to ask it to do something (and it has the benefit of that learned context). 
 A normal goose session can also benefit from this context as well. 
@@ -47,6 +55,7 @@ A normal goose session can also benefit from this context as well.
 
 Prerequisites:
 - `just` command runner
+- macOS (for hotkey functionality)
 
 The application will:
 1. Create a virtual environment with Python 3.12
@@ -54,6 +63,14 @@ The application will:
 3. Download models when first needed
 4. Train the classifiers on first run
 
+### macOS Permissions
+
+For the hotkey functionality (`Cmd+Shift+G`) to work, you may need to grant permissions:
+
+1. **Accessibility**: System Preferences → Security & Privacy → Privacy → Accessibility
+   - Add Terminal or your Python executable to allow hotkey detection
+2. **Screen Recording**: System Preferences → Security & Privacy → Privacy → Screen Recording
+   - Add Terminal or your Python executable to allow screenshot capture
 
 > **Note:** The application sets `TOKENIZERS_PARALLELISM=false` to avoid warnings from the Hugging Face tokenizers library. If you run into any issues with tokenizers, you can manually set this environment variable: `export TOKENIZERS_PARALLELISM=false`
 
@@ -100,6 +117,18 @@ They will then proactively go to work (checkout `observers` dir).
 # Voice commands
 
 Voice input is useful as it is always listening and knows the context of which you ask for something to be done. Best for async tasks, not conversation.
+
+# Hotkey commands
+
+The system now includes a **hotkey-activated screen capture feature** that allows you to quickly capture your screen and have Goose analyze it.
+
+- **Hotkey**: `Cmd+Shift+G` (press and hold all three keys)
+- **Process**: Captures screen → Shows input dialog → Processes with Goose
+- **Use cases**: Code review, document analysis, UI interaction, task automation
+
+See [HOTKEY_FEATURE.md](HOTKEY_FEATURE.md) for detailed documentation.
+
+# Audio processing flow
 
 The application uses a sequential processing approach with continuous audio capture:
 

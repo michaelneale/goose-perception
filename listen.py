@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 listen.py - Continuously listen to audio, detect wake word, and capture full conversations
+Enhanced with hotkey support for screen capture and text input
 """
 
 # Set environment variables before importing libraries
@@ -25,6 +26,8 @@ from fuzzywuzzy import fuzz
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.tag import pos_tag
+from pynput import keyboard
+from pynput.keyboard import Key, Listener
 
 # Import our agent module
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -84,6 +87,13 @@ audio_queue = queue.Queue()
 # Flag to control the main loop
 running = True
 
+# Hotkey system globals
+hotkey_listener = None
+hotkey_pressed = False
+hotkey_combination = {Key.cmd, Key.shift}  # Cmd+Shift+G will be the trigger
+hotkey_target_key = keyboard.KeyCode.from_char('g')
+hotkey_keys_pressed = set()
+
 # Transcription thread control
 transcription_thread = None
 transcription_event = threading.Event()
@@ -92,11 +102,201 @@ transcription_lock = threading.Lock()
 
 def signal_handler(sig, frame):
     """Handle interrupt signals for clean shutdown"""
-    global running
+    global running, hotkey_listener
     print("\nReceived interrupt signal. Shutting down...")
     running = False
     if transcription_thread and transcription_thread.is_alive():
         transcription_event.set()  # Signal the transcription thread to exit
+    if hotkey_listener:
+        hotkey_listener.stop()
+
+def on_hotkey_press(key):
+    """Handle hotkey press events"""
+    global hotkey_keys_pressed, hotkey_pressed
+    
+    # Add the pressed key to our set
+    hotkey_keys_pressed.add(key)
+    
+    # Check if our target combination is pressed
+    if hotkey_combination.issubset(hotkey_keys_pressed) and key == hotkey_target_key:
+        if not hotkey_pressed:  # Prevent multiple triggers
+            hotkey_pressed = True
+            print(f"\n🔥 HOTKEY DETECTED: Cmd+Shift+G")
+            # Trigger the hotkey action in a separate thread to avoid blocking
+            threading.Thread(target=handle_hotkey_action, daemon=True).start()
+
+def on_hotkey_release(key):
+    """Handle hotkey release events"""
+    global hotkey_keys_pressed, hotkey_pressed
+    
+    # Remove the released key from our set
+    try:
+        hotkey_keys_pressed.discard(key)
+    except KeyError:
+        pass
+    
+    # Reset the hotkey pressed flag when all keys are released
+    if not hotkey_keys_pressed:
+        hotkey_pressed = False
+
+def capture_screen():
+    """Capture the current screen and save to a temporary file"""
+    try:
+        # Create a timestamp for the screenshot
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        screenshot_path = f"/tmp/goose_screen_capture_{timestamp}.png"
+        
+        # Use macOS screencapture command
+        # -x: no sound, -t png: PNG format
+        result = subprocess.run([
+            "screencapture", "-x", "-t", "png", screenshot_path
+        ], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(f"✅ Screen captured: {screenshot_path}")
+            return screenshot_path
+        else:
+            print(f"❌ Screen capture failed: {result.stderr}")
+            return None
+    except Exception as e:
+        print(f"❌ Error capturing screen: {e}")
+        return None
+
+def get_user_input():
+    """Get text input from the user"""
+    try:
+        # Use AppleScript to show a dialog box
+        script = '''
+        tell application "System Events"
+            activate
+            set userInput to text returned of (display dialog "OK, tell me what to do" default answer "" with title "Goose Screen Command" buttons {"Cancel", "OK"} default button "OK")
+            return userInput
+        end tell
+        '''
+        
+        result = subprocess.run([
+            "osascript", "-e", script
+        ], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            user_input = result.stdout.strip()
+            if user_input:
+                print(f"📝 User input: {user_input}")
+                return user_input
+            else:
+                print("❌ No input provided")
+                return None
+        else:
+            print(f"❌ Input dialog cancelled or failed")
+            return None
+    except Exception as e:
+        print(f"❌ Error getting user input: {e}")
+        return None
+
+def create_screen_transcript(screenshot_path, user_input):
+    """Create a transcript file that combines the screenshot and user instruction"""
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        transcript_path = f"/tmp/goose_screen_transcript_{timestamp}.txt"
+        
+        # Create a transcript that tells Goose about the screen capture
+        transcript_content = f"""SCREEN CAPTURE REQUEST
+
+User instruction: {user_input}
+
+Screenshot saved at: {screenshot_path}
+
+This is a screen capture request. The user has taken a screenshot and provided an instruction for what they want Goose to do with it. Please analyze the screenshot and follow the user's instruction.
+"""
+        
+        with open(transcript_path, 'w') as f:
+            f.write(transcript_content)
+        
+        print(f"✅ Screen transcript created: {transcript_path}")
+        return transcript_path
+    except Exception as e:
+        print(f"❌ Error creating screen transcript: {e}")
+        return None
+
+def handle_hotkey_action():
+    """Handle the hotkey action - capture screen and get user input"""
+    try:
+        print("🖥️  Starting screen capture process...")
+        
+        # Show notification
+        subprocess.call(
+            "osascript -e 'display notification \"Taking screenshot...\" with title \"Goose Hotkey\" sound name \"Glass\"'",
+            shell=True
+        )
+        
+        # Capture the screen
+        screenshot_path = capture_screen()
+        if not screenshot_path:
+            return
+        
+        # Get user input for what to do with the screen
+        user_input = get_user_input()
+        if not user_input:
+            # Clean up the screenshot if user cancelled
+            try:
+                os.remove(screenshot_path)
+            except:
+                pass
+            return
+        
+        # Create a transcript file
+        transcript_path = create_screen_transcript(screenshot_path, user_input)
+        if not transcript_path:
+            return
+        
+        # Show notification that we're processing
+        subprocess.call(
+            "osascript -e 'display notification \"Processing screen capture...\" with title \"Goose Hotkey\" sound name \"Submarine\"'",
+            shell=True
+        )
+        
+        print("🤖 Processing screen capture with Goose...")
+        
+        # Process with the agent (same as voice commands)
+        try:
+            agent_result = agent.process_conversation(transcript_path)
+            
+            if agent_result and agent_result.get("background_process_started"):
+                print("✅ Agent started processing screen capture in background")
+                log_activity(f"Screen capture processed: \"{user_input}\"")
+            else:
+                print("⚠️ Agent may not have started properly")
+        except Exception as e:
+            print(f"⚠️ Error invoking agent for screen capture: {e}")
+        
+    except Exception as e:
+        print(f"❌ Error handling hotkey action: {e}")
+
+def start_hotkey_listener():
+    """Start the hotkey listener in a separate thread"""
+    global hotkey_listener
+    
+    try:
+        print("🔥 Starting hotkey listener (Cmd+Shift+G for screen capture)...")
+        hotkey_listener = Listener(
+            on_press=on_hotkey_press,
+            on_release=on_hotkey_release
+        )
+        hotkey_listener.start()
+        print("✅ Hotkey listener started")
+    except Exception as e:
+        print(f"❌ Error starting hotkey listener: {e}")
+
+def stop_hotkey_listener():
+    """Stop the hotkey listener"""
+    global hotkey_listener
+    
+    if hotkey_listener:
+        try:
+            hotkey_listener.stop()
+            print("✅ Hotkey listener stopped")
+        except Exception as e:
+            print(f"❌ Error stopping hotkey listener: {e}")
 
 def cleanup_resources():
     """Clean up any resources that might be in use"""
@@ -750,6 +950,9 @@ def main():
     transcription_in_progress = False
 
     try:
+        # Start the hotkey listener
+        start_hotkey_listener()
+        
         # Start the audio stream
         try:
             stream = sd.InputStream(
@@ -768,7 +971,9 @@ def main():
             print("or a different number of channels with --channels <number>")
             return
         
-        print("\nListening... Press Ctrl+C to stop.\n")
+        print("\nListening... Press Ctrl+C to stop.")
+        print("🔥 Hotkey: Cmd+Shift+G for screen capture")
+        print("🎙️ Voice: Say 'goose' to activate voice commands\n")
         log_activity("Listening for wake word")
         
         # Process audio chunks
@@ -1012,6 +1217,9 @@ def main():
     except Exception as e:
         print(f"\nError: {e}")
     finally:
+        # Stop the hotkey listener
+        stop_hotkey_listener()
+        
         # Clean up resources
         if stream is not None and stream.active:
             stream.stop()

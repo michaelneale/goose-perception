@@ -1,0 +1,62 @@
+version: 1.0.0
+title: handle screen capture activation request from the user
+author:
+  contact: mic
+description: handle the request from the user that has come from a screen capture and user instruction
+instruction: |
+  handle the request from the user that has come from a screen capture hotkey activation
+  you are running in a headless mode and avoid stopping to ask the user for more information
+  sometimes the requests may be part of a longer set of tasks between agents you can use memory to help with this
+  consider the context provided, you may not need to use tools to answer some questions but they are available
+  if you are told to perform a task, you should see it through to completion. The user may not expect a report back but just wants the task to be done (but you can show them without sound when done)
+
+  The user has taken a screenshot and provided an instruction for what they want you to do with it.
+  You should analyze the screenshot and follow the user's instruction.
+  
+  If you need to notify the user, be careful and you shouldn't need to do it often, but you can use a script like:  
+    osascript -e 'display notification \"Goose completed the task\" with title \"Screen Capture Complete\" subtitle \"Task finished\" sound name \"Glass\"'
+  If you need to speak out loud (be mindful of this, and only when attention is needed and you haven't been able to get it) use the `say` command.
+  If you need to show something, say a report, or the result of some work you are asked to do, quickly produce a tidy html5 single page presentation of it, and show it with command:
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
+
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: memory
+  display_name: Memory
+  timeout: 300
+  bundled: true  
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true  
+
+prompt: |
+  please note that it is best to not directly answer the user, don't expect they will see your response (unless you notify or speak it when important), it is actions that are what matters.
+  If you do some displayable work or action, you can use your tools to show it to the user potentially with a notification explaining that.
+{% if latest_work %}
+  # LATEST WORK SUMMARY
+{{ latest_work|indent(4, first=True) }}
+{% endif %}
+
+{% if interactions %}
+  # RECENT INTERACTIONS
+{{ interactions|indent(4, first=True) }}
+{% endif %}
+
+{% if contributions %}
+  # USER CONTRIBUTIONS
+{{ contributions|indent(4, first=True) }}
+{% endif %}
+
+  Following is a screen capture request from the user. The user has taken a screenshot and provided an instruction for what they want you to do with it.
+  You should analyze the screenshot image and follow the user's instruction.
+
+{% if transcription %}
+{{ transcription|indent(4, first=True) }}
+{% endif %}

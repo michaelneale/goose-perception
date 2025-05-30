@@ -37,18 +37,25 @@ def safe_read_file(file_path):
             print(f"Warning: Could not read {file_path}: {e}")
     return ""
 
-def render_recipe_template(transcript):
+def render_recipe_template(transcript, is_screen_capture=False):
     """
     Render the recipe template with dynamic content
     
     Args:
         transcript (str): The transcript text
+        is_screen_capture (bool): Whether this is a screen capture request
         
     Returns:
         str: Path to the rendered template file
     """
-    # Define paths
-    template_path = Path("activation/agent-voice-recipe.yaml")
+    # Define paths - choose the appropriate template
+    if is_screen_capture:
+        template_path = Path("activation/agent-screen-activation.yaml")
+        prefix = 'agent-screen-activation-'
+    else:
+        template_path = Path("activation/agent-voice-recipe.yaml")
+        prefix = 'agent-voice-recipe-'
+    
     perception_dir = Path("~/.local/share/goose-perception").expanduser()
     
     # Read template
@@ -70,11 +77,12 @@ def render_recipe_template(transcript):
     )
     
     # Create a temporary file for the rendered template
-    with tempfile.NamedTemporaryFile(suffix='.yaml', prefix='agent-voice-recipe-', delete=False) as tmp_file:
+    with tempfile.NamedTemporaryFile(suffix='.yaml', prefix=prefix, delete=False) as tmp_file:
         tmp_file.write(rendered_content.encode('utf-8'))
         temp_path = tmp_file.name
     
-    print(f"Created rendered recipe at {temp_path}")
+    template_type = "screen capture" if is_screen_capture else "voice"
+    print(f"Created rendered {template_type} recipe at {temp_path}")
     return temp_path
 
 def log_activity(message):
@@ -104,17 +112,24 @@ def run_goose_in_background(transcript):
         transcript (str): The transcript text
     """
     try:
+        # Detect if this is a screen capture request
+        is_screen_capture = "SCREEN CAPTURE REQUEST" in transcript
+        
         # Notify user that Goose is running
         subprocess.call(notify_cmd, shell=True)
-        log_activity("Starting to process request")
+        
+        if is_screen_capture:
+            log_activity("Starting to process screen capture request")
+        else:
+            log_activity("Starting to process voice request")
         
         # Copy the transcript to /tmp/current_transcription.txt
         with open('/tmp/current_transcription.txt', 'w') as f:
             f.write(transcript)
             print("Saved transcript to /tmp/current_transcription.txt")
         
-        # Render the recipe template
-        temp_recipe_path = render_recipe_template(transcript)
+        # Render the appropriate recipe template
+        temp_recipe_path = render_recipe_template(transcript, is_screen_capture=is_screen_capture)
         
         # Execute the command with the rendered template
         cmd = f"goose run --no-session --recipe {temp_recipe_path}"
@@ -122,7 +137,10 @@ def run_goose_in_background(transcript):
         subprocess.call(cmd, shell=True)
         
         # Log completion
-        log_activity("Completed processing request")
+        if is_screen_capture:
+            log_activity("Completed processing screen capture request")
+        else:
+            log_activity("Completed processing voice request")
                 
         
     except Exception as e:

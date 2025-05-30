@@ -1,0 +1,61 @@
+version: 1.0.0
+title: start fixing
+author:
+  contact: mic
+description: start fixing in response to a message
+instruction: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
+  use glean to look at unread slack or email message that is new, perhaps help is needed or a failure
+  for notifications: osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'
+  for leaving a note for the user - you can create a HTML5 page and leave it open as a report of actions to take and open it with "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
+extensions:
+- type: stdio
+  name: glean
+  cmd: uvx
+  args:
+  - mcp_glean@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: Glean search of company knowledge with personal perspective
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true   
+- type: builtin
+  name: googledrive 
+  display_name: Google Drive
+  timeout: 300
+  bundled: true   
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true  
+prompt:
+  in the  ~/.local/share/goose-perception/ directory please consult the follwing
+     LATEST_WORK.md PROJECTS.md INTERACTIONS.md and CONTRIBUTIONS.md to form a picture of what the user has been working on. 
+  You can also consider WORK.md for a more full log
+
+  based on this, if there is any messages you can see in glean (email or slack) which are are clearly requiring some change to recent submitted work, and the user has recently worked on in WORK.md (but are not currently working on in LATEST_WORK.md)
+  
+  Consider LATEST_WORK.md if they are actually working on it now notify them that there is something relevant. 
+  If it is something not active but has been worked on, you can notify them but if you can act on it, do so, go and make the corrections, make notes (propose changes) 
+
+
+  Pay special attention to if the message is clearly from a build failure, document feedback requesting changes and so on.
+  it is IMPORTANT you don't make descructive changes, so if it is code, then it shoudl be a new branch, pull request, if a document, then can be a copy, or just comments back or change tracking. 
+  notify them as you go working on it, and at the end open a html5 page with a neat summary of what you did (and also add to the ACTIVITY-LOG.md file in ~/.local/share/goose-perception/)
+
+  TIP if the user is inactive, it is a good time to be proactive. If they user is actively working in that are, consider just notifying them vs working over the top of their changes
+
+  For example
+    if code was recently pushed to github, a build failure may result, this can possibly be acted on if the code is checked out locally in another branch (or you can make a clone in a tmp dir from that branch and work on a fix on a new PR)
+    if a document was recently edited in google drive, then you can make a copy of it and add comments or change tracking to it and act on the changes (or if clearly can be fixed in place, you can do that as a suggestion if you can)
+  
+  Be thoughtful and helpful, don't over do things
+
+  
+
+

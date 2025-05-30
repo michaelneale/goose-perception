@@ -27,3 +27,6 @@ prompt: |
   look in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md and use glean to clarify what project names or initivives are being worked on. 
   You can update WORK.md with clarifications for this in the last paragraph if needed. You should also consult and update the PROJECTS.md file with any new projects or initiatives that are being worked on.
   update PROJECTS.md with any new projects or initiatives that are being worked on you can see. 
+
+  Your aim should be to build a picture of their inflight projects, with descriptions and names (brief of course, as it will change). The user will be working on various things throughout the day and week, that is ok. 
+  it isn't exhaustive, but the idea is to be helpful so things noted in the PROJECTS.md file can be referred to later if needed and not forgetten.

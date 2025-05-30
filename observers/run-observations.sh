@@ -213,6 +213,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-optimize.yaml" "weekly" ".optimize"
   run_recipe_if_needed "recipe-meetings-actions.yaml" "morning" ".meetings-afternoon"
   run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening"
+  run_recipe_if_needed "recipe-start-fixing.yaml" "90m" ".fixing"
   
   
   echo "$(date): Scheduled recipe check complete."
