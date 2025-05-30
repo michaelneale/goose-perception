@@ -203,7 +203,6 @@ run_scheduled_recipes() {
   
   run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md"
   run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
-  run_recipe_if_needed "recipe-day-improvements.yaml" "evening" "DAY-IMPROVEMENTS.md"  
   run_recipe_if_needed "recipe-interactions.yaml" "daily" "INTERACTIONS.md"
   run_recipe_if_needed "recipe-important-email.yaml" "hourly" ".important-email"
   run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
