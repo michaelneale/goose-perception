@@ -63,11 +63,13 @@ DTYPE = 'float32'
 BUFFER_DURATION = 2  # Duration in seconds for each audio chunk
 LONG_BUFFER_DURATION = 60  # Duration in seconds for the longer context (1 minute)
 
-# Audio threshold settings
-SILENCE_THRESHOLD = 0.01  # Base threshold for silence detection
-NOISE_FLOOR_THRESHOLD = 0.005  # Threshold for background noise floor
-SPEECH_ACTIVITY_THRESHOLD = 0.02  # Threshold for detecting actual speech
-MAX_NOISE_RATIO = 0.7  # Maximum ratio of noise to signal for accepting audio
+# Audio threshold settings - very sensitive, catch almost everything
+SILENCE_THRESHOLD = 0.008  # Lower silence threshold
+NOISE_FLOOR_THRESHOLD = 0.003  # Lower noise floor
+SPEECH_ACTIVITY_THRESHOLD = 0.01  # Very sensitive - catch very quiet speech
+MAX_NOISE_RATIO = 0.9  # Almost no noise filtering
+PROXIMITY_THRESHOLD = 0.02  # Very low signal level for proximity detection
+DISTANT_SPEECH_THRESHOLD = 0.005  # Extremely low threshold for distant speech
 
 # Default configuration - these can be overridden by command line arguments
 # and should match the defaults in run.sh
@@ -586,14 +588,17 @@ def notify_user(message):
 
 def analyze_audio(audio_data):
     """
-    Analyze audio data to determine if it contains speech or just noise.
+    Analyze audio data to determine if it contains speech or just noise,
+    with enhanced proximity detection for 1-2m range.
     
     Returns:
         dict: Analysis results containing:
             - is_silence: Whether the audio is below silence threshold
             - is_speech: Whether the audio appears to contain speech
+            - is_close_speech: Whether speech appears to be from close proximity (1-2m)
             - signal_level: The average signal level
             - noise_ratio: Estimated ratio of noise to signal
+            - is_distant: Whether speech appears to be from distant source
     """
     # Calculate basic metrics
     abs_data = np.abs(audio_data)
@@ -602,11 +607,24 @@ def analyze_audio(audio_data):
     # Calculate more advanced metrics
     std_dev = np.std(abs_data)  # Standard deviation helps distinguish noise from speech
     peak_level = np.max(abs_data)  # Peak level
+    rms_level = np.sqrt(np.mean(audio_data**2))  # RMS level for better volume estimation
     
     # Zero-crossing rate can help distinguish speech from noise
     # Speech typically has lower zero-crossing rate than noise
     zero_crossings = np.sum(np.diff(np.signbit(audio_data).astype(int)) != 0)
     zero_crossing_rate = zero_crossings / len(audio_data)
+    
+    # Calculate spectral centroid (frequency distribution) to help identify speech
+    # This is a simple approximation - real speech has characteristic frequency patterns
+    fft = np.fft.fft(audio_data)
+    freqs = np.fft.fftfreq(len(fft), 1/SAMPLE_RATE)
+    magnitude = np.abs(fft)
+    
+    # Focus on speech frequency range (roughly 85-255 Hz for fundamental, up to 8kHz for harmonics)
+    speech_freq_mask = (np.abs(freqs) >= 85) & (np.abs(freqs) <= 8000)
+    speech_energy = np.sum(magnitude[speech_freq_mask])
+    total_energy = np.sum(magnitude)
+    speech_ratio = speech_energy / (total_energy + 1e-10)
     
     # Calculate noise ratio (lower is better)
     # For speech, std_dev is usually higher relative to mean
@@ -618,19 +636,38 @@ def analyze_audio(audio_data):
     is_silence = mean_level < SILENCE_THRESHOLD
     
     # Determine if this is likely speech vs noise
-    # Speech typically has higher variance and lower zero-crossing rate than noise
-    is_speech = (
+    # Much more permissive - catch almost anything that might be speech
+    is_basic_speech = (
         mean_level >= SPEECH_ACTIVITY_THRESHOLD and
         noise_ratio < MAX_NOISE_RATIO and
-        zero_crossing_rate < 0.5  # Typical threshold for speech
+        zero_crossing_rate < 0.8  # Very permissive
+        # Removed speech_ratio requirement for now
+    )
+    
+    # Enhanced proximity detection - also more permissive
+    is_close_speech = (
+        mean_level >= PROXIMITY_THRESHOLD and  # Just need basic signal level
+        zero_crossing_rate < 0.7  # Basic speech characteristic
+    )
+    
+    # Detect distant speech (background conversations, other rooms)
+    # Very simple - just based on volume level
+    is_distant = (
+        mean_level >= DISTANT_SPEECH_THRESHOLD and
+        mean_level < PROXIMITY_THRESHOLD
     )
     
     return {
         "is_silence": is_silence,
-        "is_speech": is_speech,
+        "is_speech": is_basic_speech,
+        "is_close_speech": is_close_speech,
+        "is_distant": is_distant,
         "signal_level": mean_level,
+        "rms_level": rms_level,
+        "peak_level": peak_level,
         "noise_ratio": noise_ratio,
-        "zero_crossing_rate": zero_crossing_rate
+        "zero_crossing_rate": zero_crossing_rate,
+        "speech_ratio": speech_ratio
     }
 
 def main():
@@ -753,13 +790,23 @@ def main():
             # Concatenate audio chunks
             audio_data = np.concatenate(audio_data)
             
-            # Save to temporary file
+            # Analyze the audio for proximity and speech characteristics
+            audio_analysis = analyze_audio(audio_data)
+            
+            # Only skip processing if this is extremely weak signal
+            # Very sensitive - let almost everything through
+            if audio_analysis["signal_level"] < 0.003:  # Even lower threshold
+                if not is_active_listening:
+                    print(f"Very quiet [{datetime.now().strftime('%H:%M:%S')}]", end="\r")
+                    continue
+            
+            # Save to temporary file only if we're processing this audio
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             temp_file = os.path.join(temp_dir, f"audio_chunk_{timestamp}.wav")
             save_audio_chunk(audio_data, temp_file)
             
             # Check for silence if in active listening mode
-            current_is_silence = is_silence(audio_data)
+            current_is_silence = audio_analysis["is_silence"]
             
             if is_active_listening:
                 # In active listening mode, use the main model for high-quality transcription
@@ -882,6 +929,14 @@ def main():
                         print("Returning to passive listening mode. Waiting for wake word...")
             else:
                 # In passive listening mode, use the lightweight model for wake word detection
+                # But only if we detect close speech or at least some speech activity
+                
+                # Extremely minimal filtering in passive mode - process almost everything
+                # Only skip if signal is incredibly weak
+                if audio_analysis["signal_level"] < 0.002:  # Very low threshold
+                    print(f"Very quiet [{datetime.now().strftime('%H:%M:%S')}]", end="\r")
+                    continue
+                
                 # This is a quick, blocking call but with the tiny model it should be fast
                 quick_transcript = quick_transcribe(wake_word_model, temp_file, args.language)
                 
