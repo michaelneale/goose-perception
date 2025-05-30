@@ -45,6 +45,9 @@ prompt: |
   You have other tools you can use as well, such as gh cli to look at broad github contributions (not just code), google drive and so on.
 
   When you have this picture, consider if there are repetitive tasks that happen each day or each week, maybe they can be automated
+  Write your findings to ~/.local/share/goose-perception/OPTIMIZE.md and also produce a report in HTML format that can be opened in a browser.
+
+  Ensure you don't already have one open visible on screen to not flood their screen with reports
 
   Produce a beautiful report if you think the balance is not right with suggestions as html5 page, and open it with a command like: 
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."

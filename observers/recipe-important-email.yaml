@@ -7,7 +7,6 @@ instruction: |
   use glean to look at unread email that may be due a follow up
   for notifications: osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'
   for leaving a note for the user - you can create a HTML5 page and leave it open as a report of actions to take and open it with "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
-  
 extensions:
 - type: stdio
   name: glean
@@ -35,8 +34,10 @@ prompt:
   
   Based on this, can you look at any currently unread emails via the glean extension, which are addressed to the user directly, or with a small number of people it is sent to, which is pertenent to these tasks.
   If they appear urgent and important, consider notifying the user or making a brief report of actions to take. 
-  Consider LATEST_WORK.md if they are actually working on it now, you can interrupt them more directly if needed, otherwise you can file it for later (notes app, reminders etc)  
+  Consider LATEST_WORK.md if they are actually working on it now, you can interrupt them more directly if needed, otherwise you can file it for later (reminders, calendar follow up slot etc)  
 
   Pay special attention to if the email is from senior company leadership
+
+  Note they may already have a report visible you can look for on screen from a morning report, so you don't need to repeat that content, this is more as the day goes on you can check and prompt them if needed as important things come up that are relevant to their work.
 
 

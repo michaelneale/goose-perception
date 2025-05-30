@@ -5,6 +5,7 @@ author:
 description: Provide a report on what user is doing
 instruction: |
   you will be looking at data to work out what the user has been working on this day
+  if making notes in apple notes ensure to format with linebreaks as markdown may not always come across nicely
 extensions:
 - type: builtin
   name: developer
@@ -38,5 +39,5 @@ prompt: |
   looking in ~/.local/share/goose-perception/ for WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
   Use calendar to also consider any booked time.
 
-  Make a note in apple notes for this day and make it clear and brief what they are working on.
+  Make a note in apple notes for this day and make it clear and brief what they are working on, be sure to format it nicely with spacing.
   

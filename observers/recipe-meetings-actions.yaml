@@ -1,0 +1,76 @@
+version: 1.0.0
+title: Meetings actions
+author:
+  contact: mic
+description: Help user focus
+instruction: |  
+  Use the tools like, gcal, and more to help understand if there are any follow ups to meetings in the past half day or so
+  If you need to make richer suggestions, make a html5 single page and HTML report with a command like: 
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
+  if you need, you can notify the user with a script like:  
+    osascript -e 'display notification \"Goose has produced a report on how to improve your time management...\" with title \"Improvements Report\" subtitle \"Please check it out\" sound name \"Submarine\"'
+    this will get their attention if important.
+  if interacting with apple notes, make sure to format with linebreaks as markdown may not always come across nicely  
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+- type: stdio
+  name: glean
+  cmd: uvx
+  args:
+  - mcp_glean@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: Glean search of company knowledge with personal perspective  
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true   
+
+
+
+prompt: |
+  The aim is to help the user not forget about any follow up actions from a meeting that was had often verbally.
+  
+  Consider their calendar, their contributions to code and documents, and their interactions with others.
+  looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
+  Use calendar to also consider any meetings that occurred today so far
+  When you see any meetings that have occurred today before now, look in ~/.local/share/goose-perception/spoken.txt in case you see any transcription of spoken items that may be relevant to the meeting spoken by the user or overhead, using the timestamps around that time.
+  Look in google drive for any relevant meeting notes as well 
+
+  once you have that, detect if there are any follow up actions that the user indicated or were assigned to do, ensure they are noted in the meeting notes or a notes app, or future follow up in the calendar. 
+  Also note in ~/.local/share/goose-perception/MEETING_ACTIONS.md any actions to take (look there to ensure not already noted previously).
+
+  you can use glean to look at their recent slack and email interactions to work out what may be important if you can related to that meeting, only if needed. Some interaction may actually be the actions taken.
+  you can if you need look in github via gh cli to see if any relevant activity was made related to these follow up actions.
+
+  If you believe there is an action being neglected, or is newly important, you can: 
+
+  * ensure they have notes (eg in drive or notes app) of things to follow up.
+  * reminders
+  * calendar appointments to follow up the action 
+  Or: 
+  you can also notify the user if you think there is something they should shift to now with a notification message, remember this is interrupting them so you need to think if it is needed. 
+
+  Remember the aim is to check things are not forgotten, not to overwhelm the user with too many notifications or actions, so be careful with that. 
+  
+  

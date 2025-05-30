@@ -191,20 +191,19 @@ run_recipe_if_needed() {
 run_scheduled_recipes() {
   echo "$(date): Checking scheduled recipes..."
   
-  # Work recipe (every 20 minutes)
+  # Work summary recipe (every 20 minutes)
   run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md"
   
-  # Time-based recipes
+  
   run_recipe_if_needed "recipe-contributions.yaml" "evening" "CONTRIBUTIONS.md"
   run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus"
   run_recipe_if_needed "recipe-goose-sessions.yaml" "60m" ".goose-sessions"
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
 
+  
   run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md"
   run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
-  run_recipe_if_needed "recipe-day-improvements.yaml" "evening" "DAY-IMPROVEMENTS.md"
-  
-  # Regular frequency recipes
+  run_recipe_if_needed "recipe-day-improvements.yaml" "evening" "DAY-IMPROVEMENTS.md"  
   run_recipe_if_needed "recipe-interactions.yaml" "daily" "INTERACTIONS.md"
   run_recipe_if_needed "recipe-important-email.yaml" "hourly" ".important-email"
   run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
@@ -212,6 +211,8 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming"
   run_recipe_if_needed "recipe-what-working-on.yaml" "evening" ".working-on"
   run_recipe_if_needed "recipe-optimize.yaml" "weekly" ".optimize"
+  run_recipe_if_needed "recipe-meetings-actions.yaml" "morning" ".meetings-afternoon"
+  run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening"
   
   
   echo "$(date): Scheduled recipe check complete."

@@ -63,4 +63,5 @@ prompt: |
   
   you can also notify the user if you think there is something they should shift to now with a notification message, remember this is interrupting them so you need to think if it is needed. 
   you can publish a html5 page with suggestions for them for attention as well if needed
+  IMPORTANT: check that there isn't a focus report already visible or similar, don't want to flood their screen with too many reports, this is really if there is something important to focus on.
   

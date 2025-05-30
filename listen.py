@@ -418,7 +418,7 @@ def update_word_frequency(transcript):
 def update_spoken_transcript(transcript):
     """
     Update the spoken.txt file with the latest transcript.
-    Maintains a buffer of 2000 words and filters out nonsense characters.
+    Maintains a buffer of approximately 5KB of text (roughly 1000 words) with timestamps.
     Only adds transcripts that contain actual speech with recognizable words.
     
     Args:
@@ -483,16 +483,10 @@ def update_spoken_transcript(transcript):
             print(f"Skipping transcript update - too many numeric tokens ({numeric_words}/{len(words)})")
             return
         
-        # Load existing transcript if it exists
-        existing_text = ""
-        if os.path.exists(spoken_file):
-            with open(spoken_file, 'r') as f:
-                existing_text = f.read()
+        # Create timestamp for this entry
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # Split into words
-        existing_words = existing_text.split()
-        
-        # Add new transcript words (filtered to remove pure numbers and symbols)
+        # Filter new transcript words (remove pure numbers and symbols)
         new_words = [word for word in transcript.split() 
                     if not (word.replace('.', '').replace(',', '').isdigit() or 
                            all(not c.isalnum() for c in word))]
@@ -500,22 +494,36 @@ def update_spoken_transcript(transcript):
         if not new_words:
             print(f"Skipping transcript update - no valid words after filtering")
             return
-            
-        # Combine existing and new words
-        combined_words = existing_words + new_words
         
-        # Keep only the most recent 2000 words
-        if len(combined_words) > 2000:
-            combined_words = combined_words[-2000:]
+        # Create the new entry with timestamp
+        new_entry = f"[{timestamp}] {' '.join(new_words)}\n"
         
-        # Join back into text
-        updated_text = " ".join(combined_words)
+        # Load existing transcript if it exists
+        existing_content = ""
+        if os.path.exists(spoken_file):
+            with open(spoken_file, 'r') as f:
+                existing_content = f.read()
+        
+        # Combine existing content with new entry
+        updated_content = existing_content + new_entry
+        
+        # Keep content within approximately 5KB limit (roughly 1000 words)
+        # If content exceeds 5KB, trim from the beginning
+        max_size = 5 * 1024  # 5KB
+        if len(updated_content.encode('utf-8')) > max_size:
+            # Split into lines and remove oldest entries until we're under the limit
+            lines = updated_content.split('\n')
+            while len('\n'.join(lines).encode('utf-8')) > max_size and len(lines) > 1:
+                lines.pop(0)  # Remove the oldest line
+            updated_content = '\n'.join(lines)
         
         # Save the updated transcript
         with open(spoken_file, 'w') as f:
-            f.write(updated_text)
+            f.write(updated_content)
             
-        print(f"Updated spoken transcript file with {len(new_words)} new words (total: {len(combined_words)}/2000)")
+        # Calculate approximate size for logging
+        content_size = len(updated_content.encode('utf-8'))
+        print(f"Updated spoken transcript file with new entry (total size: {content_size} bytes / 5KB limit)")
     except Exception as e:
         print(f"Error updating spoken transcript: {e}")
 
