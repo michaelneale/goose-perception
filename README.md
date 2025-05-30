@@ -26,7 +26,7 @@ It will communicate with you via notifications (if it must), voice, or presentin
 ## Usage
 
 Once running - just go about your day, you don't need to do anything, it will do something. 
-YUou can if you like ask goose to do something, just talk, mention goose, it will detect that you are talking to it (vs about it).
+You can if you like ask goose to do something, just talk, mention goose, it will detect that you are talking to it (vs about it).
 
 ## Setup
 
@@ -64,6 +64,22 @@ There are models such as `llava:3b` (ideally 13b or up) which can read screen co
 This is an emerging space so keep an eye out
 
 
+## What it can do for you
+
+<div style="display: flex; align-items: flex-start; gap: 20px; margin: 20px 0;">
+  <img src="desktop.png" alt="Goose Perception in action - AI-blurred screenshot showing Goose preparing for the day" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+  <div>
+    <p>This is a real screenshot (blurred with AI) of a meeting where it was early morning, and goose was prepping me for the day, noting any important actions in slack and email I needed to take (knowing that I am terrible at reading email until much later in the day).</p>
+    
+    <p>Let it run for a while (ie run it all the time in the background), over time goose will start either showing things to you (with windows showing up with little web apps or reports), it will put things quietly on your calendar to remind you, prepare documents for you for up coming things.</p>
+    
+    <p>It will also do a weekly "hype doc" summary celebrating all your hard work! There are many other things it may do, they all combine together as it learns what you do.</p>
+  </div>
+</div>
+
+You can also use verbal commands to ask it to do something (and it has the benefit of that learned context). 
+A normal goose session can also benefit from this context as well. 
+
 ## How It Works
 
 # Observing and learning
@@ -78,12 +94,7 @@ This keeps a rolling log of activity and up to date latest one.
 ### Interactions and contributions
 
 other recipes will examine your communications history and contributions, and form a picture and some metrics of what you have been doing recently and with whom. 
-
-... much more to be done here TBD... ... 
-
-# Actions
-
-TBD.. there is a recipes top level directory which has actions that the voice commands (or whatever) will make use of... these can factor in the background information obtained by observing. 
+They will then proactively go to work (checkout `observers` dir).
 
 
 
