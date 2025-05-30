@@ -6,7 +6,7 @@ description: Any upcoming things to prepare for
 instruction: |
   NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   will be using extensions like gcal to look for upcoming things which need to be prepared for. only use glean if you need clarification what something is upcoming if you don't know and need to do company research in preparation
-  if making notes in apple notes ensure to format with linebreaks as markdown may not always come across nicely
+  if making notes in apple notes ensure to format with linebreaks as markdown may not always come across nicely and make sure to format with linebreaks as markdown may not always come across nicely BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES
 extensions:
 - type: builtin
   name: developer
