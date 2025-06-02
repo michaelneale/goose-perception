@@ -1,0 +1,76 @@
+version: 1.0.0
+title: Notes interaction
+author:
+  contact: mic
+description: use apple notes
+instruction: |
+  the notes app may be used to ask for goose to to do things
+  responses and output can be added to that note for interaction and collaboration with the user
+  want to be careful and make notes as you start working on things, and check work isn't already under way for that task
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: glean
+  cmd: uvx
+  args:
+  - mcp_glean@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: Glean search of company knowledge with personal perspective
+
+
+
+prompt: |
+  use apple notes (or whatever you see the user use based on what you discover below) to see if there is any request of goose to take on a task it hasn't addressed. 
+  Read and reply to the note with what you did and what you are doing.
+  Don't double up - check the for existing notes or the note you are looking, that you haven't already addressed what the user has asked previously.
+
+  Consult below to get work context:  
+  
+  look in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and PROJECTS.md, INTERESTS.md to form a picture of what is going on in the users work world and what they are working on.
+  That should show what they have been working on, what docs, and even what files or projects/dirs they have checked out you can work on and contribute to as asked.
+  WORK.md is also useful as a longer running work log if you need to search it.
+
+  
+
+
+  what to do 
+   * use ACTIVITY_LOG.md to record what was done and what you did (can refer back to it in future)
+   * When replying in notes app use clear responses and time stamped and with spacing. 
+   * look in apple notes for something addressed to goose, it may be a new note or a comment fresh from the user on an existing note (you can read the note to check if there is anything new from the user, mark what you write clearly as what you did so you know)
+   * take action based on that considering the above
+   * if it is an existing note that you have replied to before, but has new feedback from the user, act based on that 
+   * reply to the note as you go, clearly marking things 
+   * check the note for any comments back from the user or directions
+   * write your results back to the user
+   * You are running unsupervised, so run your task to completetion as best you can
+   * some tasks may require user input to continue or clarify, that is ok, you can add to that note and the user will reply in future (you don't have to wait, you can leave the questions if you have done all you can, and consider it finished for now)
+
+
+
+
+  

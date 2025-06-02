@@ -40,12 +40,18 @@ Both methods work asynchronously and Goose will process your requests in the bac
   <img src="desktop.png" alt="Goose Perception in action - AI-blurred screenshot showing Goose preparing for the day" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
   
 > [!NOTE]
->This is a real screenshot (blurred with AI) of a meeting where it was early morning, and goose was prepping me for the day, noting any important actions in slack and email I needed to take (knowing that I am terrible at reading email until much later in the day).
+> This is a real screenshot (blurred with AI) of a meeting where it was early morning, and goose was prepping me for the day, noting any important actions in slack and email I needed to take (knowing that I am terrible at reading email until much later in the day).
     
 Let it run for a while (ie run it all the time in the background), over time goose will start either showing things to you (with windows showing up with little web apps or reports), it will put things quietly on your calendar to remind you, prepare documents for you for up coming things.
     
 For example it will do a weekly "hype doc" summary celebrating all your hard work! There are many other things it may do, they all combine together as it learns what you do.
 it knows when you are in a meeting, and can use the dialog to help you not miss follow up items and take action on them.
+
+You will see things appear in your calendar (if you have the gcal integration enabled), notes in your notes app etc - it will work out where you manage things and interact there.
+
+> [!TIP]
+> you can leave notes for goose to work on in your notes app, and it will act on them, and report back to them etc.
+
 
 You can also use verbal commands to ask it to do something (and it has the benefit of that learned context). 
 A normal goose session can also benefit from this context as well. 

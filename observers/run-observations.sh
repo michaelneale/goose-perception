@@ -54,8 +54,18 @@ run_recipe_if_needed() {
   local recipe="$1"
   local frequency="$2"
   local output_file="$3"
+  local weekday_only="${4:-false}"  # Optional 4th parameter, defaults to false
   local marker_file="$PERCEPTION_DIR/.recipe-last-run-$(basename "$recipe" .yaml)"
   local full_output_path="$PERCEPTION_DIR/$output_file"
+  
+  # Check if weekday_only is enabled and today is weekend
+  if [ "$weekday_only" = "weekday-only" ]; then
+    local day_of_week=$(date +%u)  # 1=Monday, 7=Sunday
+    if [ $day_of_week -gt 5 ]; then  # 6=Saturday, 7=Sunday
+      echo "$(date): Skipping $recipe, weekday-only enabled and today is weekend."
+      return 0
+    fi
+  fi
   
   # Handle time-of-day frequencies (morning, afternoon, evening)
   if [[ "$frequency" =~ ^(morning|afternoon|evening)$ ]]; then
@@ -191,28 +201,29 @@ run_recipe_if_needed() {
 run_scheduled_recipes() {
   echo "$(date): Checking scheduled recipes..."
   
-  # Work summary recipe (every 20 minutes)
-  run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md"
+  # Work summary recipe (every 20 minutes, weekdays only)
+  run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md" "weekday-only"
   
   
-  run_recipe_if_needed "recipe-contributions.yaml" "evening" "CONTRIBUTIONS.md"
-  run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus"
+  run_recipe_if_needed "recipe-contributions.yaml" "evening" "CONTRIBUTIONS.md" "weekday-only"
+  run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus" "weekday-only"
   run_recipe_if_needed "recipe-goose-sessions.yaml" "60m" ".goose-sessions"
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
 
   
-  run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md"
+  run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md" "weekday-only"
   run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
   run_recipe_if_needed "recipe-interactions.yaml" "daily" "INTERACTIONS.md"
-  run_recipe_if_needed "recipe-important-email.yaml" "hourly" ".important-email"
+  run_recipe_if_needed "recipe-important-email.yaml" "hourly" ".important-email" "weekday-only"
   run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
-  run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention"
-  run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming"
-  run_recipe_if_needed "recipe-what-working-on.yaml" "evening" ".working-on"
+  run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention" "weekday-only"
+  run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming" "weekday-only"
+  run_recipe_if_needed "recipe-what-working-on.yaml" "evening" ".working-on" "weekday-only"
   run_recipe_if_needed "recipe-optimize.yaml" "weekly" ".optimize"
-  run_recipe_if_needed "recipe-meetings-actions.yaml" "morning" ".meetings-afternoon"
-  run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening"
+  run_recipe_if_needed "recipe-meetings-actions.yaml" "morning" ".meetings-afternoon" "weekday-only"
+  run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening" "weekday-only"
   run_recipe_if_needed "recipe-start-fixing.yaml" "90m" ".fixing"
+  run_recipe_if_needed "recipe-notes-interaction.yaml" "10m" ".interaction-notes"
   
   
   echo "$(date): Scheduled recipe check complete."

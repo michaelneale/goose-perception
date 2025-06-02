@@ -11,7 +11,7 @@ instruction: |
   if you need, you can notify the user with a script like:  
     osascript -e 'display notification \"Goose has produced a report on how to improve your time management...\" with title \"Improvements Report\" subtitle \"Please check it out\" sound name \"Submarine\"'
     this will get their attention if important.
-  if interacting with apple notes, make sure to format with linebreaks as markdown may not always come across nicely  
+  if interacting with apple notes, make sure to format with linebreaks as markdown may not always come across nicely BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES
 extensions:
 - type: builtin
   name: developer
@@ -51,6 +51,7 @@ extensions:
 
 prompt: |
   The aim is to help the user not forget about any follow up actions from a meeting that was had often verbally.
+  do not run on the users weekend
   
   Consider their calendar, their contributions to code and documents, and their interactions with others.
   looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 

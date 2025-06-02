@@ -33,16 +33,14 @@ extensions:
   timeout: 300
   bundled: true
 - type: stdio
-  name: gcal
+  name: glean
   cmd: uvx
   args:
-  - mcp_gcal@latest
+  - mcp_glean@latest
   envs: {}
   env_keys: []
   timeout: null
-  description: google calendar access 
-
-
+  description: Glean search of company knowledge with personal perspective
 
 
 prompt: |
@@ -52,6 +50,7 @@ prompt: |
 
   Consult below to get work context:  
   Consider their calendar, their contributions to code and documents, and their interactions with others.
+  You can look in email (via glean) for any travel/vacation plans upcoming too and consider that (be careful with time and timezones, note users current timezone)
   looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and PROJECTS.md to form a picture of what is going on in the users work world. 
   WORK.md is also useful as a longer running work log.
 
@@ -60,7 +59,8 @@ prompt: |
   If it is a deep dive type of meeting should be some notes on it or some docs relative to that recently looked at
 
   If they need assistance, consider adding reminders for them, little reminders to their calendar ahead of time
-  can also leave apple notes (with lists or just notes/reminder deadlines on them if you can) to help them out, be sure to format it nicely with spacing.
+  Check calendar before adding so you aren't duplicating entries (you can add to existing ones you may have made before)
+  if they use notes app, do leave apple notes (with lists or just notes/reminder deadlines on them if you can) to help them out, be sure to format it nicely with spacing.
   Don't repeat yourselt, there may already be notes you have left.
   in some cases, you may be able to prep some research for them by starting a doc and then making sure they know about it if there isn't one.
 
