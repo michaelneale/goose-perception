@@ -223,7 +223,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-meetings-actions.yaml" "morning" ".meetings-afternoon" "weekday-only"
   run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening" "weekday-only"
   run_recipe_if_needed "recipe-start-fixing.yaml" "evening" ".fixing"
-  run_recipe_if_needed "recipe-notes-interaction.yaml" "10m" ".interaction-notes"
+  run_recipe_if_needed "recipe-notes-interaction.yaml" "15m" ".interaction-notes"
   
   
   echo "$(date): Scheduled recipe check complete."

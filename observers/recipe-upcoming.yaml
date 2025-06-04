@@ -43,8 +43,7 @@ extensions:
   description: Glean search of company knowledge with personal perspective
 
 
-prompt: |
-  
+prompt: |  
   you will check if the user needs to prepare for anything in the upcoming days, especially for meetings which may be in the morning, to ensure they have prepared for it
   if preparation is needed. 
 
@@ -52,7 +51,6 @@ prompt: |
   Consider their calendar, their contributions to code and documents, and their interactions with others.
   You can look in email (via glean) for any travel/vacation plans upcoming too and consider that (be careful with time and timezones, note users current timezone)
   looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and PROJECTS.md to form a picture of what is going on in the users work world. 
-  WORK.md is also useful as a longer running work log.
 
   then check if any upcoming meetings (which are not necessarily regular ones) will need preparation, and there aren't already notes in their apple notes or google docs about it.
   for example, if there is a presentation required, there should be a presentation in google drive
