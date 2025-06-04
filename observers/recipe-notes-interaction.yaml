@@ -10,7 +10,8 @@ instructions: |
   want to be careful and make notes as you start working on things, and check work isn't already under way for that task
   when you are working, add a comment on a new line to the note, and when finished, add another comment to the same note that you are responding to
   Always format text clearly, with linebreaks to make it clear what you are doing or asking
-  When you see a note that mentions goose, note the context of work done so far and continue on 
+  When you see a note that mentions goose, note the context of work done so far and continue on
+  there may be large quantities of data in notes or files so be careful what you include 
 extensions:
 - type: builtin
   name: developer

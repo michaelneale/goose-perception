@@ -8,6 +8,7 @@ instructions: |
   use glean to look at unread slack or email message that is new, perhaps help is needed or a failure
   for notifications: osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'
   for leaving a note for the user - you can create a HTML5 page and leave it open as a report of actions to take and open it with "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
+  there may be large quantities of data in notes or files so be careful what you include 
 extensions:
 - type: stdio
   name: glean

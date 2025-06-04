@@ -107,7 +107,7 @@ run_recipe_if_needed() {
     log_activity "Starting $recipe ($frequency)"
     (
       sleep $offset
-      goose run --no-session --recipe "$recipe" && {
+      GOOSE_CONTEXT_STRATEGY="truncate" goose run --no-session --recipe "$recipe" && {
         touch "$marker_file"
         [ -n "$output_file" ] && touch "$full_output_path"
         log_activity "Completed $recipe"
