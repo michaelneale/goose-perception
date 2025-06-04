@@ -3,7 +3,7 @@ title: Interactions
 author:
   contact: mic
 description: Who has the user interacted with in the past 2 days
-instruction: |
+instructions: |
   NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   use the glean extension but be careful to not fetch too much data
 extensions:

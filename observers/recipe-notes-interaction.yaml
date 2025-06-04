@@ -3,7 +3,7 @@ title: Notes interaction
 author:
   contact: mic
 description: use apple notes
-instruction: |
+instructions: |
   the notes app may be used to ask for goose to to do things
   responses and output can be added to that note for interaction and collaboration with the user
   want to be careful and make notes as you start working on things, and check work isn't already under way for that task

@@ -3,7 +3,7 @@ title: analyise work from screens
 author:
   contact: mic
 description: processing screen vision
-instruction: |
+instructions: |
   NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   Processing screenshots to track work being done, you will examine the screenshots to see what the user is working on and who they interact with.
   you are running in the background so do not expect more information than you can gather or see and don't ask for more.  

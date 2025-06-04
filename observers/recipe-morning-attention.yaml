@@ -3,7 +3,7 @@ title: Morning news
 author:
   contact: mic
 description: Important news in email or slack in the morning
-instruction: |
+instructions: |
   NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   use glean to look at unread email or new slack messages that is important
   for notifications: osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'

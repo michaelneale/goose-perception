@@ -3,7 +3,7 @@ title: What working on
 author:
   contact: mic
 description: Provide a report on what user is doing
-instruction: |
+instructions: |
   NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   you will be looking at data to work out what the user has been working on this day
   if making notes in apple notes ensure to format with linebreaks as markdown may not always come across nicely and make sure to format with linebreaks as markdown may not always come across nicely BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES  
