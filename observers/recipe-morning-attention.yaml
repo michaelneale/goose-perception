@@ -2,10 +2,10 @@ version: 1.0.0
 title: Morning news
 author:
   contact: mic
-description: Important news in email in the morning
+description: Important news in email or slack in the morning
 instruction: |
   NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
-  use glean to look at unread email that is important
+  use glean to look at unread email or new slack messages that is important
   for notifications: osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'
   for leaving a note for the user - you can create a HTML5 page and leave it open as a report of actions to take and open it with "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
   
@@ -30,9 +30,12 @@ extensions:
   timeout: 300
   bundled: true  
 prompt:
-  can you use glean to look up any currently unread emails that appear important and may warrant attention for the user
+  can you use glean to look up any currently unread messages that appear important and may warrant attention for the user
    * if general important and unread news that is noteworthy, can notify them
    * if specific and relevant to their work which you can see in ~/.local/share/goose-perception/WORK.md, PROJECTS.md, INTERACTIONS.md and CONTRIBUTIONS.md, you can notify them and leave a note for them to follow up on it  
-   * please do make a html5 report and notify the user and show it to them with a command like
+   * please do make a pretty html5 single page file and notify the user and show it to them with a command like   
      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
    * pay special attention for messages from senior company leadership, and if they are important, notify the user immediately  
+   * pay special attention for close collaborators who may have feedback or asks
+   * pay special attention to messages related to recent changes made in the previous day (were problems created that need to be resolved, were there regressions)
+   * emails directly to them or epecially slack messages or threads that tag them that look like a problem that requires attention are important   

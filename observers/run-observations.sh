@@ -214,7 +214,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md" "weekday-only"
   run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
   run_recipe_if_needed "recipe-interactions.yaml" "daily" "INTERACTIONS.md"
-  run_recipe_if_needed "recipe-important-email.yaml" "hourly" ".important-email" "weekday-only"
+  run_recipe_if_needed "recipe-important-attention-message.yaml" "hourly" ".important-messages" "weekday-only"
   run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
   run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention" "weekday-only"
   run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming" "weekday-only"
@@ -222,7 +222,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-optimize.yaml" "weekly" ".optimize"
   run_recipe_if_needed "recipe-meetings-actions.yaml" "morning" ".meetings-afternoon" "weekday-only"
   run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening" "weekday-only"
-  run_recipe_if_needed "recipe-start-fixing.yaml" "90m" ".fixing"
+  run_recipe_if_needed "recipe-start-fixing.yaml" "evening" ".fixing"
   run_recipe_if_needed "recipe-notes-interaction.yaml" "10m" ".interaction-notes"
   
   

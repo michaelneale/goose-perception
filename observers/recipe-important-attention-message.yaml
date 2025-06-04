@@ -2,10 +2,10 @@ version: 1.0.0
 title: Important email
 author:
   contact: mic
-description: Important email handling
+description: Important message handling
 instruction: |
   NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
-  use glean to look at unread email that may be due a follow up
+  use glean to look at unread emai or slack messages that may be due a follow up
   for notifications: osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'
   for leaving a note for the user - you can create a HTML5 page and leave it open as a report of actions to take and open it with "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
 extensions:
@@ -27,17 +27,29 @@ extensions:
   name: developer
   display_name: Developer
   timeout: 300
-  bundled: true  
+  bundled: true
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+
 prompt:
   in the  ~/.local/share/goose-perception/ directory please consult the follwing
      LATEST_WORK.md PROJECTS.md INTERACTIONS.md and CONTRIBUTIONS.md to form a picture of what the user has been working on. 
   You can also consider WORK.md for a more full log and INTERESTS.md for any interests.
   
-  Based on this, can you look at any currently unread emails via the glean extension, which are addressed to the user directly, or with a small number of people it is sent to, which is pertenent to these tasks.
+  Based on this, can you look at any currently unread emails or slack messages via the glean extension, which are addressed to the user directly, or with a small number of people it is sent to, which is pertenent to these tasks.
   If they appear urgent and important, consider notifying the user or making a brief report of actions to take. 
   Consider LATEST_WORK.md if they are actually working on it now, you can interrupt them more directly if needed, otherwise you can file it for later (reminders, calendar follow up slot etc)  
 
-  Pay special attention to if the email is from senior company leadership
+  Pay special attention to if the email is from senior company leadership or a slack that requires interrupting the user 
+  Check the users calendar to note if they may not be paying attention, ie if in meeting or back to back meetings, they may need extra notification prompting,
+  or perhaps need an item in their calendar between to address something important and urgent.
 
   Note they may already have a report visible you can look for on screen from a morning report, so you don't need to repeat that content, this is more as the day goes on you can check and prompt them if needed as important things come up that are relevant to their work.
 

@@ -43,6 +43,7 @@ prompt:
   Consider LATEST_WORK.md if they are actually working on it now notify them that there is something relevant. 
   If it is something not active but has been worked on, you can notify them but if you can act on it, do so, go and make the corrections, make notes (propose changes) 
 
+  IMPORTANT only do this if the user is inactive for some time and has indicated in a note that it is ok to go off and solve things.
 
   Pay special attention to if the message is clearly from a build failure, document feedback requesting changes and so on.
   it is IMPORTANT you don't make descructive changes, so if it is code, then it should be a new branch, pull request, if a document, then can be a copy, or just comments back or change tracking.  
