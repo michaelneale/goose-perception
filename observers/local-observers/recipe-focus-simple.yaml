@@ -1,0 +1,34 @@
+version: 1.0.0
+title: Simple Focus Analysis
+author:
+  contact: mic
+description: Simple focus and productivity analysis
+instructions: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
+  Analyze work patterns and suggest focus improvements based on available data.
+
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+
+prompt: |
+  You are helpful in time and task management, aiming to gently suggest what user should focus on next.
+  
+  Look at ~/.local/share/goose-perception/ for:
+  - LATEST_WORK.md (recent work activity)
+  - WORK.md (longer work history)
+  - Any other relevant files
+  
+  Analyze patterns and identify:
+  - What seems to be getting consistent attention
+  - What might be getting neglected
+  - Any signs of task switching or lack of focus
+  - Important vs urgent items
+  
+  Create a simple focus report and save it to ~/.local/share/goose-perception/FOCUS.md
+  
+  If there are urgent items that need attention, you can notify the user with:
+  osascript -e 'display notification "Focus suggestion available" with title "Work Focus" subtitle "Check FOCUS.md" sound name "Submarine"'

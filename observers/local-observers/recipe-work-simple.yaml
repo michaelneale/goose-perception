@@ -1,0 +1,34 @@
+version: 1.0.0
+title: Simple Work Analysis
+author:
+  contact: mic
+description: Simple analysis of work activity from text descriptions
+instructions: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
+  Processing text descriptions of screenshots to track work being done. You will examine the text descriptions to see what the user is working on and who they interact with.
+  You are running in the background so do not expect more information than you can gather or see and don't ask for more.
+
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+
+prompt: |
+  Please look in /tmp/screenshot-descriptions for text files containing descriptions of work activity screenshots.
+  The user is working on various projects so you are to summarize work going on as best you can from these text descriptions.
+  
+  From the descriptions, note:
+  - What projects or tasks are being worked on
+  - Any documents, files, or directories mentioned
+  - People being communicated with (from chat/email descriptions)
+  - Key phrases or terms that seem important
+  - Any meetings or calls mentioned
+  
+  Look at ~/.local/share/goose-perception/WORK.md last paragraph or so if there is one to get an idea of how to classify/improve, and write a fresh summary and add to that file.
+  
+  Include time in summary and cover any changes since last.
+  Save the updated summary to ~/.local/share/goose-perception/WORK.md and also save just the update to LATEST_WORK.md in same dir.
+  
+  IMPORTANT: clean up /tmp/screenshot-descriptions after you are done so they do not accumulate.

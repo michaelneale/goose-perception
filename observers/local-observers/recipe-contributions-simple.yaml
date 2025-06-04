@@ -1,0 +1,36 @@
+version: 1.0.0
+title: Simple Contributions Analysis
+author:
+  contact: mic
+description: Simple analysis of recent contributions and activity
+instructions: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
+  Analyze recent contributions using basic git and file system analysis.
+
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+
+prompt: |
+  Analyze recent contributions and activity by looking at:
+  
+  1. Git activity in common directories (~/Documents, ~/code, etc.)
+     - Recent commits in the past week
+     - Modified files and their patterns
+  
+  2. Work activity from ~/.local/share/goose-perception/WORK.md
+     - Extract mentions of files, projects, or repositories
+  
+  3. File system activity
+     - Recently modified files in common work directories
+  
+  Create a simple summary of:
+  - Projects/repositories worked on
+  - Types of files modified
+  - Patterns of activity
+  - Key themes or focus areas
+  
+  Save this report to ~/.local/share/goose-perception/CONTRIBUTIONS.md, appending new information to existing content.
