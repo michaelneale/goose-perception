@@ -11,6 +11,10 @@ DESCRIPTION_DIR="/tmp/screenshot-descriptions"
 mkdir -p "$SCREENSHOT_DIR"
 mkdir -p "$DESCRIPTION_DIR"
 
+export GOOSE_MODEL="qwen3:14b"
+export GOOSE_PROVIDER="ollama"
+export GOOSE_CONTEXT_STRATEGY="truncate"
+
 # Create goose-perception directory if it doesn't exist
 PERCEPTION_DIR="$HOME/.local/share/goose-perception"
 mkdir -p "$PERCEPTION_DIR"
@@ -125,7 +129,7 @@ run_recipe_if_needed() {
     log_activity "Starting $recipe ($frequency)"
     
     # Run recipe and update marker on success
-    if GOOSE_CONTEXT_STRATEGY="truncate" goose run --no-session --recipe "local-observers/$recipe"; then
+    if goose run --no-session --recipe "local-observers/$recipe"; then
       touch "$marker_file"
       [ -n "$output_file" ] && touch "$full_output_path"
       log_activity "Completed $recipe"
@@ -156,6 +160,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-focus-simple.yaml" "hourly" "FOCUS.md"
   run_recipe_if_needed "recipe-contributions-simple.yaml" "daily" "CONTRIBUTIONS.md"
   run_recipe_if_needed "recipe-interactions-simple.yaml" "daily" "INTERACTIONS.md"
+  run_recipe_if_needed "recipe-follow-up-content.yaml" "hourly" ".follow-up-content"
   
   echo "$(date): Scheduled recipe check complete."
 }

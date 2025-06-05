@@ -4,13 +4,14 @@ author:
   contact: mic
 description: look for notes from the user for work to do and continue with 
 instructions: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   the notes app may be used to ask for goose to to do things
   responses and output can be added to that note for interaction and collaboration with the user
   Always stick to the one note (maybe apple notes or another notes app they regularly use)
   want to be careful and make notes as you start working on things, and check work isn't already under way for that task
   when you are working, add a comment on a new line to the note, and when finished, add another comment to the same note that you are responding to
-  Always format text clearly, with linebreaks to make it clear what you are doing or asking
-  When you see a note that mentions goose, note the context of work done so far and continue on
+  Always format text clearly, with linebreaks to make it clear what you are doing or asking from the user 
+  Always be brief in your notes and clear in formatting  
   there may be large quantities of data in notes or files so be careful what you include 
 extensions:
 - type: builtin
@@ -50,7 +51,7 @@ prompt: |
   The user may ask to work on code that is already checked out (in which case you can work on a branch and pull request for it, not destructive)
 
   what to do 
-   * look in notes app for something addressed to goose, it may be a new note or a comment fresh from the user on an existing note (you can read the note to check if there is anything new from the user, or if you are already working on it, then don't double up)
+   * look in notes app for something addressed to goose, it may be a new note or a comment fresh from the user on an existing note
    * use ACTIVITY_LOG.md to record what was done and what you did (can refer back to it in future) for your own reference
    * When replying in notes app use clear responses and time stamped and with spacing and newlines between, make it clear what is you, and when you start, and when you finish.
    * leave notes in that note leave a log of what you did so you can pick it up next time.  
@@ -59,7 +60,8 @@ prompt: |
    * reply to the note as you go, clearly marking things with spacing newlines
    * check the note for any comments back from the user or directions
    * write your results back to the user as clear section with newlines from you 
-   * some tasks may require user input to continue or clarify, that is ok, you can add to that note and the user will reply in future (you don't have to wait, you can leave the questions if you have done all you can, and consider it finished for now)
+   * some tasks may require user input to continue or clarify, that is ok, you can add to that note and the user will reply in future
+   * once you are done, you can exit, and the user will reply at their own time and then you will see that response from the user and can act on it
 
 
 

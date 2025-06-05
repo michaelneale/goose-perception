@@ -107,7 +107,7 @@ run_recipe_if_needed() {
     log_activity "Starting $recipe ($frequency)"
     (
       sleep $offset
-      GOOSE_CONTEXT_STRATEGY="truncate" goose run --no-session --recipe "$recipe" && {
+      GOOSE_CONTEXT_STRATEGY="truncate" goose run --name "$recipe" --recipe "$recipe" && {
         touch "$marker_file"
         [ -n "$output_file" ] && touch "$full_output_path"
         log_activity "Completed $recipe"
@@ -224,6 +224,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening" "weekday-only"
   run_recipe_if_needed "recipe-start-fixing.yaml" "evening" ".fixing"
   run_recipe_if_needed "recipe-notes-interaction.yaml" "15m" ".interaction-notes"
+  run_recipe_if_needed "recipe-follow-up-content.yaml" "morning" ".follow-up-content" "weekday-only"
   
   
   echo "$(date): Scheduled recipe check complete."
