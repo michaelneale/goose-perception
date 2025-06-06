@@ -36,6 +36,13 @@ run:
     echo "Starting Goose Voice..."
     ./.use-hermit ./run.sh
 
+kill:
+    echo "Stopping Goose Voice..."
+    # Send a signal to the observers script to stop
+    touch /tmp/goose-perception-halt || true
+    # "Stopping any recipes running in the background..."
+    ps aux | grep "recipe-" | grep -v grep | awk '{print $2}' | xargs -r kill -9
+
 # Launch the console web interface
 console:
     #!/usr/bin/env bash
