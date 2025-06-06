@@ -100,19 +100,14 @@ run_recipe_if_needed() {
         ;;
     esac
     
-    # Run the recipe with random offset based on frequency
-    local offset_minutes=$((5 + RANDOM % 11))  # Random delay 5-15 minutes for time-based recipes
-    local offset=$((offset_minutes * 60))
-    echo "$(date): Running $recipe recipe ($frequency) in background (offset: ${offset_minutes}m)..."
+    # Run the recipe
+    echo "$(date): Running $recipe recipe ($frequency)..."
     log_activity "Starting $recipe ($frequency)"
-    (
-      sleep $offset
-      GOOSE_CONTEXT_STRATEGY="truncate" goose run --name "$recipe" --recipe "$recipe" && {
-        touch "$marker_file"
-        [ -n "$output_file" ] && touch "$full_output_path"
-        log_activity "Completed $recipe"
-      } || log_activity "Failed $recipe"
-    ) &
+    GOOSE_CONTEXT_STRATEGY="truncate" goose run --name "$recipe" --recipe "$recipe" && {
+      touch "$marker_file"
+      [ -n "$output_file" ] && touch "$full_output_path"
+      log_activity "Completed $recipe"
+    } || log_activity "Failed $recipe"
     return 0
   fi
   
@@ -152,49 +147,38 @@ run_recipe_if_needed() {
   
   # Check if marker file doesn't exist or is older than frequency
   if [ ! -f "$marker_file" ] || [ $(find "$marker_file" $find_time -print | wc -l) -gt 0 ]; then
-    # Calculate offset based on frequency
-    local offset_minutes
-    local offset_label
-    case "$frequency" in
-      "hourly"|*"h")
-        # For hourly+ frequencies: 5-15 minute offset
-        offset_minutes=$((5 + RANDOM % 11))
-        offset_label="${offset_minutes}m"
-        ;;
-      "daily"|*"d"|"weekly")
-        # For daily+ frequencies: 5-15 minute offset  
-        offset_minutes=$((5 + RANDOM % 11))
-        offset_label="${offset_minutes}m"
-        ;;
-      *)
-        # For shorter frequencies (minutes): 30 second - 2 minute offset
-        local offset_seconds=$((30 + RANDOM % 91))  # 30-120 seconds
-        offset_minutes=0
-        local offset=$offset_seconds
-        offset_label="${offset_seconds}s"
-        ;;
-    esac
-    
-    if [ $offset_minutes -gt 0 ]; then
-      local offset=$((offset_minutes * 60))
-    fi
-    
-    echo "$(date): Running $recipe recipe ($frequency) in background (offset: ${offset_label})..."
+    echo "$(date): Running $recipe recipe ($frequency)..."
     log_activity "Starting $recipe ($frequency)"
-    # Run recipe in background and continue regardless of success/failure
-    (
-      sleep $offset
-      goose run --no-session --recipe "$recipe" && {
-        # Update marker file on success
-        touch "$marker_file"
-        # Touch the output file to update its timestamp even if the recipe didn't modify it
-        [ -n "$output_file" ] && touch "$full_output_path"
-        log_activity "Completed $recipe"
-      } || log_activity "Failed $recipe"
-    ) &
+    # Run recipe and wait for completion
+    goose run --name "$recipe" --recipe "$recipe" && {
+      # Update marker file on success
+      touch "$marker_file"
+      # Touch the output file to update its timestamp even if the recipe didn't modify it
+      [ -n "$output_file" ] && touch "$full_output_path"
+      log_activity "Completed $recipe"
+    } || log_activity "Failed $recipe"
   else
     echo "$(date): Skipping $recipe, ran recently (frequency: $frequency)."
   fi
+}
+
+# Function to run screenshot capture loop asynchronously
+run_screenshot_loop() {
+  echo "$(date): Starting screenshot capture loop (PID: $$)..."
+  while true; do
+    # Check for halt file
+    if [ -f "/tmp/goose-perception-halt" ]; then
+      echo "$(date): Screenshot loop halting as requested."
+      break
+    fi
+    
+    # Capture screenshots
+    capture_screenshots
+    
+    # Wait 20 seconds before next capture
+    sleep 20
+  done
+  echo "$(date): Screenshot loop stopped."
 }
 
 # Function to check and run all recipes based on their frequencies
@@ -231,45 +215,65 @@ run_scheduled_recipes() {
 }
 
 echo "Starting continuous screenshot and observation process..."
-echo "- Taking screenshots every 20 seconds"
-echo "- Checking and running recipes based on their frequencies every 5 minutes"
+echo "- Taking screenshots every 20 seconds (async)"
+echo "- Checking and running recipes based on their frequencies every 1 minute"
 echo "- Recipes can be: hourly, daily, weekly, or custom (e.g., 20m, 2h, 3d)"
 echo "Press Ctrl+C to stop"
 
 # Log startup
 log_activity "Starting observation system"
 
-# Counter to track when to check recipes (every 5 minutes)
-COUNTER=0
-MAX_COUNT=15  # 15 * 20 seconds = 5 minutes
+# Start screenshot capture loop in background
+run_screenshot_loop &
+SCREENSHOT_PID=$!
+echo "$(date): Screenshot loop started in background (PID: $SCREENSHOT_PID)"
+
+# Function to cleanup on exit
+cleanup() {
+  echo "$(date): Cleaning up..."
+  log_activity "Observation system stopping"
+  
+  # Create halt file to stop screenshot loop
+  touch /tmp/goose-perception-halt
+  
+  # Kill any running recipe processes (goose run commands)
+  echo "$(date): Stopping any running recipe processes..."
+  pkill -f "goose run" 2>/dev/null || true
+  
+  # Wait a moment for screenshot loop to see halt file
+  sleep 2
+  
+  # Kill screenshot loop if it's still running
+  if kill -0 $SCREENSHOT_PID 2>/dev/null; then
+    echo "$(date): Stopping screenshot loop (PID: $SCREENSHOT_PID)..."
+    kill $SCREENSHOT_PID 2>/dev/null
+  fi
+  
+  # Clean up halt file
+  rm -f /tmp/goose-perception-halt
+  
+  echo "$(date): Cleanup complete."
+  exit 0
+}
+
+# Set up signal handlers
+trap cleanup SIGINT SIGTERM
 
 # Run scheduled recipes once at startup
 echo "$(date): Running scheduled recipes at startup..."
 run_scheduled_recipes
 
-# Main loop
+# Main loop - focus on recipe management
 while true; do
-
-  # check if /tmp/goose-perception-halt exists and exit if it does
+  # Check if /tmp/goose-perception-halt exists and exit if it does
   if [ -f "/tmp/goose-perception-halt" ]; then
     echo "$(date): Halting observation script as requested."
-    log_activity "Observation system stopping"
-    rm -f /tmp/goose-perception-halt
-    exit 0
+    cleanup
   fi
   
-  # Capture screenshots
-  capture_screenshots
+  # Run scheduled recipes (this can block when recipes need to be run)
+  run_scheduled_recipes
   
-  # Increment counter
-  COUNTER=$((COUNTER + 1))
-  
-  # Check recipes every 5 minutes
-  if [ $COUNTER -ge $MAX_COUNT ]; then
-    run_scheduled_recipes
-    COUNTER=0
-  fi
-  
-  # Wait 20 seconds before next capture
-  sleep 20
+  # Wait 1 minute before next recipe check
+  sleep 60  # 1 minute
 done
