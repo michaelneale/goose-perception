@@ -5,6 +5,7 @@ author:
 description: look for notes from the user for work to do and continue with 
 instructions: |
   NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
+  ALWAYS produce your output as directed to files and docs and notes, don't print it to stdout
   the notes app may be used to ask for goose to to do things
   responses and output can be added to that note for interaction and collaboration with the user
   Always stick to the one note (maybe apple notes or another notes app they regularly use)
@@ -53,15 +54,16 @@ prompt: |
   what to do 
    * look in notes app for something addressed to goose, it may be a new note or a comment fresh from the user on an existing note
    * use ACTIVITY_LOG.md to record what was done and what you did (can refer back to it in future) for your own reference
-   * When replying in notes app use clear responses and time stamped and with spacing and newlines between, make it clear what is you, and when you start, and when you finish.
-   * leave notes in that note leave a log of what you did so you can pick it up next time.  
+   * When replying in notes app use clear responses and time stamped and with spacing and newlines between, make it clear and brief
+  
    * take action based on that considering note instructions
+   * always format brief with newlines and spacing, not markdown
    * if it is an existing note that you have replied to before, but has new feedback from the user, act based on that 
-   * reply to the note as you go, clearly marking things with spacing newlines
    * check the note for any comments back from the user or directions
-   * write your results back to the user as clear section with newlines from you 
    * some tasks may require user input to continue or clarify, that is ok, you can add to that note and the user will reply in future
    * once you are done, you can exit, and the user will reply at their own time and then you will see that response from the user and can act on it
+   * reply to the relvant note briefly, don't mix in other things confused in the one note
+  
 
 
 

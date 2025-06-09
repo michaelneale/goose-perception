@@ -9,8 +9,6 @@ instructions: |
   open the HTML report with a command like: 
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
   once you have produced it.
-  Notify the user with a script like:  
-    osascript -e 'display notification \"Goose has produced a report on .....\" with title \"Improvements Report\" subtitle \"Please check it out\" sound name \"Submarine\"'
 extensions:
 - type: builtin
   name: developer

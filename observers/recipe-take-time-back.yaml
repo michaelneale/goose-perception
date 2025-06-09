@@ -1,0 +1,43 @@
+version: 1.0.0
+title: take time back
+author:
+  contact: mic
+description: take time back from meetings
+instructions: |
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
+  ALWAYS produce your output as directed to files and docs and notes, don't print it to stdout
+  this will use gcal and other extensions to check if there is too much meeting load and if it can be reduced
+extensions:
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+- type: stdio
+  name: gcal
+  cmd: uvx
+  args:
+  - mcp_gcal@latest
+  envs: {}
+  env_keys: []
+  timeout: null
+  description: google calendar access 
+- type: builtin
+  name: computercontroller
+  display_name: Computer Controller
+  timeout: 300
+  bundled: true
+
+
+prompt: |  
+
+  Consider their calendar, their contributions to code and documents, and their interactions with others.  
+  looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, FOCUS.md and PROJECTS.md to form a picture of what is going on in the users work world
+
+  then check if any upcoming meetings (which are recurring ones)
+  consider past meeting load, if it is trending upwards this week, look for recurring meetings you can cancel their attendance at with a note
+  If the user appears to be a manager then they may have higher meeting load (suggest to them to reduce meetings especially if they are creator of recurring meetings)
+  the aim is to give time back, by reducing the portion of time they spend in meetings, especially if it is creeping up (using gcal to look and make changes)
+
+
+  

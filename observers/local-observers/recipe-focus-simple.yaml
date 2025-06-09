@@ -4,7 +4,7 @@ author:
   contact: mic
 description: Simple focus and productivity analysis
 instructions: |
-  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
+  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task. 
   Analyze work patterns and suggest focus improvements based on available data.
 
 extensions:
@@ -30,5 +30,3 @@ prompt: |
   
   Create a simple focus report and save it to ~/.local/share/goose-perception/FOCUS.md
   
-  If there are urgent items that need attention, you can notify the user with:
-  osascript -e 'display notification "Focus suggestion available" with title "Work Focus" subtitle "Check FOCUS.md" sound name "Submarine"'
