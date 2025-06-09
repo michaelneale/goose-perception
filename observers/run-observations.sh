@@ -103,7 +103,9 @@ run_recipe_if_needed() {
     # Run the recipe
     echo "$(date): Running $recipe recipe ($frequency)..."
     log_activity "Starting $recipe ($frequency)"
-    GOOSE_CONTEXT_STRATEGY="truncate" goose run --name "$recipe" --recipe "$recipe" && {
+    local current_hour=$(date +%H)
+    local session_name="${recipe}-${current_hour}"
+    GOOSE_CONTEXT_STRATEGY="truncate" goose run --name "$session_name" --recipe "$recipe" && {
       touch "$marker_file"
       [ -n "$output_file" ] && touch "$full_output_path"
       log_activity "Completed $recipe"
@@ -150,7 +152,9 @@ run_recipe_if_needed() {
     echo "$(date): Running $recipe recipe ($frequency)..."
     log_activity "Starting $recipe ($frequency)"
     # Run recipe and wait for completion
-    goose run --name "$recipe" --recipe "$recipe" && {
+    local current_hour=$(date +%H)
+    local session_name="${recipe}-${current_hour}"
+    goose run --name "$session_name" --recipe "$recipe" && {
       # Update marker file on success
       touch "$marker_file"
       # Touch the output file to update its timestamp even if the recipe didn't modify it

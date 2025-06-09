@@ -37,6 +37,7 @@ prompt: |
   use apple notes (or whatever you see the user use based on what you discover below) to see if there is any request of goose to take on a task it hasn't addressed. 
   Read and reply to the note with what you did and what you are doing.
   Don't double up - check the for existing notes or the note you are looking, that you haven't already addressed what the user has asked previously.
+  The user will likely have asked you to do something, but also you may have done something before (check the note) and there may be more ask to follow on to it.
 
   Consult below to get work context:  
   
@@ -63,6 +64,7 @@ prompt: |
    * some tasks may require user input to continue or clarify, that is ok, you can add to that note and the user will reply in future
    * once you are done, you can exit, and the user will reply at their own time and then you will see that response from the user and can act on it
    * reply to the relvant note briefly, don't mix in other things confused in the one note
+   * be prepared to respond to the note in future and reply to it if more instructions are given without doubling up on what you have already done 
   
 
 
