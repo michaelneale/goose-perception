@@ -7,6 +7,9 @@
 
 Always watching, and listening and perceiving.
 
+Run this via `just run` and let it observe how you work, in the background it will then learn, and start doing things on your behalf (carefully!) and suggesting things, reminding you etc.
+It can check your messages and emails and schedule while you are busy on other things, it can pick up problems and try to solve them before you notice the messages.
+
 Goose can interact with you proactively, solving and taking on tasks while you are busy doing other things, or suggesting improvements.
 This makes use of many goose powered agents (which use recipes!) to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
 It works by watching how you work (screens, interactions, collaboration) and literally listening, uses many MCPs and recipes asynchronously.
@@ -85,6 +88,9 @@ For the hotkey functionality (`Cmd+Shift+G`) to work, you may need to grant perm
 ```bash
 just run              # Run the application
 just train-classifier # run the classifier (won't usually need to)
+just status           # to check what is running
+just logs             # to follow along with background things going on
+just kill             # kill switch
 ```
 
 
