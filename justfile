@@ -24,24 +24,107 @@ run:
         just train-classifier
     fi
     
+    # Kill any existing processes first
+    just kill
+    
     echo "Starting observers in background..."
     cd observers 
-    ./run-observations.sh &
+    nohup ./run-observations.sh > /tmp/goose-perception-observer.log 2>&1 &
     OBSERVER_PID=$!
     cd ..
     
-    # Set up trap to kill the background process when this script exits
-    trap 'echo "Shutting down observation script (PID: $OBSERVER_PID)..."; kill $OBSERVER_PID 2>/dev/null; touch /tmp/goose-perception-halt || true' EXIT
+    # Store the PID for cleanup
+    echo $OBSERVER_PID > /tmp/goose-perception-observer-pid
+    echo "Observer started with PID: $OBSERVER_PID (use 'just logs' to view)"
+    
+    # Simple cleanup that always runs
+    trap 'echo "Cleaning up..."; just kill' EXIT INT TERM
     
     echo "Starting Goose Voice..."
     ./.use-hermit ./run.sh
 
 kill:
-    echo "Stopping Goose Voice..."
-    # Send a signal to the observers script to stop
-    touch /tmp/goose-perception-halt || true
-    # "Stopping any recipes running in the background..."
-    ps aux | grep "recipe-" | grep -v grep | awk '{print $2}' | xargs -r kill -9
+    #!/usr/bin/env bash
+    echo "🛑 KILLING ALL GOOSE PERCEPTION PROCESSES..."
+    
+    # Create halt file
+    touch /tmp/goose-perception-halt 2>/dev/null || true
+    
+    # Kill specific observer PID if we have it
+    if [ -f "/tmp/goose-perception-observer-pid" ]; then
+        OBSERVER_PID=$(cat /tmp/goose-perception-observer-pid 2>/dev/null || echo "")
+        if [ -n "$OBSERVER_PID" ]; then
+            echo "Killing observer PID: $OBSERVER_PID"
+            kill -KILL $OBSERVER_PID 2>/dev/null || true
+        fi
+    fi
+    
+    # Nuclear option - kill everything related
+    echo "Killing all related processes..."
+    pkill -KILL -f "run-observations.sh" 2>/dev/null || true
+    pkill -KILL -f "goose run" 2>/dev/null || true
+    pkill -KILL -f "recipe-" 2>/dev/null || true
+    
+    # Clean up temp files
+    rm -f /tmp/goose-perception-* 2>/dev/null || true
+    
+    echo "✅ All processes killed."
+
+# View observer logs
+logs:
+    #!/usr/bin/env bash
+    echo "=== Observer Logs ==="
+    if [ -f "/tmp/goose-perception-observer.log" ]; then
+        tail -f /tmp/goose-perception-observer.log
+    else
+        echo "No log file found at /tmp/goose-perception-observer.log"
+    fi
+
+# View recent observer logs
+logs-recent:
+    #!/usr/bin/env bash
+    echo "=== Recent Observer Logs ==="
+    if [ -f "/tmp/goose-perception-observer.log" ]; then
+        tail -50 /tmp/goose-perception-observer.log
+    else
+        echo "No log file found"
+    fi
+
+# Check status of running processes
+status:
+    #!/usr/bin/env bash
+    echo "=== Goose Perception Status ==="
+    echo
+    
+    # Check for halt file
+    if [ -f "/tmp/goose-perception-halt" ]; then
+        echo "🛑 Halt file exists - system should be stopping"
+    else
+        echo "✅ No halt file - system should be running"
+    fi
+    echo
+    
+    # Check for observer PID file
+    if [ -f "/tmp/goose-perception-observer-pid" ]; then
+        OBSERVER_PID=$(cat /tmp/goose-perception-observer-pid)
+        if kill -0 $OBSERVER_PID 2>/dev/null; then
+            echo "✅ Observer process running (PID: $OBSERVER_PID)"
+        else
+            echo "❌ Observer PID file exists but process not running (stale PID: $OBSERVER_PID)"
+        fi
+    else
+        echo "❌ No observer PID file found"
+    fi
+    echo
+    
+    # Check for running processes
+    echo "Running goose processes:"
+    ps aux | grep -E "(goose|recipe-)" | grep -v grep | grep -v "just status" || echo "  None found"
+    echo
+    
+    echo "Running observation scripts:"
+    ps aux | grep "run-observations.sh" | grep -v grep || echo "  None found"
+    echo
 
 # Launch the console web interface
 console:

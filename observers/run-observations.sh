@@ -195,7 +195,6 @@ run_scheduled_recipes() {
   
   run_recipe_if_needed "recipe-contributions.yaml" "evening" "CONTRIBUTIONS.md" "weekday-only"
   run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus" "weekday-only"
-  run_recipe_if_needed "recipe-goose-sessions.yaml" "60m" ".goose-sessions"
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
 
   
@@ -235,29 +234,27 @@ echo "$(date): Screenshot loop started in background (PID: $SCREENSHOT_PID)"
 
 # Function to cleanup on exit
 cleanup() {
-  echo "$(date): Cleaning up..."
+  echo "$(date): Observer cleanup starting..."
   log_activity "Observation system stopping"
   
   # Create halt file to stop screenshot loop
   touch /tmp/goose-perception-halt
   
-  # Kill any running recipe processes (goose run commands)
-  echo "$(date): Stopping any running recipe processes..."
-  pkill -f "goose run" 2>/dev/null || true
-  
-  # Wait a moment for screenshot loop to see halt file
-  sleep 2
+  # Kill any running recipe processes
+  echo "$(date): Stopping recipe processes..."
+  pkill -KILL -f "goose run" 2>/dev/null || true
+  pkill -KILL -f "python.*goose" 2>/dev/null || true
   
   # Kill screenshot loop if it's still running
   if kill -0 $SCREENSHOT_PID 2>/dev/null; then
     echo "$(date): Stopping screenshot loop (PID: $SCREENSHOT_PID)..."
-    kill $SCREENSHOT_PID 2>/dev/null
+    kill -KILL $SCREENSHOT_PID 2>/dev/null || true
   fi
   
-  # Clean up halt file
+  # Clean up files
   rm -f /tmp/goose-perception-halt
   
-  echo "$(date): Cleanup complete."
+  echo "$(date): Observer cleanup complete."
   exit 0
 }
 
