@@ -42,3 +42,5 @@ prompt:
    * pay special attention for close collaborators who may have feedback or asks
    * pay special attention to messages related to recent changes made in the previous day (were problems created that need to be resolved, were there regressions)
    * emails directly to them or epecially slack messages or threads that tag them that look like a problem that requires attention are important   
+   * They may get a lot of emails to mailing lists or messages to shared channels, these are rarely urgent unless some important company announcement, 
+       - focus on more direct messages or ones mentioning them and that are relevant to their current work 

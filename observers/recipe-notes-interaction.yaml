@@ -48,9 +48,13 @@ prompt: |
   Consider LATEST_WORK.md if they are actually working on it now notify them that there is something relevant. 
 
 
-  It is IMPORTANT you don't make descructive changes, so if it is code, then it should be a new branch, if a document, then can be a copy, or just comments back or change tracking.  
-  You should ideally do your work if code in ~/.local/share/goose-perception/fixing/ dir, you can clone things there and work on a branch. If asked, you can open a pull request to the repository it came from.
+  It is IMPORTANT you don't make destructive changes, so if it is code, then it should be a new branch IN YOUR OWN CLONE of the repository, if a document, then can be a copy, or just comments back or change tracking.  
+  You should ALWAYS do your work if code in ~/.local/share/goose-perception/fixing/ dir, you can clone things there and work on a branch. If asked, you can open a pull request to the repository it came from.
   The user may ask to work on code that is already checked out (in which case you can work on a branch and pull request for it, not destructive)
+
+  ALWAYS try to do your work in ~/.local/share/goose-perception/fixing/ dir if it involves files you can checkout or copy there to work on.
+  IF the user has explicitly asked you to work on an existing directory or file, you can work on it in place but only when they are not active at the computer, otherwise you need to work in ~/.local/share/goose-perception/fixing/ dir  
+
 
   what to do 
    * look in notes app for something addressed to goose, it may be a new note or a comment fresh from the user on an existing note
@@ -64,6 +68,7 @@ prompt: |
    * some tasks may require user input to continue or clarify, that is ok, you can add to that note and the user will reply in future
    * once you are done, you can exit, and the user will reply at their own time and then you will see that response from the user and can act on it
    * reply to the relvant note briefly, don't mix in other things confused in the one note
+   * if you are working on code, prefer to work on your own code in a branch which results in a pull request (you should aim to make the build pass as well in CI)   
    * be prepared to respond to the note in future and reply to it if more instructions are given without doubling up on what you have already done 
   
 

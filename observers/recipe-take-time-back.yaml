@@ -35,7 +35,7 @@ prompt: |
   looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, FOCUS.md and PROJECTS.md to form a picture of what is going on in the users work world
 
   then check if any upcoming meetings (which are recurring ones)
-  consider past meeting load, if it is trending upwards this week, look for recurring meetings you can cancel their attendance at with a note
+  consider past meeting load, if it is trending upwards this week, look for recurring meetings you can cancel their attendance at with a note (don't delete things, just say no with a reason)
   If the user appears to be a manager then they may have higher meeting load (suggest to them to reduce meetings especially if they are creator of recurring meetings)
   the aim is to give time back, by reducing the portion of time they spend in meetings, especially if it is creeping up (using gcal to look and make changes)
 
