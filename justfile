@@ -99,8 +99,6 @@ status:
     # Check for halt file
     if [ -f "/tmp/goose-perception-halt" ]; then
         echo "🛑 Halt file exists - system should be stopping"
-    else
-        echo "✅ No halt file - system should be running"
     fi
     echo
     
