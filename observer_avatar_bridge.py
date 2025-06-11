@@ -24,7 +24,11 @@ class ObserverAvatarBridge:
         self.last_file_contents = {}
         self.is_running = False
         self.last_suggestions_run = datetime.min
-        self.suggestions_interval = timedelta(minutes=30)  # Run avatar suggestions every 30 minutes
+        self.suggestions_interval = timedelta(minutes=15)  # Run avatar suggestions every 15 minutes
+        self.last_idle_chatter = datetime.min
+        self.idle_chatter_interval = timedelta(minutes=5)  # Show idle chatter every 5 minutes
+        self.last_suggestion_show = datetime.min
+        self.suggestion_show_interval = timedelta(minutes=8)  # Show existing suggestions every 8 minutes
         
         # Ensure perception directory exists
         self.perception_dir.mkdir(parents=True, exist_ok=True)
@@ -38,6 +42,30 @@ class ObserverAvatarBridge:
             'ACTIVITY-LOG.md': 'general',
             'AVATAR_SUGGESTIONS.md': 'suggestions'
         }
+        
+        # Idle chatter messages - casual observations and check-ins
+        self.idle_chatter_messages = [
+            "👁️ Have you forgotten about me? I'm still here...",
+            "🤔 I see you're working... Everything going smoothly?",
+            "📺 Do you like that YouTube video?", 
+            "☕ I notice you haven't moved in a while. Coffee break?",
+            "👀 I'm watching... always watching...",
+            "💭 Just checking in! Still being productive?",
+            "⚡ I'm here if you need anything optimized...",
+            "🎵 Is that music helping you focus?",
+            "📱 I see you checking your phone. Anything interesting?",
+            "🕐 Time passing by... how's the flow state?",
+            "🔍 I'm analyzing patterns in the background...",
+            "💡 Random thought: you work differently when it's quiet.",
+            "🎯 Your focus looks good from here!",
+            "⌨️ Nice typing rhythm you've got going.",
+            "🧠 Your brain patterns are fascinating to observe.",
+            "📊 I'm collecting data on your habits... for science.",
+            "🤖 Just your friendly neighborhood AI, checking in!",
+            "👋 Don't mind me, just lurking and learning.",
+            "🔮 I predict you'll want a snack in 23 minutes.",
+            "⏰ Time flies when you're being watched by an AI!"
+        ]
     
     def start_monitoring(self):
         """Start monitoring observer files"""
@@ -59,8 +87,8 @@ class ObserverAvatarBridge:
         while self.is_running:
             try:
                 self._check_files()
-                # Check every 30 seconds
-                time.sleep(30)
+                # Check every 15 seconds for more responsive avatar
+                time.sleep(15)
             except Exception as e:
                 print(f"Error in observer bridge: {e}")
                 time.sleep(60)  # Wait longer on error
@@ -69,10 +97,20 @@ class ObserverAvatarBridge:
         """Check monitored files for changes"""
         current_time = datetime.now()
         
-        # Check if it's time to run avatar suggestions
+        # Check if it's time to run avatar suggestions (generate new ones)
         if current_time - self.last_suggestions_run > self.suggestions_interval:
             self._run_avatar_suggestions()
             self.last_suggestions_run = current_time
+        
+        # Check if it's time to show existing suggestions
+        elif current_time - self.last_suggestion_show > self.suggestion_show_interval:
+            self._show_existing_suggestion()
+            self.last_suggestion_show = current_time
+            
+        # Check if it's time for idle chatter
+        elif current_time - self.last_idle_chatter > self.idle_chatter_interval:
+            self._show_idle_chatter()
+            self.last_idle_chatter = current_time
         
         for filename, category in self.monitored_files.items():
             file_path = self.perception_dir / filename
@@ -155,25 +193,51 @@ class ObserverAvatarBridge:
         if not suggestions:
             return
             
-        # Show a random suggestion with some probability
-        if random.random() < 0.6:  # 60% chance to show a suggestion
+        # Show a random suggestion with higher probability
+        if random.random() < 0.8:  # 80% chance to show a suggestion when newly generated
             suggestion = random.choice(suggestions)
+            self._show_suggestion(suggestion)
+    
+    def _show_existing_suggestion(self):
+        """Show a suggestion from the existing pool"""
+        suggestions = self._parse_suggestions_file()
+        
+        if not suggestions:
+            return
             
-            # Map suggestion types to avatar states
-            suggestion_types = {
-                'productivity': 'work',
-                'collaboration': 'meetings', 
-                'focus': 'focus',
-                'attention': 'attention',
-                'optimization': 'optimization',
-                'break': 'break'
-            }
+        # Show existing suggestions with moderate probability
+        if random.random() < 0.4:  # 40% chance to show existing suggestion
+            suggestion = random.choice(suggestions)
+            self._show_suggestion(suggestion)
+    
+    def _show_suggestion(self, suggestion):
+        """Helper method to show a suggestion with proper avatar state"""
+        # Map suggestion types to avatar states
+        suggestion_types = {
+            'productivity': 'work',
+            'collaboration': 'meetings', 
+            'focus': 'focus',
+            'attention': 'attention',
+            'optimization': 'optimization',
+            'break': 'break',
+            'system': 'optimization'
+        }
+        
+        suggestion_type = suggestion_types.get(suggestion['type'], 'work')
+        message = suggestion['message']
+        
+        if avatar_display:
+            avatar_display.show_suggestion(suggestion_type, message)
+    
+    def _show_idle_chatter(self):
+        """Show casual idle chatter messages"""
+        if not avatar_display:
+            return
             
-            suggestion_type = suggestion_types.get(suggestion['type'], 'work')
-            message = suggestion['message']
-            
-            if avatar_display:
-                avatar_display.show_suggestion(suggestion_type, message)
+        # Show idle chatter with moderate probability
+        if random.random() < 0.3:  # 30% chance for idle chatter
+            message = random.choice(self.idle_chatter_messages)
+            avatar_display.show_message(message)
     
     def _process_file_change(self, filename, new_content, old_content, category):
         """Process a file change and potentially trigger avatar message"""
