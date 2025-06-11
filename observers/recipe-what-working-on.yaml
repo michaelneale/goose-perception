@@ -4,7 +4,6 @@ author:
   contact: mic
 description: Provide a report on what user is doing
 instructions: |
-  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   you will be looking at data to work out what the user has been working on this day
   if making notes in apple notes ensure to format with linebreaks as markdown may not always come across nicely and make sure to format with linebreaks as markdown may not always come across nicely BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES  
 extensions:
@@ -40,5 +39,6 @@ prompt: |
   looking in ~/.local/share/goose-perception/ for WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
   Use calendar to also consider any booked time.
 
-  Make a note in apple notes for this day and make it clear and brief what they are working on, be sure to format it nicely with spacing and make sure to format with linebreaks as markdown may not always come across nicely BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES
+  always Make a fresh note in apple notes for this day and make it clear and brief what they are working on, be sure to format it nicely with spacing and make sure to format with linebreaks as markdown may not always come across nicely BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES
+
   

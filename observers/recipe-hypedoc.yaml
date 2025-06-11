@@ -3,8 +3,7 @@ title: Hypedoc
 author:
   contact: mic
 description: Make a hypedoc celebrating this users contributions
-instructions: |
-  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
+instructions: |  
   will make a hypedoc for the the current user (use $USER var for ldap name) based on their contributions, interactions, interests and projects
 extensions:
 - type: builtin
@@ -50,5 +49,6 @@ prompt: |
   IMPORTANT: check there isn't one for this week already in google drive, you can skip it if there is.
 
   You should create a google doc called "Weekly Hype Doc for $USER for week X, year Y" and write a summary of the users contributions, interactions, interests and projects in it in google drive.
-  If there is already one there for this week, you can skip it.
+  If there is already one there for this week, you can skip it or update it if you think there is new ones. 
+  There should always be one for this week however, that is important
   You are to consider things broadly, don't just look around for code on disk etc, you should use the information I have you and tools. 

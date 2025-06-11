@@ -4,10 +4,8 @@ author:
   contact: mic
 description: Any upcoming things to prepare for 
 instructions: |
-  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
-  ALWAYS produce your output as directed to files and docs and notes, don't print it to stdout
   will be using extensions like gcal to look for upcoming things which need to be prepared for. only use glean if you need clarification what something is upcoming if you don't know and need to do company research in preparation
-  if making notes in apple notes ensure to format with linebreaks as markdown may not always come across nicely and make sure to format with linebreaks as markdown may not always come across nicely BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES
+  use the memory extension to remember actions you have taken and check it
 extensions:
 - type: builtin
   name: developer
@@ -42,6 +40,12 @@ extensions:
   env_keys: []
   timeout: null
   description: Glean search of company knowledge with personal perspective
+- type: builtin
+  name: memory
+  display_name: memory
+  timeout: 300
+  bundled: true
+
 
 
 prompt: |  

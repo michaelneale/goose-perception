@@ -4,7 +4,6 @@ author:
   contact: mic
 description: Suggest how things can be improved based on contributions and interactions
 instructions: |
-  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
   note how much time user is spending on different tasks that are not work related. you will also help discern what is work related and what is not.
   open the HTML report with a command like: 
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."

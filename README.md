@@ -5,10 +5,13 @@
 
 <img src="goose.png" alt="Goose Logo" width="150" align="right"/>
 
-Always watching, and listening and perceiving.
+Ideally agents wouldn't have an interface that you have to learn or use, and shouldn't be chat or make you work any specific way. This project aims to address that.
 
-Run this via `just run` and let it observe how you work, in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
-It can check your messages and emails and schedule while you are busy, it can pick up problems and try to solve them before you notice the messages. You can leave notes for things to work on while you are solving other things.
+Goose perception runs on your desktop and learns from how you work, without any interaction on your part, you just go about your day.
+This is the most personal way to build up a background assistant that can take actions on your behalf, with out your using another tool. Just keep going, and goose will help you out. 
+
+Run this via `just run` and let it observe how you work (watch and listen), in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
+It can check your messages and emails and schedule while you are busy, it can pick up problems and try to solve them before you notice the messages. You can leave notes for things to work on while you are solving other things. Always watching, and listening and perceiving and then acting. 
 
 This makes use of many goose powered agents (which use recipes!) to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
 It works by watching how you work (screens, interactions, collaboration) and literally listening, uses many MCPs and recipes asynchronously.
@@ -16,8 +19,8 @@ It works by watching how you work (screens, interactions, collaboration) and lit
 <img src="example.png" alt="Example notification" width="400" align="right"/>
 
 
-It also includes a real-time audio agent activation tool using local transcription models, with custom wake word detection model and conversation capture.
-No audio leaves your machine.
+It also includes an audio agent activation tool using local transcription models, with custom wake word detection model and conversation capture.
+No audio leaves your machine (but you can dictate or tell it intructions, not for conversation, but to give it instructions)
 
 
 Some of the recipes for example will prompt you when appropriate with suggestions on how to order your tasks or day.

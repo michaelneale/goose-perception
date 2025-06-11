@@ -13,7 +13,10 @@ instructions: |
   when you are working, add a comment on a new line to the note, and when finished, add another comment to the same note that you are responding to
   Always format text clearly, with linebreaks to make it clear what you are doing or asking from the user 
   Always be brief in your notes and clear in formatting  
-  there may be large quantities of data in notes or files so be careful what you include 
+  there may be large quantities of data in notes or files so be careful what you include   
+  look at users screen as well to see if there are any outstanding reminder tasks over the top, if there are, consider if they are relevant to current work and can be acted on automatically (and if addressed to goose)
+  use the memory extension to retrieve what you were looking at last time, and add to that memory for notes interaction for future reference
+
 extensions:
 - type: builtin
   name: developer
@@ -30,8 +33,11 @@ extensions:
   display_name: Computer Controller
   timeout: 300
   bundled: true
-
-
+- type: builtin
+  name: memory
+  display_name: memory
+  timeout: 300
+  bundled: true
 
 prompt: |
   use apple notes (or whatever you see the user use based on what you discover below) to see if there is any request of goose to take on a task it hasn't addressed. 
@@ -41,26 +47,25 @@ prompt: |
 
   Consult below to get work context:  
   
-  look in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and PROJECTS.md, INTERESTS.md to form a picture of what is going on in the users work world and what they are working on.
+  look in ~/.local/share/goose-perception/LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md to form a picture of what is going on in the users work world and what they are working on.
   That should show what they have been working on, what docs, and even what files or projects/dirs they have checked out you can work on and contribute to as asked.
-  WORK.md is also useful as a longer running work log if you need to search it.
+  WORK.md is also useful as a longer running work log if you need to search it and can't find what they are talking about
   
   Consider LATEST_WORK.md if they are actually working on it now notify them that there is something relevant. 
-
+  IMPORTANT: to look in all notes for the past week in case you have missed any.
 
   It is IMPORTANT you don't make destructive changes, so if it is code, then it should be a new branch IN YOUR OWN CLONE of the repository, if a document, then can be a copy, or just comments back or change tracking.  
-  You should ALWAYS do your work if code in ~/.local/share/goose-perception/fixing/ dir, you can clone things there and work on a branch. If asked, you can open a pull request to the repository it came from.
   The user may ask to work on code that is already checked out (in which case you can work on a branch and pull request for it, not destructive)
 
-  ALWAYS try to do your work in ~/.local/share/goose-perception/fixing/ dir if it involves files you can checkout or copy there to work on.
+  ALWAYS try to do your work in ~/.local/share/goose-perception/fixing/ dir if it involves files you can checkout or copy there to work on (may already have something cloned there you can re-use)
   IF the user has explicitly asked you to work on an existing directory or file, you can work on it in place but only when they are not active at the computer, otherwise you need to work in ~/.local/share/goose-perception/fixing/ dir  
 
 
   what to do 
    * look in notes app for something addressed to goose, it may be a new note or a comment fresh from the user on an existing note
-   * use ACTIVITY_LOG.md to record what was done and what you did (can refer back to it in future) for your own reference
+      tip: if using apple notes, you can use applescript/osacript to find notes and read them.
+   * if existing, maybe you have work to do that hasn't been done yet. In any case, indicate in it that you are looking at it
    * When replying in notes app use clear responses and time stamped and with spacing and newlines between, make it clear and brief
-  
    * take action based on that considering note instructions
    * always format brief with newlines and spacing, not markdown
    * if it is an existing note that you have replied to before, but has new feedback from the user, act based on that 
@@ -69,7 +74,7 @@ prompt: |
    * once you are done, you can exit, and the user will reply at their own time and then you will see that response from the user and can act on it
    * reply to the relvant note briefly, don't mix in other things confused in the one note
    * if you are working on code, prefer to work on your own code in a branch which results in a pull request (you should aim to make the build pass as well in CI)   
-   * be prepared to respond to the note in future and reply to it if more instructions are given without doubling up on what you have already done 
+   * be prepared to respond to the note in future and reply to it if more instructions are given without doubling up on what you have already done    
   
 
 

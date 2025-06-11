@@ -3,9 +3,7 @@ title: Contributions
 author:
   contact: mic
 description: Analysis of document and code activity
-instructions: |
-  NOTE: this task runs unsupervised, so don't expect the user to respond directly, and anything you print out will probably not be read so your output must be assuming that this is a background task.
-  ALWAYS produce your output as directed to files and docs and notes, don't print it to stdout
+instructions: |  
   anaylise last weeks contributions, using gh cli and google drive extension
 extensions:
 - type: builtin

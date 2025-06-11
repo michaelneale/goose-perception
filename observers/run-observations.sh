@@ -103,9 +103,7 @@ run_recipe_if_needed() {
     # Run the recipe
     echo "$(date): Running $recipe recipe ($frequency)..."
     log_activity "Starting $recipe ($frequency)"
-    local current_hour=$(date +%H)
-    local session_name="${recipe}-${current_hour}"
-    GOOSE_CONTEXT_STRATEGY="truncate" goose run --name "$session_name" --recipe "$recipe" && {
+    GOOSE_CONTEXT_STRATEGY="truncate" goose run --no-session --recipe "$recipe" && {
       touch "$marker_file"
       [ -n "$output_file" ] && touch "$full_output_path"
       log_activity "Completed $recipe"
