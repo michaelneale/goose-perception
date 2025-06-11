@@ -33,6 +33,10 @@ from pynput.keyboard import Key, Listener
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import agent
 
+# Import avatar display system
+import avatar_display
+import observer_avatar_bridge
+
 # Add the wake-classifier directory to the path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-classifier'))
 
@@ -950,6 +954,15 @@ def main():
     transcription_in_progress = False
 
     try:
+        # Start the avatar system
+        print("🤖 Starting Goose Avatar system...")
+        avatar_display.start_avatar_system()
+        avatar_display.show_message("👁️ Goose is now watching and listening...")
+        
+        # Start the observer-avatar bridge
+        print("🔗 Starting Observer-Avatar bridge...")
+        observer_avatar_bridge.start_observer_bridge()
+        
         # Start the hotkey listener
         start_hotkey_listener()
         
