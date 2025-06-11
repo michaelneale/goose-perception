@@ -13,11 +13,12 @@ from PIL import Image
 import os
 from datetime import datetime
 import json
+from pathlib import Path
 
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
                             QHBoxLayout, QFrame, QPushButton, QTextEdit)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QThread
-from PyQt6.QtGui import QPixmap, QFont, QPalette, QColor, QPainter, QPen
+from PyQt6.QtGui import QPixmap, QFont, QPalette, QColor, QPainter, QPen, QTransform
 
 class GooseAvatar(QWidget):
     def __init__(self):
@@ -32,8 +33,12 @@ class GooseAvatar(QWidget):
         # Avatar positioning
         self.avatar_x = 50
         self.avatar_y = 50
-        self.bubble_offset_x = 120
-        self.bubble_offset_y = -50
+        self.bubble_offset_x = -100  # Position bubble above avatar
+        self.bubble_offset_y = -80   # Position bubble above avatar
+        
+        # Dragging support
+        self.drag_start_pos = None
+        self.is_dragging = False
         
         # Timing settings
         self.message_duration = 8000  # 8 seconds
@@ -52,23 +57,52 @@ class GooseAvatar(QWidget):
         self.init_ui()
         
     def load_avatar_images(self):
-        """Load avatar images from the project directory"""
+        """Load avatar images from the avatar directory"""
+        self.avatar_images = {}
+        avatar_dir = Path("avatar")
+        
         try:
-            # Load the main goose image
-            if os.path.exists("goose.png"):
-                self.avatar_pixmap = QPixmap("goose.png")
-                # Scale to reasonable size
-                self.avatar_pixmap = self.avatar_pixmap.scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            # Define avatar states and their corresponding files
+            avatar_files = {
+                'idle': 'first.png',      # Default idle state
+                'talking': 'second.png',  # When showing messages
+                'pointing': 'third.png'   # For suggestions/pointing out things
+            }
+            
+            # Load each avatar state image
+            for state, filename in avatar_files.items():
+                image_path = avatar_dir / filename
+                if image_path.exists():
+                    pixmap = QPixmap(str(image_path))
+                    # Scale to reasonable size while maintaining aspect ratio
+                    scaled_pixmap = pixmap.scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    self.avatar_images[state] = scaled_pixmap
+                    print(f"✅ Loaded {state} avatar: {filename}")
+                else:
+                    print(f"❌ Avatar image not found: {image_path}")
+            
+            # Set default avatar to idle state
+            if 'idle' in self.avatar_images:
+                self.current_state = 'idle'
+                self.avatar_pixmap = self.avatar_images['idle']
             else:
-                # Create a simple placeholder
-                self.avatar_pixmap = QPixmap(80, 80)
-                self.avatar_pixmap.fill(QColor('lightblue'))
+                # Fallback to any available image
+                if self.avatar_images:
+                    self.current_state = list(self.avatar_images.keys())[0]
+                    self.avatar_pixmap = list(self.avatar_images.values())[0]
+                else:
+                    # Create placeholder if no images found
+                    self.avatar_pixmap = QPixmap(80, 80)
+                    self.avatar_pixmap.fill(QColor('lightblue'))
+                    self.current_state = 'placeholder'
+                    print("⚠️ No avatar images found, using placeholder")
                 
         except Exception as e:
             print(f"Error loading avatar images: {e}")
             # Create a simple placeholder
             self.avatar_pixmap = QPixmap(80, 80)
             self.avatar_pixmap.fill(QColor('lightblue'))
+            self.current_state = 'placeholder'
     
     def init_ui(self):
         """Initialize the UI components"""
@@ -90,15 +124,13 @@ class GooseAvatar(QWidget):
         if self.avatar_pixmap:
             self.avatar_label.setPixmap(self.avatar_pixmap)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar_label.setStyleSheet("""
-            QLabel {
-                border-radius: 40px;
-                background-color: rgba(255, 255, 255, 200);
-            }
-        """)
+        # Remove background - clean transparent look
+        self.avatar_label.setStyleSheet("QLabel { background: transparent; }")
         
-        # Make avatar clickable
-        self.avatar_label.mousePressEvent = self.on_avatar_click
+        # Make avatar clickable and draggable
+        self.avatar_label.mousePressEvent = self.on_mouse_press
+        self.avatar_label.mouseMoveEvent = self.on_mouse_move
+        self.avatar_label.mouseReleaseEvent = self.on_mouse_release
         self.avatar_label.setCursor(Qt.CursorShape.PointingHandCursor)
         
         layout.addWidget(self.avatar_label)
@@ -112,6 +144,10 @@ class GooseAvatar(QWidget):
     
     def position_avatar(self):
         """Position the avatar on screen"""
+        # Get the QApplication instance
+        if not self.app:
+            self.app = QApplication.instance()
+        
         if self.app:
             screen = self.app.primaryScreen()
             screen_rect = screen.availableGeometry()
@@ -141,7 +177,55 @@ class GooseAvatar(QWidget):
                 self.chat_bubble.close()
                 self.chat_bubble = None
     
-    def show_message(self, message, duration=None):
+    def should_flip_avatar(self):
+        """Determine if avatar should be flipped based on screen position"""
+        if self.app:
+            screen = self.app.primaryScreen()
+            screen_rect = screen.availableGeometry()
+            # Flip if avatar is on the right half of the screen
+            return self.avatar_x > screen_rect.width() / 2
+        return False
+    
+    def get_avatar_pixmap(self, state):
+        """Get the avatar pixmap, flipped if necessary"""
+        if state not in self.avatar_images:
+            return self.avatar_pixmap
+        
+        pixmap = self.avatar_images[state]
+        if self.should_flip_avatar():
+            # Flip horizontally - create a new transform
+            transform = QTransform()
+            transform.scale(-1, 1)
+            return pixmap.transformed(transform)
+        else:
+            return pixmap
+    
+    def update_avatar_display(self):
+        """Update the avatar display (useful when position changes)"""
+        if hasattr(self, 'current_state') and self.current_state:
+            self.avatar_pixmap = self.get_avatar_pixmap(self.current_state)
+            if self.avatar_label:
+                # Clear the label first to prevent ghosting
+                self.avatar_label.clear()
+                self.avatar_label.setPixmap(self.avatar_pixmap)
+                # Force a repaint to ensure clean rendering
+                self.avatar_label.repaint()
+                self.repaint()
+    
+    def set_avatar_state(self, state):
+        """Change the avatar to a specific state"""
+        if state in self.avatar_images:
+            self.current_state = state
+            self.avatar_pixmap = self.get_avatar_pixmap(state)
+            if self.avatar_label:
+                # Clear the label first to prevent ghosting
+                self.avatar_label.clear()
+                self.avatar_label.setPixmap(self.avatar_pixmap)
+                # Force a repaint to ensure clean rendering
+                self.avatar_label.repaint()
+            print(f"🎭 Avatar state changed to: {state}")
+    
+    def show_message(self, message, duration=None, avatar_state='talking'):
         """Show a chat bubble with a message"""
         if duration is None:
             duration = self.message_duration
@@ -149,13 +233,16 @@ class GooseAvatar(QWidget):
         # Show avatar first
         self.show_avatar()
         
+        # Change avatar state for talking
+        self.set_avatar_state(avatar_state)
+        
         # Create or update chat bubble
         if self.chat_bubble:
             self.chat_bubble.close()
         
         self.chat_bubble = ChatBubble(message, self)
         
-        # Position bubble relative to avatar
+        # Position bubble relative to avatar (above the avatar)
         bubble_x = self.avatar_x + self.bubble_offset_x
         bubble_y = self.avatar_y + self.bubble_offset_y
         
@@ -164,10 +251,15 @@ class GooseAvatar(QWidget):
             screen = self.app.primaryScreen()
             screen_rect = screen.availableGeometry()
             
-            if bubble_x + 300 > screen_rect.width():
-                bubble_x = self.avatar_x - 320  # Show on left side instead
+            # Adjust horizontal position if bubble goes off screen
+            if bubble_x < 0:
+                bubble_x = 10  # Keep some margin from left edge
+            elif bubble_x + 300 > screen_rect.width():
+                bubble_x = screen_rect.width() - 310  # Keep some margin from right edge
+            
+            # Adjust vertical position if bubble goes off screen
             if bubble_y < 0:
-                bubble_y = self.avatar_y + 100  # Show below instead
+                bubble_y = self.avatar_y + 90  # Show below avatar instead
                 
         self.chat_bubble.move(bubble_x, bubble_y)
         self.chat_bubble.show()
@@ -184,6 +276,9 @@ class GooseAvatar(QWidget):
             self.chat_bubble.close()
             self.chat_bubble = None
         self.current_message = ""
+        
+        # Return to idle state when not talking
+        self.set_avatar_state('idle')
         
         # Check if there are more messages in queue
         if self.message_queue:
@@ -202,6 +297,46 @@ class GooseAvatar(QWidget):
         else:
             # Show immediately
             self.show_message(message)
+    
+    def on_mouse_press(self, event):
+        """Handle mouse press for dragging and clicking"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_start_pos = event.globalPosition().toPoint()
+            self.is_dragging = False
+    
+    def on_mouse_move(self, event):
+        """Handle mouse move for dragging"""
+        if event.buttons() & Qt.MouseButton.LeftButton and self.drag_start_pos:
+            # Calculate drag distance
+            drag_distance = (event.globalPosition().toPoint() - self.drag_start_pos).manhattanLength()
+            
+            if drag_distance > 3:  # Minimum drag distance to avoid accidental drags
+                self.is_dragging = True
+                
+                # Move the window
+                new_pos = self.pos() + event.globalPosition().toPoint() - self.drag_start_pos
+                self.move(new_pos)
+                
+                # Update avatar position for bubble placement
+                self.avatar_x = new_pos.x()
+                self.avatar_y = new_pos.y()
+                
+                # Update drag position
+                self.drag_start_pos = event.globalPosition().toPoint()
+                
+                # Update avatar display to handle potential flipping
+                self.update_avatar_display()
+    
+    def on_mouse_release(self, event):
+        """Handle mouse release"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            if not self.is_dragging:
+                # This was a click, not a drag
+                self.on_avatar_click(event)
+            
+            # Reset drag state
+            self.drag_start_pos = None
+            self.is_dragging = False
     
     def on_avatar_click(self, event):
         """Handle avatar clicks"""
@@ -245,7 +380,7 @@ class GooseAvatar(QWidget):
             self.queue_message(suggestion)
     
     def show_observer_suggestion(self, observation_type, message):
-        """Show a suggestion based on observer data"""
+        """Show a suggestion based on observer data using pointing avatar"""
         prefix_messages = {
             'work': "🔍 Work Pattern Alert: ",
             'meetings': "📅 Meeting Notice: ",
@@ -258,7 +393,8 @@ class GooseAvatar(QWidget):
         prefix = prefix_messages.get(observation_type, "💡 Suggestion: ")
         full_message = prefix + message
         
-        self.queue_message(full_message)
+        # Use pointing state for suggestions
+        self.show_message(full_message, avatar_state='pointing')
     
     def closeEvent(self, event):
         """Handle close event"""
