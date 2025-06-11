@@ -1,0 +1,48 @@
+version: 1.0.0
+title: Avatar Suggestions
+author:
+  contact: mic
+description: Generate contextual avatar messages based on current work patterns and observations
+instructions: |
+  analyze current work patterns and generate short, contextual suggestions for the avatar display
+  focus on actionable insights and productivity improvements
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+
+prompt: |
+  Based on the current work context, analyze the following files in ~/.local/share/goose-perception/:
+  - LATEST_WORK.md (current focus)
+  - INTERACTIONS.md (recent collaborations)
+  - CONTRIBUTIONS.md (recent activity)
+  - WORK.md (detailed work log)
+  - ACTIVITY-LOG.md (recent system activity)
+  
+  Generate 3-5 short, contextual suggestions or observations that would be appropriate for an AI avatar to display.
+  Each suggestion should be:
+  - Under 100 characters 
+  - Actionable or insightful
+  - Based on actual patterns in the data
+  - Appropriate for interrupting briefly
+  
+  Focus on themes like:
+  - Productivity patterns ("You've been focused on X for 2 hours, consider a break")
+  - Follow-up reminders ("That meeting with Y yesterday might need follow-up")
+  - Work optimization ("You've been switching between tasks frequently today")
+  - Collaboration insights ("You've had several discussions about project Z")
+  - Focus suggestions ("Your most productive time is approaching")
+  
+  Output format:
+  suggestion_type: brief_message
+  
+  Example:
+  productivity: "You've been coding for 90 minutes. Time for a 5-minute break?"
+  collaboration: "That design discussion with Alice yesterday might need follow-up"
+  focus: "You work best between 9-11 AM. It's 9:15 now - time to tackle hard tasks!"
+  
+  Save the suggestions to ~/.local/share/goose-perception/AVATAR_SUGGESTIONS.md in the format above.
+  Only include suggestions that are genuinely based on patterns you observe in the data.
+  If there's insufficient data, generate fewer suggestions rather than generic ones. 

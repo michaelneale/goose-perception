@@ -7,6 +7,7 @@ Monitors observer outputs and triggers appropriate avatar messages
 import os
 import time
 import random
+import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 import threading
@@ -22,6 +23,8 @@ class ObserverAvatarBridge:
         self.last_check_times = {}
         self.last_file_contents = {}
         self.is_running = False
+        self.last_suggestions_run = datetime.min
+        self.suggestions_interval = timedelta(minutes=30)  # Run avatar suggestions every 30 minutes
         
         # Ensure perception directory exists
         self.perception_dir.mkdir(parents=True, exist_ok=True)
@@ -32,36 +35,8 @@ class ObserverAvatarBridge:
             'LATEST_WORK.md': 'work',
             'INTERACTIONS.md': 'interaction',
             'CONTRIBUTIONS.md': 'productivity',
-            'ACTIVITY-LOG.md': 'general'
-        }
-        
-        # Avatar message templates based on work patterns
-        self.message_templates = {
-            'productivity_suggestion': [
-                "📈 I notice you've been productive with {}. Want me to help optimize further?",
-                "⚡ You're making great progress on {}. Should I prepare related tasks?",
-                "🎯 Your focus on {} is impressive. Need any resources or reminders?",
-            ],
-            'break_reminder': [
-                "⏰ You've been working intensely for a while. Time for a quick break?",
-                "🧘 I detect focused work for extended periods. A 5-minute break might help.",
-                "☕ Based on your patterns, you might need some coffee or water soon.",
-            ],
-            'meeting_prep': [
-                "📅 I see meeting activity. Should I help prepare follow-up actions?",
-                "🤝 Looks like you had some important discussions. Want me to create reminders?",
-                "📝 I noticed some collaboration. Should I summarize the key points?",
-            ],
-            'work_pattern': [
-                "🔍 I'm tracking your work patterns. You seem most productive during {} hours.",
-                "📊 Your workflow shows interesting patterns. Want insights on optimization?",
-                "⚙️ I've learned your work style. Should I suggest some improvements?",
-            ],
-            'attention_needed': [
-                "🚨 Something requires your attention based on recent activity.",
-                "⚠️ I noticed some items that might need follow-up.",
-                "🔔 There are some patterns worth discussing when you have time.",
-            ]
+            'ACTIVITY-LOG.md': 'general',
+            'AVATAR_SUGGESTIONS.md': 'suggestions'
         }
     
     def start_monitoring(self):
@@ -94,6 +69,11 @@ class ObserverAvatarBridge:
         """Check monitored files for changes"""
         current_time = datetime.now()
         
+        # Check if it's time to run avatar suggestions
+        if current_time - self.last_suggestions_run > self.suggestions_interval:
+            self._run_avatar_suggestions()
+            self.last_suggestions_run = current_time
+        
         for filename, category in self.monitored_files.items():
             file_path = self.perception_dir / filename
             
@@ -121,71 +101,107 @@ class ObserverAvatarBridge:
             except Exception as e:
                 print(f"Error checking {filename}: {e}")
     
-    def _process_file_change(self, filename, new_content, old_content, category):
-        """Process a file change and potentially trigger avatar message"""
+    def _run_avatar_suggestions(self):
+        """Run the avatar suggestions observer recipe"""
+        try:
+            print("🔍 Running avatar suggestions observer recipe...")
+            
+            # Run the goose recipe
+            result = subprocess.run([
+                "goose", "run", "--no-session", 
+                "--recipe", "observers/recipe-avatar-suggestions.yaml"
+            ], capture_output=True, text=True, timeout=120)
+            
+            if result.returncode == 0:
+                print("✅ Avatar suggestions recipe completed successfully")
+                self._process_new_suggestions()
+            else:
+                print(f"❌ Avatar suggestions recipe failed: {result.stderr}")
+                
+        except subprocess.TimeoutExpired:
+            print("⏰ Avatar suggestions recipe timed out")
+        except Exception as e:
+            print(f"Error running avatar suggestions: {e}")
+    
+    def _parse_suggestions_file(self):
+        """Parse the AVATAR_SUGGESTIONS.md file and return suggestions"""
+        suggestions_file = self.perception_dir / "AVATAR_SUGGESTIONS.md"
+        suggestions = []
         
-        # Don't spam messages - only show occasionally
-        if random.random() > 0.4:  # 40% chance to show message
-            return
+        if not suggestions_file.exists():
+            return suggestions
             
         try:
-            # Analyze the content change
+            content = suggestions_file.read_text()
+            lines = content.strip().split('\n')
+            
+            for line in lines:
+                if ':' in line and not line.startswith('#'):
+                    suggestion_type, message = line.split(':', 1)
+                    suggestions.append({
+                        'type': suggestion_type.strip(),
+                        'message': message.strip().strip('"')
+                    })
+            
+            return suggestions
+        except Exception as e:
+            print(f"Error parsing suggestions file: {e}")
+            return []
+    
+    def _process_new_suggestions(self):
+        """Process newly generated suggestions and potentially show one"""
+        suggestions = self._parse_suggestions_file()
+        
+        if not suggestions:
+            return
+            
+        # Show a random suggestion with some probability
+        if random.random() < 0.6:  # 60% chance to show a suggestion
+            suggestion = random.choice(suggestions)
+            
+            # Map suggestion types to avatar states
+            suggestion_types = {
+                'productivity': 'work',
+                'collaboration': 'meetings', 
+                'focus': 'focus',
+                'attention': 'attention',
+                'optimization': 'optimization',
+                'break': 'break'
+            }
+            
+            suggestion_type = suggestion_types.get(suggestion['type'], 'work')
+            message = suggestion['message']
+            
+            if avatar_display:
+                avatar_display.show_suggestion(suggestion_type, message)
+    
+    def _process_file_change(self, filename, new_content, old_content, category):
+        """Process a file change and potentially trigger avatar message"""
+        try:
+            # Handle avatar suggestions file updates
+            if filename == 'AVATAR_SUGGESTIONS.md':
+                self._process_new_suggestions()
+                return
+            
+            # For other files, occasionally show a contextual message
+            if random.random() > 0.3:  # 30% chance to show message
+                return
+                
+            # Simple fallback messages for file changes
             if filename == 'LATEST_WORK.md':
-                self._handle_work_update(new_content)
+                if avatar_display:
+                    avatar_display.show_message("📝 I see you're updating your current work focus...")
             elif filename == 'INTERACTIONS.md':
-                self._handle_interaction_update(new_content)
+                if avatar_display:
+                    avatar_display.show_message("🤝 New interaction data updated...")
             elif filename == 'CONTRIBUTIONS.md':
-                self._handle_contribution_update(new_content)
-            elif filename == 'ACTIVITY-LOG.md':
-                self._handle_activity_update(new_content)
+                if avatar_display:
+                    avatar_display.show_message("📈 Your contribution patterns have been updated...")
                 
         except Exception as e:
             print(f"Error processing {filename} change: {e}")
     
-    def _handle_work_update(self, content):
-        """Handle work updates"""
-        # Look for keywords to determine type of work
-        content_lower = content.lower()
-        
-        if any(word in content_lower for word in ['meeting', 'call', 'discussion']):
-            message = random.choice(self.message_templates['meeting_prep'])
-            avatar_display.show_suggestion('meetings', message)
-        elif any(word in content_lower for word in ['coding', 'programming', 'development']):
-            message = "🔍 I see you're deep in code. Want me to watch for any patterns or issues?"
-            avatar_display.show_suggestion('work', message)
-        elif any(word in content_lower for word in ['writing', 'document', 'doc']):
-            message = "📝 Looks like you're working on documentation. Need help organizing your thoughts?"
-            avatar_display.show_suggestion('work', message)
-        else:
-            message = random.choice(self.message_templates['work_pattern'])
-            avatar_display.show_suggestion('work', message.format("work"))
-    
-    def _handle_interaction_update(self, content):
-        """Handle interaction updates"""
-        if random.random() < 0.3:  # 30% chance
-            message = random.choice(self.message_templates['meeting_prep'])
-            avatar_display.show_suggestion('meetings', message)
-    
-    def _handle_contribution_update(self, content):
-        """Handle contribution updates"""
-        if random.random() < 0.3:  # 30% chance
-            message = "📈 I'm tracking your contributions. Your productivity looks great today!"
-            avatar_display.show_suggestion('productivity', message)
-    
-    def _handle_activity_update(self, content):
-        """Handle activity log updates"""
-        # Look for patterns in recent activity
-        if 'voice request' in content.lower() or 'screen capture' in content.lower():
-            return  # Skip these, we already handle them in agent.py
-            
-        if random.random() < 0.2:  # 20% chance for general activity
-            message = random.choice([
-                "👁️ I'm keeping track of everything... as always.",
-                "📊 Your activity patterns are quite interesting today.",
-                "🤔 I notice some changes in your workflow. Adapting accordingly.",
-                "⚙️ Background processing complete. Everything is under control."
-            ])
-            avatar_display.show_message(message)
+
     
     def trigger_random_creepy_message(self):
         """Trigger a random creepy/helpful message"""
