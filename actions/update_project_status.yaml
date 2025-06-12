@@ -1,0 +1,61 @@
+version: 1.0.0
+title: Update Project Status
+author:
+  contact: mic
+description: Generate project status update for stakeholders
+instructions: |
+  analyze project progress and create status update for stakeholders
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 120
+  bundled: true
+
+prompt: |
+  CURRENT DATE: $(date)
+  
+  Create a comprehensive project status update based on recent work patterns.
+  
+  Analyze work data to determine:
+  - Current project status
+  - Recent progress made
+  - Blockers or challenges
+  - Next milestones
+  - Timeline updates
+  
+  Generate:
+  
+  **PROJECT STATUS SUMMARY:**
+  - Overall health: [Green/Yellow/Red]
+  - Progress since last update: [% complete or key metrics]
+  - Current phase: [What stage we're in]
+  
+  **RECENT ACCOMPLISHMENTS:**
+  - Key deliverables completed
+  - Milestones reached
+  - Problems solved
+  
+  **CURRENT ACTIVITIES:**
+  - Active work streams
+  - Team focus areas
+  - In-progress items
+  
+  **UPCOMING PRIORITIES:**
+  - Next deliverables
+  - Scheduled milestones
+  - Key decisions needed
+  
+  **RISKS & BLOCKERS:**
+  - Current challenges
+  - Resource needs
+  - Dependencies
+  
+  **TIMELINE:**
+  - Updated delivery dates
+  - Key upcoming dates
+  - Critical path items
+  
+  Save executive summary to ~/.local/share/goose-perception/DRAFT_STATUS_SUMMARY.md
+  Save detailed status to ~/.local/share/goose-perception/DRAFT_DETAILED_STATUS.md
+  Save stakeholder update to ~/.local/share/goose-perception/DRAFT_STAKEHOLDER_UPDATE.md 

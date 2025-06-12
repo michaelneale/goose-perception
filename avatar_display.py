@@ -137,7 +137,7 @@ class GooseAvatar(QWidget):
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint | 
             Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.Tool  # Tool windows can appear on all Spaces
+            Qt.WindowType.WindowDoesNotAcceptFocus  # Prevent focus stealing - NO Tool flag!
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
@@ -174,8 +174,8 @@ class GooseAvatar(QWidget):
         
         # For macOS Spaces support - ensure avatar appears on current Space
         self.spaces_timer = QTimer()
-        self.spaces_timer.timeout.connect(self.ensure_visible_on_current_space)
-        self.spaces_timer.start(3000)  # Check every 3 seconds for responsive Space switching
+        self.spaces_timer.timeout.connect(self.refresh_avatar_for_spaces)
+        self.spaces_timer.start(1000)  # Refresh every 1 second for Space switching
     
     def position_avatar(self):
         """Position the avatar on screen"""
@@ -204,26 +204,33 @@ class GooseAvatar(QWidget):
         self.avatar_x = x
         self.avatar_y = y
         
-        print(f"🖥️ Moved avatar to screen at ({x}, {y})")
+        # Only print position updates when position actually changes significantly
+        if not hasattr(self, '_last_logged_pos') or abs(self._last_logged_pos[0] - x) > 50 or abs(self._last_logged_pos[1] - y) > 50:
+            print(f"🖥️ Moved avatar to screen at ({x}, {y})")
+            self._last_logged_pos = (x, y)
     
-    def ensure_visible_on_current_space(self):
-        """Ensure avatar is visible on the current macOS Space (virtual desktop)"""
+    def refresh_avatar_for_spaces(self):
+        """Refresh avatar to ensure it appears on the current macOS Space"""
         if not self.is_visible:
             return
             
         try:
-            # Force the avatar to be visible and on top on the current Space
-            # This helps with macOS Spaces where windows can get "lost" between desktops
+            # Re-render the avatar to ensure it appears on current Space
+            # This is more aggressive than just show() - we hide and show again
+            self.hide()
             self.show()
-            self.raise_()
+            # NO raise_() call - this steals focus on macOS!
             
             # Ensure it stays in the correct position
             if hasattr(self, 'current_screen') and self.current_screen:
                 # Refresh position to make sure it's still correct
                 self.position_on_screen(self.current_screen)
+            
+            # Also refresh the avatar display to ensure clean rendering
+            self.update_avatar_display()
                 
         except Exception as e:
-            print(f"Error ensuring Space visibility: {e}")
+            print(f"Error refreshing avatar for Spaces: {e}")
     
     def setup_spaces_behavior(self):
         """Set up the window to appear on all macOS Spaces"""
@@ -287,15 +294,8 @@ class GooseAvatar(QWidget):
             self.show()
             self.is_visible = True
         
-        # Always raise to ensure visibility on current Space
-        self.raise_()
-        
-        # Force window to be visible on current Space (macOS specific)
-        try:
-            self.activateWindow()  # Brief activation to ensure Space visibility
-            self.clearFocus()      # Then immediately clear focus to avoid interruption
-        except:
-            pass
+        # NO raise_() call - this steals focus on macOS!
+        # NO activateWindow() call - this was stealing focus!
     
     def hide_avatar(self):
         """Hide the avatar"""
@@ -357,7 +357,7 @@ class GooseAvatar(QWidget):
                 self.avatar_label.repaint()
             print(f"🎭 Avatar state changed to: {state}")
     
-    def show_message(self, message, duration=None, avatar_state='talking'):
+    def show_message(self, message, duration=None, avatar_state='talking', action_data=None):
         """Show a chat bubble with a message"""
         if duration is None:
             duration = self.message_duration
@@ -372,7 +372,7 @@ class GooseAvatar(QWidget):
         if self.chat_bubble:
             self.chat_bubble.close()
         
-        self.chat_bubble = ChatBubble(message, self)
+        self.chat_bubble = ChatBubble(message, self, action_data)
         
         # Position bubble relative to avatar (above the avatar)
         bubble_x = self.avatar_x + self.bubble_offset_x
@@ -524,9 +524,10 @@ class GooseAvatar(QWidget):
         event.accept()
 
 class ChatBubble(QWidget):
-    def __init__(self, message, parent_avatar):
+    def __init__(self, message, parent_avatar, action_data=None):
         super().__init__()
         self.parent_avatar = parent_avatar
+        self.action_data = action_data  # Dict with action info if this is actionable
         self.init_ui(message)
     
     def init_ui(self, message):
@@ -534,8 +535,8 @@ class ChatBubble(QWidget):
         # Set window properties - independent bubble window
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint | 
-            Qt.WindowType.FramelessWindowHint
-            # No Tool flag - makes it independent of parent process focus on macOS
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowDoesNotAcceptFocus  # Prevent bubble from stealing focus
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
@@ -571,6 +572,13 @@ class ChatBubble(QWidget):
         message_label.setMaximumWidth(250)
         
         frame_layout.addWidget(message_label)
+        
+        # Add action buttons if this is an actionable suggestion
+        if self.action_data:
+            print(f"🔧 Adding action buttons for: {self.action_data}")
+            self.add_action_buttons(frame_layout)
+        else:
+            print("📝 Regular message (no action buttons)")
         bubble_frame.setLayout(frame_layout)
         
         layout.addWidget(bubble_frame)
@@ -583,8 +591,121 @@ class ChatBubble(QWidget):
         
         # Adjust size to content
         self.adjustSize()
+        
+        # Ensure bubble is visible
+        self.show()
+        # NO raise_() call - this steals focus on macOS!
     
-    def on_bubble_click(self, event):
+    def add_action_buttons(self, layout):
+        """Add action buttons to the bubble"""
+        from PyQt6.QtWidgets import QPushButton, QHBoxLayout
+        
+        # Create horizontal layout for buttons
+        button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(0, 5, 0, 0)
+        
+        # Create action button
+        action_button = QPushButton("✓ Do It")
+        action_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(46, 204, 113, 200);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 4px 12px;
+                font-size: 10px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: rgba(46, 204, 113, 255);
+            }
+            QPushButton:pressed {
+                background-color: rgba(39, 174, 96, 255);
+            }
+        """)
+        action_button.clicked.connect(self.execute_action)
+        
+        # Create dismiss button
+        dismiss_button = QPushButton("✕ Not Now")
+        dismiss_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(127, 140, 141, 150);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 4px 12px;
+                font-size: 10px;
+            }
+            QPushButton:hover {
+                background-color: rgba(127, 140, 141, 200);
+            }
+            QPushButton:pressed {
+                background-color: rgba(95, 106, 106, 255);
+            }
+        """)
+        dismiss_button.clicked.connect(self.on_bubble_click)
+        
+        button_layout.addWidget(action_button)
+        button_layout.addWidget(dismiss_button)
+        layout.addLayout(button_layout)
+    
+    def execute_action(self):
+        """Execute the suggested action"""
+        if not self.action_data:
+            return
+            
+        action_command = self.action_data.get('action_command')
+        action_type = self.action_data.get('action_type')
+        
+        print(f"🚀 Executing action: {action_command} (type: {action_type})")
+        
+        # Hide the bubble first
+        self.parent_avatar.hide_message()
+        
+        # Show feedback that action is starting
+        self.parent_avatar.show_message(f"⚡ Running {action_type} action...", 3000, 'pointing')
+        
+        # Execute the action in a separate thread to avoid blocking UI
+        import threading
+        action_thread = threading.Thread(
+            target=self._run_action_recipe, 
+            args=(action_command,), 
+            daemon=True
+        )
+        action_thread.start()
+    
+    def _run_action_recipe(self, action_command):
+        """Run the action recipe in background"""
+        try:
+            import subprocess
+            
+            # Map action commands to recipe files
+            recipe_path = f"actions/{action_command}.yaml"
+            
+            print(f"Running recipe: {recipe_path}")
+            
+            # Run the goose recipe
+            result = subprocess.run([
+                "goose", "run", "--no-session", 
+                "--recipe", recipe_path
+            ], capture_output=True, text=True, timeout=180)
+            
+            if result.returncode == 0:
+                print(f"✅ Action {action_command} completed successfully")
+                # Show success feedback
+                self.parent_avatar.show_message("✅ Action completed! Check the results.", 5000, 'pointing')
+            else:
+                print(f"❌ Action {action_command} failed: {result.stderr}")
+                self.parent_avatar.show_message("⚠️ Action had some issues. Check the logs.", 4000, 'idle')
+                
+        except subprocess.TimeoutExpired:
+            print(f"⏰ Action {action_command} timed out")
+            self.parent_avatar.show_message("⏰ Action is taking longer than expected...", 4000, 'idle')
+        except Exception as e:
+            print(f"Error running action {action_command}: {e}")
+            self.parent_avatar.show_message("❌ Couldn't execute that action right now.", 3000, 'idle')
+    
+    def on_bubble_click(self, event=None):
         """Handle bubble clicks"""
         self.parent_avatar.hide_message()
 
@@ -594,13 +715,12 @@ app_instance = None
 avatar_communicator = None
 
 def start_avatar_system():
-    """Start the avatar system - Initialize Qt properly"""
+    """Start the avatar system - Initialize Qt properly for main thread"""
     global avatar_instance, app_instance, avatar_communicator
     
-    # Create QApplication if it doesn't exist
+    # Create QApplication if it doesn't exist (must be on main thread)
     if not QApplication.instance():
         app_instance = QApplication(sys.argv)
-        # Ensure the application doesn't quit when last window closes
         app_instance.setQuitOnLastWindowClosed(False)
     else:
         app_instance = QApplication.instance()
@@ -619,6 +739,16 @@ def start_avatar_system():
     
     return app_instance, avatar_instance
 
+def process_qt_events():
+    """Process Qt events without blocking - safe to call from any thread"""
+    global app_instance
+    if app_instance:
+        try:
+            app_instance.processEvents()
+        except Exception as e:
+            print(f"Qt event processing error: {e}")
+            pass
+
 def show_suggestion(observation_type, message):
     """Thread-safe function to show a suggestion via the avatar system"""
     global avatar_communicator
@@ -627,13 +757,22 @@ def show_suggestion(observation_type, message):
     else:
         print(f"Avatar not initialized. Suggestion: {message}")
 
-def show_message(message, duration=5000, avatar_state='talking'):
+def show_message(message, duration=5000, avatar_state='talking', action_data=None):
     """Thread-safe function to show a general message via the avatar system"""
     global avatar_communicator
     if avatar_communicator:
+        # For now, emit the basic signal since we'll handle action_data through direct calls
         avatar_communicator.show_message_signal.emit(message, duration, avatar_state)
     else:
         print(f"Avatar not initialized. Message: {message}")
+
+def show_actionable_message(message, action_data, duration=15000, avatar_state='pointing'):
+    """Thread-safe function to show an actionable message with buttons"""
+    global avatar_instance
+    if avatar_instance:
+        avatar_instance.show_message(message, duration, avatar_state, action_data)
+    else:
+        print(f"Avatar not initialized. Actionable message: {message}")
 
 def set_avatar_state(state):
     """Thread-safe function to set avatar state"""

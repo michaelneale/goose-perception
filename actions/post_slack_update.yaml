@@ -1,0 +1,62 @@
+version: 1.0.0
+title: Post Slack Team Update
+author:
+  contact: mic
+description: Check for Slack extension and post team status update
+instructions: |
+  ensure Slack extension is available, compose and post team status update
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 180
+  bundled: true
+
+prompt: |
+  CURRENT DATE: $(date)
+  
+  **STEP 1: CHECK SLACK MCP INTEGRATION**
+  First, check if Slack MCP server is configured and available:
+  - Check current MCP server configuration
+  - Verify Slack MCP tools are available
+  - If not configured, suggest MCP server setup (like composing message to copy/paste)
+  
+  **STEP 2: COMPOSE TEAM UPDATE**
+  Based on recent work activity in ~/.local/share/goose-perception/, compose a team status update suitable for Slack.
+  
+  Analyze these files:
+  - LATEST_WORK.md (current focus)
+  - WORK.md (recent accomplishments)  
+  - CONTRIBUTIONS.md (completed items)
+  - ACTIVITY-LOG.md (recent activity)
+  
+  **SLACK UPDATE FORMAT:**
+  Create concise, emoji-friendly update suitable for team channels:
+  
+  📅 **Weekly Update - [Date]**
+  
+  ✅ **Completed:**
+  - [Key accomplishments]
+  - [Features delivered]
+  
+  🔄 **In Progress:**
+  - [Current work]
+  - [Next deliverables]
+  
+  📋 **Next Up:**
+  - [Upcoming priorities]
+  - [Dependencies/blockers]
+  
+  **STEP 3: POST OR PREPARE**
+  If Slack MCP server is configured:
+  - Use Slack MCP tools to post the update to appropriate channel (#engineering, #team-updates, etc.)
+  - Confirm successful posting
+  
+  If Slack MCP server not available:
+  - Save formatted message to ~/.local/share/goose-perception/SLACK_UPDATE_DRAFT.md
+  - Provide instructions for manual posting
+  - Include suggested channels and timing
+  - Provide guidance on configuring Slack MCP server for future use
+  
+  **OUTPUT:**
+  Document the action taken and provide next steps if manual posting is needed. 

@@ -1,0 +1,79 @@
+version: 1.0.0
+title: Review Pending Pull Requests
+author:
+  contact: mic
+description: Check GitHub extension and review pending PRs
+instructions: |
+  enable GitHub extension if needed and review pending pull requests
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+
+prompt: |
+  CURRENT DATE: $(date)
+  
+  **MISSION: Review pending pull requests**
+  
+  **STEP 1: CHECK GITHUB MCP INTEGRATION**
+  Verify GitHub MCP server configuration:
+  - Check current MCP server configuration
+  - Look for GitHub-related MCP tools
+  - Verify GitHub API access and credentials
+  
+  If GitHub MCP server needs setup:
+  - Configure appropriate GitHub MCP server
+  - Set up GitHub API tokens/credentials
+  - Restart Goose to load new MCP configuration
+  
+  **STEP 2: IDENTIFY PENDING PRS**
+  If GitHub MCP server is configured:
+  - Use GitHub MCP tools to list pending PRs that need review
+  - Identify PRs assigned to you or your team
+  - Check PR status and priority
+  
+  If MCP server not available, check locally:
+  - Look for git repositories in current work directories
+  - Check for PR references in recent work files
+  - Suggest manual GitHub checks
+  - Provide guidance on GitHub MCP server setup
+  
+  **STEP 3: PRIORITIZE REVIEWS**
+  Based on analysis:
+  - Urgent/blocking PRs (affecting releases)
+  - Team member PRs (collaboration priority)
+  - Feature PRs (by complexity/impact)
+  - Bug fix PRs (by severity)
+  
+  **STEP 4: REVIEW PROCESS**
+  For each PR to review:
+  1. **Fetch PR details** (title, description, changes)
+  2. **Analyze code changes** (logic, style, tests)  
+  3. **Check for issues** (bugs, security, performance)
+  4. **Verify tests** (coverage, edge cases)
+  5. **Provide feedback** (constructive comments)
+  
+  **STEP 5: TAKE ACTION**
+  If GitHub MCP server works:
+  - Use GitHub MCP tools to post review comments
+  - Approve or request changes through MCP
+  - Merge if appropriate using MCP tools
+  
+  If manual review needed:
+  - Create review checklist in ~/.local/share/goose-perception/PR_REVIEW_CHECKLIST.md
+  - List specific PRs to check
+  - Include review criteria and next steps
+  - Document MCP server setup requirements for future automation
+  
+  **REVIEW CRITERIA:**
+  ✅ Code quality and readability
+  ✅ Test coverage and correctness  
+  ✅ Security considerations
+  ✅ Performance implications
+  ✅ Documentation updates
+  ✅ Breaking changes noted
+  
+  **OUTPUT:**
+  Document completed reviews and next actions needed. 

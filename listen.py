@@ -991,10 +991,9 @@ def main():
         
         # Process audio chunks
         while running:
-            # Process Qt events to keep avatar responsive
+            # Process Qt events to keep avatar responsive (safe approach)
             try:
-                if hasattr(avatar_display, 'app_instance') and avatar_display.app_instance:
-                    avatar_display.app_instance.processEvents()
+                avatar_display.process_qt_events()
             except:
                 pass
             
@@ -1009,10 +1008,9 @@ def main():
                 except queue.Empty:
                     pass
                 
-                # Process Qt events during audio collection too
+                # Process Qt events during collection too (safe approach)
                 try:
-                    if hasattr(avatar_display, 'app_instance') and avatar_display.app_instance:
-                        avatar_display.app_instance.processEvents()
+                    avatar_display.process_qt_events()
                 except:
                     pass
             
