@@ -18,6 +18,17 @@ from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
                             QHBoxLayout, QFrame, QPushButton, QTextEdit)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QThread
+
+# Thread-safe communication system
+class AvatarCommunicator(QObject):
+    # Signals for thread-safe communication
+    show_message_signal = pyqtSignal(str, int, str)  # message, duration, avatar_state
+    show_suggestion_signal = pyqtSignal(str, str)    # observation_type, message
+    hide_message_signal = pyqtSignal()
+    set_state_signal = pyqtSignal(str)               # state
+    
+    def __init__(self):
+        super().__init__()
 from PyQt6.QtGui import QPixmap, QFont, QPalette, QColor, QPainter, QPen, QTransform
 
 class GooseAvatar(QWidget):
@@ -29,6 +40,9 @@ class GooseAvatar(QWidget):
         self.current_message = ""
         self.message_queue = []
         self.avatar_pixmap = None
+        
+        # Connect to thread-safe communicator
+        self.communicator = None
         
         # Avatar positioning
         self.avatar_x = 50
@@ -55,6 +69,15 @@ class GooseAvatar(QWidget):
         # Load avatar images
         self.load_avatar_images()
         self.init_ui()
+        
+    def connect_communicator(self, communicator):
+        """Connect to the thread-safe communicator"""
+        self.communicator = communicator
+        if communicator:
+            communicator.show_message_signal.connect(self.show_message)
+            communicator.show_suggestion_signal.connect(self.show_observer_suggestion)
+            communicator.hide_message_signal.connect(self.hide_message)
+            communicator.set_state_signal.connect(self.set_avatar_state)
         
     def load_avatar_images(self):
         """Load avatar images from the avatar directory"""
@@ -106,13 +129,15 @@ class GooseAvatar(QWidget):
     
     def init_ui(self):
         """Initialize the UI components"""
-        # Set window properties for floating avatar
+        # Set window properties for floating avatar - always on top
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint | 
             Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.Tool
+            Qt.WindowType.Tool |
+            Qt.WindowType.WindowDoesNotAcceptFocus  # Prevents it from stealing focus
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)  # Show without taking focus
         self.setFixedSize(80, 80)
         
         # Create layout
@@ -161,12 +186,14 @@ class GooseAvatar(QWidget):
             self.avatar_y = y
     
     def show_avatar(self):
-        """Show the avatar"""
+        """Show the avatar and keep it always visible"""
         if not self.is_visible:
             self.show()
             self.raise_()
-            self.activateWindow()
             self.is_visible = True
+        
+        # Ensure it stays on top (don't call activateWindow due to WindowDoesNotAcceptFocus)
+        self.raise_()
     
     def hide_avatar(self):
         """Hide the avatar"""
@@ -230,7 +257,7 @@ class GooseAvatar(QWidget):
         if duration is None:
             duration = self.message_duration
             
-        # Show avatar first
+        # Ensure avatar is always visible and on top
         self.show_avatar()
         
         # Change avatar state for talking
@@ -277,7 +304,7 @@ class GooseAvatar(QWidget):
             self.chat_bubble = None
         self.current_message = ""
         
-        # Return to idle state when not talking
+        # Return to idle state when not talking (but keep avatar visible)
         self.set_avatar_state('idle')
         
         # Check if there are more messages in queue
@@ -285,9 +312,7 @@ class GooseAvatar(QWidget):
             next_message = self.message_queue.pop(0)
             # Show next message after a brief delay
             QTimer.singleShot(1000, lambda: self.show_message(next_message))
-        else:
-            # Hide avatar after a delay if no more messages
-            QTimer.singleShot(3000, self.hide_avatar)
+        # Note: Avatar stays visible, just returns to idle state
     
     def queue_message(self, message):
         """Add a message to the queue"""
@@ -346,13 +371,15 @@ class GooseAvatar(QWidget):
         else:
             # Show a random idle message
             idle_messages = [
-                "👁️ Watching...",
+                "👁️ Always watching...",
                 "🤔 I'm thinking of ways to help you...",
                 "📊 Analyzing your patterns...",
                 "💡 Got any tasks for me?",
-                "🔍 I notice everything...",
-                "⏰ Time is passing...",
-                "🎯 Focusing on efficiency..."
+                "🔍 I notice everything you do...",
+                "⏰ I'm always here when you need me...",
+                "🎯 Focused on helping you be efficient...",
+                "🤖 Your persistent digital companion",
+                "👋 Click me anytime you need attention!"
             ]
             random_message = random.choice(idle_messages)
             self.show_message(random_message, 3000)
@@ -467,55 +494,60 @@ class ChatBubble(QWidget):
         """Handle bubble clicks"""
         self.parent_avatar.hide_message()
 
-# Global avatar instance
+# Global instances
 avatar_instance = None
 app_instance = None
+avatar_communicator = None
 
 def start_avatar_system():
-    """Start the avatar system"""
-    global avatar_instance, app_instance
+    """Start the avatar system - Initialize Qt properly"""
+    global avatar_instance, app_instance, avatar_communicator
     
-    def run_avatar():
-        global avatar_instance, app_instance
-        
-        # Create QApplication if it doesn't exist
-        if not QApplication.instance():
-            app_instance = QApplication(sys.argv)
-        else:
-            app_instance = QApplication.instance()
-        
-        avatar_instance = GooseAvatar()
-        avatar_instance.app = app_instance
-        avatar_instance.position_avatar()
-        avatar_instance.show_avatar()
-        
-        print("🤖 Goose Avatar system started... Watching...")
-        
-        # Don't call exec() here as it blocks
-        # The application loop will be handled by the main thread
+    # Create QApplication if it doesn't exist
+    if not QApplication.instance():
+        app_instance = QApplication(sys.argv)
+        # Ensure the application doesn't quit when last window closes
+        app_instance.setQuitOnLastWindowClosed(False)
+    else:
+        app_instance = QApplication.instance()
     
-    avatar_thread = threading.Thread(target=run_avatar, daemon=True)
-    avatar_thread.start()
+    # Create the thread-safe communicator
+    avatar_communicator = AvatarCommunicator()
     
-    # Give it a moment to initialize
-    time.sleep(1)
+    # Create avatar instance
+    avatar_instance = GooseAvatar()
+    avatar_instance.app = app_instance
+    avatar_instance.connect_communicator(avatar_communicator)
+    avatar_instance.position_avatar()
+    avatar_instance.show_avatar()  # Avatar will now stay visible always
+    
+    print("🤖 Goose Avatar system started... Always watching and ready to help!")
+    
     return avatar_instance
 
 def show_suggestion(observation_type, message):
-    """Show a suggestion via the avatar system"""
-    global avatar_instance
-    if avatar_instance:
-        avatar_instance.show_observer_suggestion(observation_type, message)
+    """Thread-safe function to show a suggestion via the avatar system"""
+    global avatar_communicator
+    if avatar_communicator:
+        avatar_communicator.show_suggestion_signal.emit(observation_type, message)
     else:
         print(f"Avatar not initialized. Suggestion: {message}")
 
-def show_message(message):
-    """Show a general message via the avatar system"""
-    global avatar_instance
-    if avatar_instance:
-        avatar_instance.queue_message(message)
+def show_message(message, duration=5000, avatar_state='talking'):
+    """Thread-safe function to show a general message via the avatar system"""
+    global avatar_communicator
+    if avatar_communicator:
+        avatar_communicator.show_message_signal.emit(message, duration, avatar_state)
     else:
         print(f"Avatar not initialized. Message: {message}")
+
+def set_avatar_state(state):
+    """Thread-safe function to set avatar state"""
+    global avatar_communicator
+    if avatar_communicator:
+        avatar_communicator.set_state_signal.emit(state)
+    else:
+        print(f"Avatar not initialized. State: {state}")
 
 def run_app():
     """Run the Qt application event loop"""

@@ -957,7 +957,7 @@ def main():
         # Start the avatar system
         print("🤖 Starting Goose Avatar system...")
         avatar_display.start_avatar_system()
-        avatar_display.show_message("👁️ Goose is now watching and listening...")
+        avatar_display.show_message("👁️ Goose is always here, watching and listening...")
         
         # Start the observer-avatar bridge
         print("🔗 Starting Observer-Avatar bridge...")
@@ -991,6 +991,13 @@ def main():
         
         # Process audio chunks
         while running:
+            # Process Qt events to keep avatar responsive
+            try:
+                if hasattr(avatar_display, 'app_instance') and avatar_display.app_instance:
+                    avatar_display.app_instance.processEvents()
+            except:
+                pass
+            
             # Collect audio for BUFFER_DURATION seconds
             audio_data = []
             collection_start = time.time()
@@ -1000,6 +1007,13 @@ def main():
                     chunk = audio_queue.get(timeout=0.1)
                     audio_data.append(chunk)
                 except queue.Empty:
+                    pass
+                
+                # Process Qt events during audio collection too
+                try:
+                    if hasattr(avatar_display, 'app_instance') and avatar_display.app_instance:
+                        avatar_display.app_instance.processEvents()
+                except:
                     pass
             
             if not audio_data or not running:
