@@ -275,10 +275,9 @@ class ObserverAvatarBridge:
             # Pick the most relevant/urgent actionable suggestion
             suggestion = random.choice(actionable_suggestions)
             
-            # Show with high probability since these are actionable
-            if random.random() < 0.85:  # 85% chance to show actionable suggestions
-                self._show_actionable_suggestion(suggestion)
-                print(f"🎯 Showed actionable suggestion: {suggestion['message']}")
+            # Show immediately - actionable suggestions are high priority!
+            self._show_actionable_suggestion(suggestion)
+            print(f"🎯 Immediately showing actionable suggestion: {suggestion['message']}")
     
     def _show_actionable_suggestion(self, suggestion):
         """Show an actionable suggestion with action buttons"""
@@ -291,10 +290,9 @@ class ObserverAvatarBridge:
                     'observation_type': suggestion['observation_type']
                 }
                 
-                # Show the suggestion with action buttons
+                # Show the suggestion with action buttons (uses default 75-second duration)
                 avatar_display.avatar_instance.show_message(
                     suggestion['message'], 
-                    duration=15000,  # Longer duration for actionable suggestions
                     avatar_state='pointing',
                     action_data=action_data
                 )
@@ -303,16 +301,16 @@ class ObserverAvatarBridge:
                 print(f"Error showing actionable suggestion: {e}")
     
     def _process_new_suggestions(self):
-        """Process newly generated suggestions and potentially show one"""
+        """Process newly generated suggestions and show immediately"""
         suggestions = self._parse_suggestions_file()
         
         if not suggestions:
             return
             
-        # Show a random suggestion with higher probability
-        if random.random() < 0.8:  # 80% chance to show a suggestion when newly generated
-            suggestion = random.choice(suggestions)
-            self._show_suggestion(suggestion)
+        # Show new suggestions immediately - they're fresh and relevant!
+        suggestion = random.choice(suggestions)
+        self._show_suggestion(suggestion)
+        print(f"💡 Immediately showing new suggestion: {suggestion['message']}")
     
     def _show_existing_suggestion(self):
         """Show a suggestion from the existing pool"""
