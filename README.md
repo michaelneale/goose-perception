@@ -54,6 +54,11 @@ it knows when you are in a meeting, and can use the dialog to help you not miss 
 
 You will see things appear in your calendar (if you have the gcal integration enabled), notes in your notes app etc - it will work out where you manage things and interact there.
 
+<img src="chill.png" alt="time to take break" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+It may even tell you (congratulate?) it is time to take a break based on recent activity (like this!)
+  
+
+
 > [!TIP]
 > you can leave notes for goose to work on in your notes app, and it will act on them, and report back to them etc.
 
