@@ -30,8 +30,8 @@ train-classifier:
     echo "Training wake word classifier..."
     ./.use-hermit ./wake-classifier/train.sh
 
-# Run just the observers/recipes (default behavior)
-run:
+# Run just the observers/recipes in the background
+run-simple:
     #!/usr/bin/env bash
     set -euo pipefail
     just _pull-if-clean
@@ -44,7 +44,7 @@ run:
     ./run-observations.sh
 
 # Run the full voice recognition system (observers + voice)
-run-and-listen: 
+run: 
     #!/usr/bin/env bash
     set -euo pipefail
     just _pull-if-clean

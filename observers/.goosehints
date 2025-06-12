@@ -12,7 +12,10 @@ Reporting things to user and notifications:
     ALWAYS combine this with a html5 report page so they can see what you are notifying about
 
 use ~/.local/share/goose-perception/fixing/ or ~/.local/share/goose-perception/working/ as working space directories. You may have multiple parallel things going on at once (say features of the one thing) don't have multiple copies, but view those dirs as workspaces you can re-use
+IMPORTANT please do clean up after yourself if you clone/create files as part of your work which don't need to persist, don't let them use up disk, remove build artifacts etc to keep disk usage reasonable
 don't work over the top of things that are going on - unless you are very clearly asked to
+
+you should focus on users activity, not the system (you) doing things, that can be noted, but don't be over self congratulatory or too grandiose
 
 Some important tips and tricks if on macos (you don't have to use these all the time, but when needed): 
 
