@@ -4,9 +4,23 @@
 # Set default shell to bash with error handling
 set shell := ["bash", "-c"]
 
+# Helper function to pull updates if repo is clean
+_pull-if-clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "$(git status --porcelain)" ]; then
+        echo "Repository is clean, pulling latest changes from origin main..."
+        git fetch origin
+        git pull origin main --ff-only || {
+            echo "Warning: Could not fast-forward pull. You may need to merge manually."
+        }
+    else
+        echo "Repository has uncommitted changes, skipping git pull."
+    fi
+
 # Default recipe (runs when you just type 'just')
 default:
-    @just --list
+    @just run
 
 
 # Train the wake word classifier
@@ -16,10 +30,25 @@ train-classifier:
     echo "Training wake word classifier..."
     ./.use-hermit ./wake-classifier/train.sh
 
-# Run the voice recognition system
-run: 
+# Run just the observers/recipes (default behavior)
+run:
     #!/usr/bin/env bash
     set -euo pipefail
+    just _pull-if-clean
+    
+    # Kill any existing processes first
+    just kill
+    
+    echo "Starting observers..."
+    cd observers 
+    ./run-observations.sh
+
+# Run the full voice recognition system (observers + voice)
+run-and-listen: 
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just _pull-if-clean
+    
     if [ ! -d "wake-classifier/model/final" ]; then
         just train-classifier
     fi
