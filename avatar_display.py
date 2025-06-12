@@ -8,7 +8,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
                             QPushButton, QHBoxLayout, QTextEdit)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont
+from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform
 import random
 
 class AvatarCommunicator(QObject):
@@ -21,8 +21,6 @@ class AvatarCommunicator(QObject):
 
     def __init__(self):
         super().__init__()
-from PyQt6.QtGui import QPixmap, QFont, QPalette, QColor, QPainter, QPen, QTransform
-
 
 class GooseAvatar(QWidget):
     """Main avatar widget that stays always visible"""
@@ -31,7 +29,7 @@ class GooseAvatar(QWidget):
         super().__init__()
         self.app = None
         self.current_screen = None
-        self.relative_position = (0.95, 0.15)  # Top-right corner by default
+        self.relative_position = (0.5, 0.5)  # Center of screen by default
         self.avatar_x = 0
         self.avatar_y = 0
         self.is_visible = True
@@ -39,8 +37,6 @@ class GooseAvatar(QWidget):
         self.avatar_images = {}
         self.avatar_pixmap = None
         self.chat_bubble = None
-        self.bubble_offset_x = -220  # Bubble appears to the left of avatar
-        self.bubble_offset_y = -10   # Slightly above avatar
         self.message_queue = []
         self.is_showing_message = False
         self.communicator = None
@@ -141,18 +137,39 @@ class GooseAvatar(QWidget):
         
         # Make window appear on all macOS Spaces
         self.setup_spaces_behavior()
-        self.setFixedSize(80, 80)
         
-        # Create layout
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
+        # Create a fixed-size window that can accommodate both avatar and bubble
+        # Window will be 400x200 to give space for bubble above avatar
+        self.setFixedSize(400, 200)
+        
+        # Create main widget with absolute positioning to avoid layout jumping
+        self.main_widget = QWidget()
+        self.main_widget.setStyleSheet("QWidget { background: transparent; }")
+        
+        # Create container for bubble (initially hidden) - positioned absolutely
+        self.bubble_container = QWidget(self.main_widget)
+        self.bubble_container.setStyleSheet("QWidget { background: transparent; }")
+        self.bubble_container.setGeometry(10, 10, 380, 120)  # Fixed position and size
+        self.bubble_container.hide()  # Hidden by default
+        
+        # Create the bubble layout once and reuse it
+        self.bubble_layout = QVBoxLayout()
+        self.bubble_layout.setContentsMargins(10, 10, 10, 10)
+        self.bubble_container.setLayout(self.bubble_layout)
+        
+        # Create container for avatar - positioned at bottom right
+        self.avatar_container = QWidget(self.main_widget)
+        self.avatar_container.setStyleSheet("QWidget { background: transparent; }")
+        self.avatar_container.setGeometry(320, 120, 80, 80)  # Fixed position: bottom right
         
         # Avatar label
+        avatar_layout = QVBoxLayout()
+        avatar_layout.setContentsMargins(0, 0, 0, 0)
+        
         self.avatar_label = QLabel()
         if self.avatar_pixmap:
             self.avatar_label.setPixmap(self.avatar_pixmap)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # Remove background - clean transparent look
         self.avatar_label.setStyleSheet("QLabel { background: transparent; }")
         
         # Make avatar clickable and draggable
@@ -161,8 +178,14 @@ class GooseAvatar(QWidget):
         self.avatar_label.mouseReleaseEvent = self.on_mouse_release
         self.avatar_label.setCursor(Qt.CursorShape.PointingHandCursor)
         
-        layout.addWidget(self.avatar_label)
-        self.setLayout(layout)
+        avatar_layout.addWidget(self.avatar_label)
+        self.avatar_container.setLayout(avatar_layout)
+        
+        # Set the main widget as the layout
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(self.main_widget)
+        self.setLayout(main_layout)
         
         # Position the avatar window
         self.position_avatar()
@@ -195,8 +218,9 @@ class GooseAvatar(QWidget):
         screen_rect = screen.availableGeometry()
         
         # Calculate position based on relative coordinates (0.0 to 1.0)
-        x = screen_rect.x() + int(screen_rect.width() * self.relative_position[0]) - 40  # Center avatar
-        y = screen_rect.y() + int(screen_rect.height() * self.relative_position[1])
+        # Account for the larger window size (400x200) and position so avatar appears in the right place
+        x = screen_rect.x() + int(screen_rect.width() * self.relative_position[0]) - 80  # Account for avatar being on right side of window
+        y = screen_rect.y() + int(screen_rect.height() * self.relative_position[1]) - 80  # Account for avatar being at bottom of window
         
         self.move(x, y)
         self.avatar_x = x
@@ -209,7 +233,7 @@ class GooseAvatar(QWidget):
     
     def refresh_avatar_for_spaces(self):
         """Refresh avatar to ensure it appears on the current macOS Space"""
-        if not self.is_visible:
+        if not self.is_visible or self.is_dragging:  # Don't refresh while dragging!
             return
             
         try:
@@ -219,8 +243,8 @@ class GooseAvatar(QWidget):
             self.show()
             # NO raise_() call - this steals focus on macOS!
             
-            # Ensure it stays in the correct position
-            if hasattr(self, 'current_screen') and self.current_screen:
+            # Only reposition if we're not currently being dragged
+            if hasattr(self, 'current_screen') and self.current_screen and not self.is_dragging:
                 # Refresh position to make sure it's still correct
                 self.position_on_screen(self.current_screen)
             
@@ -276,8 +300,9 @@ class GooseAvatar(QWidget):
             screen_rect = current_screen.availableGeometry()
             
             # Calculate relative position (0.0 to 1.0)
-            rel_x = (self.avatar_x - screen_rect.x() + 40) / screen_rect.width()  # +40 to account for centering
-            rel_y = (self.avatar_y - screen_rect.y()) / screen_rect.height()
+            # Must match the offsets used in position_on_screen() method
+            rel_x = (self.avatar_x - screen_rect.x() + 80) / screen_rect.width()  # +80 to match position_on_screen offset
+            rel_y = (self.avatar_y - screen_rect.y() + 80) / screen_rect.height()  # +80 to match position_on_screen offset
             
             # Clamp to valid range
             rel_x = max(0.0, min(1.0, rel_x))
@@ -352,40 +377,15 @@ class GooseAvatar(QWidget):
         # Change avatar state
         self.set_avatar_state(avatar_state)
         
-        # Hide any existing bubble first
-        if self.chat_bubble:
-            self.chat_bubble.hide()
-            self.chat_bubble.deleteLater()
-            self.chat_bubble = None
+        # Clear any existing bubble content from the layout
+        self.clear_bubble_content()
         
-        # Create and show new bubble
-        self.chat_bubble = ChatBubble(message, self, action_data)
+        # Create new bubble content
+        self.chat_bubble = self.create_bubble_content(message, action_data)
         
-        # Position the bubble relative to avatar
-        bubble_x = self.avatar_x + self.bubble_offset_x
-        bubble_y = self.avatar_y + self.bubble_offset_y
-        
-        # Ensure bubble stays on screen
-        if self.app:
-            screen = self.app.primaryScreen()
-            if screen:
-                screen_rect = screen.availableGeometry()
-                
-                # Adjust horizontal position if bubble goes off screen
-                if bubble_x < screen_rect.x():
-                    bubble_x = screen_rect.x() + 10  # Keep some margin from left edge
-                    # Move bubble to right side of avatar
-                    self.bubble_offset_x = 100
-                    bubble_x = self.avatar_x + self.bubble_offset_x
-                elif bubble_x + 300 > screen_rect.x() + screen_rect.width():
-                    bubble_x = screen_rect.x() + screen_rect.width() - 310  # Keep some margin from right edge
-                
-                # Adjust vertical position if bubble goes off screen
-                if bubble_y < screen_rect.y():
-                    bubble_y = self.avatar_y + 90  # Show below avatar instead
-        
-        self.chat_bubble.move(bubble_x, bubble_y)
-        self.chat_bubble.show()
+        # Add the bubble to the existing layout and show container
+        self.bubble_layout.addWidget(self.chat_bubble)
+        self.bubble_container.show()
         
         # Update avatar display to handle potential flipping
         self.update_avatar_display()
@@ -405,19 +405,173 @@ class GooseAvatar(QWidget):
         self.is_showing_message = True
         print(f"💬 Message shown - will hide in {duration/1000} seconds")
     
+    def clear_bubble_content(self):
+        """Clear existing bubble content from layout"""
+        # Remove all widgets from the bubble layout
+        while self.bubble_layout.count():
+            child = self.bubble_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        
+        # Clean up the chat_bubble reference
+        if self.chat_bubble:
+            self.chat_bubble = None
+    
+    def create_bubble_content(self, message, action_data=None):
+        """Create the bubble content widget"""
+        bubble_widget = QWidget()
+        bubble_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(52, 73, 94, 230);
+                border: 2px solid rgba(127, 140, 141, 180);
+                border-radius: 12px;
+            }
+        """)
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(8)
+        
+        # Message text
+        message_label = QLabel(message)
+        message_label.setWordWrap(True)
+        message_label.setMaximumWidth(280)
+        message_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 13px;
+                font-weight: 500;
+                background: transparent;
+                padding: 8px;
+                border: none;
+            }
+        """)
+        layout.addWidget(message_label)
+        
+        # Add action buttons if this is an actionable message
+        if action_data:
+            button_layout = QHBoxLayout()
+            button_layout.setSpacing(8)
+            
+            # Action button
+            action_button = QPushButton("✅ Do it!")
+            action_button.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(46, 204, 113, 200);
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                    font-size: 10px;
+                }
+                QPushButton:hover {
+                    background-color: rgba(39, 174, 96, 255);
+                }
+                QPushButton:pressed {
+                    background-color: rgba(34, 153, 84, 255);
+                }
+            """)
+            action_button.clicked.connect(lambda: self.execute_action(action_data))
+            
+            # Dismiss button
+            dismiss_button = QPushButton("Skip")
+            dismiss_button.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(149, 165, 166, 150);
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                    font-size: 10px;
+                }
+                QPushButton:hover {
+                    background-color: rgba(127, 140, 141, 200);
+                }
+                QPushButton:pressed {
+                    background-color: rgba(95, 106, 106, 255);
+                }
+            """)
+            dismiss_button.clicked.connect(self.hide_message)
+            
+            button_layout.addWidget(action_button)
+            button_layout.addWidget(dismiss_button)
+            layout.addLayout(button_layout)
+        
+        # Make bubble clickable to dismiss
+        bubble_widget.mousePressEvent = lambda event: self.hide_message()
+        
+        bubble_widget.setLayout(layout)
+        bubble_widget.setFixedWidth(300)
+        return bubble_widget
+    
+    def execute_action(self, action_data):
+        """Execute the suggested action"""
+        if not action_data:
+            return
+            
+        action_command = action_data.get('action_command')
+        action_type = action_data.get('action_type')
+        
+        print(f"🚀 Executing action: {action_command} (type: {action_type})")
+        
+        # Hide the bubble first
+        self.hide_message()
+        
+        # Show feedback that action is starting
+        self.show_message(f"⚡ Running {action_type} action...", 3000, 'pointing')
+        
+        # Execute the action in a separate thread to avoid blocking UI
+        import threading
+        action_thread = threading.Thread(
+            target=self._run_action_recipe, 
+            args=(action_command,), 
+            daemon=True
+        )
+        action_thread.start()
+    
+    def _run_action_recipe(self, action_command):
+        """Run the action recipe in background"""
+        try:
+            import subprocess
+            
+            # Map action commands to recipe files
+            recipe_path = f"actions/{action_command}.yaml"
+            
+            print(f"Running recipe: {recipe_path}")
+            
+            # Run the goose recipe
+            result = subprocess.run([
+                "goose", "run", "--no-session", 
+                "--recipe", recipe_path
+            ], capture_output=True, text=True, timeout=180)
+            
+            if result.returncode == 0:
+                print(f"✅ Action {action_command} completed successfully")
+                # Show success feedback
+                self.show_message("✅ Action completed! Check the results.", 5000, 'pointing')
+            else:
+                print(f"❌ Action {action_command} failed: {result.stderr}")
+                self.show_message("⚠️ Action had some issues. Check the logs.", 4000, 'idle')
+                
+        except subprocess.TimeoutExpired:
+            print(f"⏰ Action {action_command} timed out")
+            self.show_message("⏰ Action is taking longer than expected...", 4000, 'idle')
+        except Exception as e:
+            print(f"Error running action {action_command}: {e}")
+            self.show_message("❌ Couldn't execute that action right now.", 3000, 'idle')
+    
     def hide_message(self):
         """Hide the current message"""
-        if self.chat_bubble:
-            self.chat_bubble.hide()
-            self.chat_bubble.deleteLater()
-            self.chat_bubble = None
+        # Clear bubble content from the layout
+        self.clear_bubble_content()
+        
+        # Hide the bubble container
+        self.bubble_container.hide()
         
         # Reset avatar to idle state
         self.set_avatar_state('idle')
-        
-        # Reset bubble position to default (left side)
-        self.bubble_offset_x = -220
-        self.bubble_offset_y = -10
         
         # Update avatar display (removes any flipping)
         self.update_avatar_display()
@@ -459,18 +613,21 @@ class GooseAvatar(QWidget):
                 if not self.is_dragging:
                     self.is_dragging = True
                 
-                # Move the window
-                new_pos = self.pos() + event.globalPosition().toPoint() - self.drag_start_pos
+                # Calculate the movement delta
+                delta = event.globalPosition().toPoint() - self.drag_start_pos
+                
+                # Move the window by the delta
+                new_pos = self.pos() + delta
                 self.move(new_pos)
                 
-                # Update avatar position
+                # Update avatar position tracking (important for other functions)
                 self.avatar_x = new_pos.x()
                 self.avatar_y = new_pos.y()
                 
-                # Update current screen and relative position
+                # Update current screen and relative position for when dragging stops
                 self.update_relative_position()
                 
-                # Update drag position
+                # Update drag position for next movement calculation
                 self.drag_start_pos = event.globalPosition().toPoint()
                 
                 # Update avatar display to handle potential flipping
@@ -557,181 +714,13 @@ class GooseAvatar(QWidget):
     
     def closeEvent(self, event):
         """Handle window close event"""
+        # Clean up any bubble content
         if self.chat_bubble:
-            self.chat_bubble.close()
+            self.chat_bubble.deleteLater()
+            self.chat_bubble = None
         event.accept()
 
-class ChatBubble(QWidget):
-    """Chat bubble widget for displaying messages"""
-    
-    def __init__(self, message, parent_avatar, action_data=None):
-        super().__init__()
-        self.parent_avatar = parent_avatar
-        self.action_data = action_data
-        self.init_ui(message)
-    
-    def init_ui(self, message):
-        """Initialize the chat bubble UI"""
-        # Set window properties
-        self.setWindowFlags(
-            Qt.WindowType.WindowStaysOnTopHint | 
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.WindowDoesNotAcceptFocus
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        
-        # Create main layout
-        layout = QVBoxLayout()
-        layout.setContentsMargins(15, 10, 15, 10)
-        layout.setSpacing(8)
-        
-        # Message text
-        message_label = QLabel(message)
-        message_label.setWordWrap(True)
-        message_label.setMaximumWidth(280)
-        message_label.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 13px;
-                font-weight: 500;
-                background: transparent;
-                padding: 8px;
-            }
-        """)
-        layout.addWidget(message_label)
-        
-        # Add action buttons if this is an actionable message
-        if self.action_data:
-            self.add_action_buttons(layout)
-        
-        self.setLayout(layout)
-        
-        # Style the bubble
-        self.setStyleSheet("""
-            QWidget {
-                background-color: rgba(52, 73, 94, 230);
-                border: 2px solid rgba(127, 140, 141, 180);
-                border-radius: 12px;
-            }
-        """)
-        
-        # Make bubble clickable to dismiss
-        self.mousePressEvent = self.on_bubble_click
-        
-        # Set size
-        self.setFixedWidth(300)
-        self.adjustSize()
-    
-    def add_action_buttons(self, layout):
-        """Add action buttons for actionable messages"""
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(8)
-        
-        # Action button
-        action_button = QPushButton("✅ Do it!")
-        action_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(46, 204, 113, 200);
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-weight: bold;
-                font-size: 10px;
-            }
-            QPushButton:hover {
-                background-color: rgba(39, 174, 96, 255);
-            }
-            QPushButton:pressed {
-                background-color: rgba(34, 153, 84, 255);
-            }
-        """)
-        action_button.clicked.connect(self.execute_action)
-        
-        # Dismiss button
-        dismiss_button = QPushButton("Skip")
-        dismiss_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(149, 165, 166, 150);
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-weight: bold;
-                font-size: 10px;
-            }
-            QPushButton:hover {
-                background-color: rgba(127, 140, 141, 200);
-            }
-            QPushButton:pressed {
-                background-color: rgba(95, 106, 106, 255);
-            }
-        """)
-        dismiss_button.clicked.connect(self.on_bubble_click)
-        
-        button_layout.addWidget(action_button)
-        button_layout.addWidget(dismiss_button)
-        layout.addLayout(button_layout)
-    
-    def execute_action(self):
-        """Execute the suggested action"""
-        if not self.action_data:
-            return
-            
-        action_command = self.action_data.get('action_command')
-        action_type = self.action_data.get('action_type')
-        
-        print(f"🚀 Executing action: {action_command} (type: {action_type})")
-        
-        # Hide the bubble first
-        self.parent_avatar.hide_message()
-        
-        # Show feedback that action is starting
-        self.parent_avatar.show_message(f"⚡ Running {action_type} action...", 3000, 'pointing')
-        
-        # Execute the action in a separate thread to avoid blocking UI
-        import threading
-        action_thread = threading.Thread(
-            target=self._run_action_recipe, 
-            args=(action_command,), 
-            daemon=True
-        )
-        action_thread.start()
-    
-    def _run_action_recipe(self, action_command):
-        """Run the action recipe in background"""
-        try:
-            import subprocess
-            
-            # Map action commands to recipe files
-            recipe_path = f"actions/{action_command}.yaml"
-            
-            print(f"Running recipe: {recipe_path}")
-            
-            # Run the goose recipe
-            result = subprocess.run([
-                "goose", "run", "--no-session", 
-                "--recipe", recipe_path
-            ], capture_output=True, text=True, timeout=180)
-            
-            if result.returncode == 0:
-                print(f"✅ Action {action_command} completed successfully")
-                # Show success feedback
-                self.parent_avatar.show_message("✅ Action completed! Check the results.", 5000, 'pointing')
-            else:
-                print(f"❌ Action {action_command} failed: {result.stderr}")
-                self.parent_avatar.show_message("⚠️ Action had some issues. Check the logs.", 4000, 'idle')
-                
-        except subprocess.TimeoutExpired:
-            print(f"⏰ Action {action_command} timed out")
-            self.parent_avatar.show_message("⏰ Action is taking longer than expected...", 4000, 'idle')
-        except Exception as e:
-            print(f"Error running action {action_command}: {e}")
-            self.parent_avatar.show_message("❌ Couldn't execute that action right now.", 3000, 'idle')
-    
-    def on_bubble_click(self, event=None):
-        """Handle bubble clicks"""
-        self.parent_avatar.hide_message()
+
 
 # Global instances
 avatar_instance = None
