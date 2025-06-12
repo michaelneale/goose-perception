@@ -244,15 +244,44 @@ class GooseAvatar(QWidget):
             # NO raise_() call - this steals focus on macOS!
             
             # Only reposition if we're not currently being dragged
-            if hasattr(self, 'current_screen') and self.current_screen and not self.is_dragging:
-                # Refresh position to make sure it's still correct
-                self.position_on_screen(self.current_screen)
+            if not self.is_dragging:
+                # Always get a fresh screen reference to avoid deleted QScreen objects
+                if self.app:
+                    try:
+                        # Get current screen based on avatar position
+                        avatar_point = self.pos()
+                        fresh_screen = self.app.screenAt(avatar_point)
+                        if fresh_screen:
+                            self.current_screen = fresh_screen  # Update cached reference
+                            self.position_on_screen(fresh_screen)
+                        else:
+                            # Fallback to primary screen if position-based lookup fails
+                            primary_screen = self.app.primaryScreen()
+                            if primary_screen:
+                                self.current_screen = primary_screen
+                                self.position_on_screen(primary_screen)
+                    except RuntimeError as e:
+                        if "wrapped C/C++ object" in str(e) or "has been deleted" in str(e):
+                            print("🖥️ Screen object was deleted, refreshing screen reference")
+                            # Screen was deleted, get a fresh primary screen reference
+                            try:
+                                primary_screen = self.app.primaryScreen()
+                                if primary_screen:
+                                    self.current_screen = primary_screen
+                                    self.position_on_screen(primary_screen)
+                            except Exception:
+                                # If we can't get any screen, just skip repositioning
+                                pass
+                        else:
+                            raise  # Re-raise if it's a different RuntimeError
             
             # Also refresh the avatar display to ensure clean rendering
             self.update_avatar_display()
                 
         except Exception as e:
-            print(f"Error refreshing avatar for Spaces: {e}")
+            # Only print errors that aren't the common QScreen deletion issue
+            if not ("wrapped C/C++ object" in str(e) or "has been deleted" in str(e)):
+                print(f"Error refreshing avatar for Spaces: {e}")
     
     def setup_spaces_behavior(self):
         """Set up the window to appear on all macOS Spaces"""
@@ -288,27 +317,60 @@ class GooseAvatar(QWidget):
     
     def update_relative_position(self):
         """Update the relative position based on current absolute position"""
-        if not self.app or not self.current_screen:
+        if not self.app:
             return
             
-        # Find which screen the avatar is currently on
-        avatar_point = self.pos()
-        current_screen = self.app.screenAt(avatar_point)
-        
-        if current_screen:
-            self.current_screen = current_screen
-            screen_rect = current_screen.availableGeometry()
+        try:
+            # Always get a fresh screen reference to avoid deleted QScreen objects
+            avatar_point = self.pos()
+            current_screen = self.app.screenAt(avatar_point)
             
-            # Calculate relative position (0.0 to 1.0)
-            # Must match the offsets used in position_on_screen() method
-            rel_x = (self.avatar_x - screen_rect.x() + 80) / screen_rect.width()  # +80 to match position_on_screen offset
-            rel_y = (self.avatar_y - screen_rect.y() + 80) / screen_rect.height()  # +80 to match position_on_screen offset
-            
-            # Clamp to valid range
-            rel_x = max(0.0, min(1.0, rel_x))
-            rel_y = max(0.0, min(1.0, rel_y))
-            
-            self.relative_position = (rel_x, rel_y)
+            if current_screen:
+                self.current_screen = current_screen  # Update cached reference
+                screen_rect = current_screen.availableGeometry()
+                
+                # Calculate relative position (0.0 to 1.0)
+                # Must match the offsets used in position_on_screen() method
+                rel_x = (self.avatar_x - screen_rect.x() + 80) / screen_rect.width()  # +80 to match position_on_screen offset
+                rel_y = (self.avatar_y - screen_rect.y() + 80) / screen_rect.height()  # +80 to match position_on_screen offset
+                
+                # Clamp to valid range
+                rel_x = max(0.0, min(1.0, rel_x))
+                rel_y = max(0.0, min(1.0, rel_y))
+                
+                self.relative_position = (rel_x, rel_y)
+            else:
+                # Fallback to primary screen if position-based lookup fails
+                primary_screen = self.app.primaryScreen()
+                if primary_screen:
+                    self.current_screen = primary_screen
+                    screen_rect = primary_screen.availableGeometry()
+                    
+                    rel_x = (self.avatar_x - screen_rect.x() + 80) / screen_rect.width()
+                    rel_y = (self.avatar_y - screen_rect.y() + 80) / screen_rect.height()
+                    
+                    rel_x = max(0.0, min(1.0, rel_x))
+                    rel_y = max(0.0, min(1.0, rel_y))
+                    
+                    self.relative_position = (rel_x, rel_y)
+                    
+        except RuntimeError as e:
+            if "wrapped C/C++ object" in str(e) or "has been deleted" in str(e):
+                # Screen object was deleted, try to get primary screen
+                try:
+                    primary_screen = self.app.primaryScreen()
+                    if primary_screen:
+                        self.current_screen = primary_screen
+                        # Use default relative position if we can't calculate
+                        self.relative_position = (0.5, 0.5)
+                except Exception:
+                    # If all else fails, use default position
+                    self.relative_position = (0.5, 0.5)
+            else:
+                raise
+        except Exception:
+            # On any other error, just keep the current relative position
+            pass
     
     def show_avatar(self):
         """Show the avatar"""
@@ -326,14 +388,33 @@ class GooseAvatar(QWidget):
     
     def should_flip_avatar(self):
         """Determine if avatar should be flipped based on screen position"""
-        if self.app:
-            # Find which screen the avatar is currently on
+        if not self.app:
+            return False
+            
+        try:
+            # Always get a fresh screen reference to avoid deleted QScreen objects
             avatar_point = self.pos()
             current_screen = self.app.screenAt(avatar_point)
             if current_screen:
                 screen_rect = current_screen.availableGeometry()
                 # Flip if avatar is on the right half of its current screen
                 return self.avatar_x > screen_rect.x() + screen_rect.width() / 2
+            else:
+                # Fallback to primary screen
+                primary_screen = self.app.primaryScreen()
+                if primary_screen:
+                    screen_rect = primary_screen.availableGeometry()
+                    return self.avatar_x > screen_rect.x() + screen_rect.width() / 2
+        except RuntimeError as e:
+            if "wrapped C/C++ object" in str(e) or "has been deleted" in str(e):
+                # Screen object deleted, default to not flipping
+                return False
+            else:
+                raise
+        except Exception:
+            # On any error, default to not flipping
+            return False
+            
         return False
     
     def get_avatar_pixmap(self, state):
