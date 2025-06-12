@@ -433,7 +433,10 @@ class GooseAvatar(QWidget):
         layout.setSpacing(8)
         
         # Message text
-        message_label = QLabel(message)
+        # Convert newlines to HTML breaks and use RichText for proper rendering
+        message_html = message.replace('\n', '<br/>')
+        message_label = QLabel(message_html)
+        message_label.setTextFormat(Qt.TextFormat.RichText)
         message_label.setWordWrap(True)
         message_label.setMaximumWidth(280)
         message_label.setStyleSheet("""
@@ -682,27 +685,33 @@ class GooseAvatar(QWidget):
                 self.last_suggestion_time = current_time
     
     def show_idle_suggestion(self):
-        """Show a random idle suggestion - more varied and contextual"""
-        suggestions = [
-            "💡 I'm watching your workflow - let me know if you need help!",
-            "🔍 I can help analyze your code or suggest improvements.",
-            "⚡ Need a quick code review? I'm here to help!",
-            "🎯 I notice you're working hard - want me to suggest some optimizations?",
-            "🤖 I'm your coding companion - always ready to assist!",
-            "✨ I can help with debugging, refactoring, or new features.",
-            "🚀 Ready to boost your productivity? Just ask!",
-            "🔧 I'm monitoring for opportunities to help improve your code.",
-            "💭 I have some ideas that might help with your current work.",
-            "🎨 I can suggest better patterns or cleaner implementations.",
-            "📊 Want me to analyze your code structure and suggest improvements?",
-            "🔍 I'm always watching for ways to make your code better!",
-            "⚡ I can help speed up your development process.",
-            "🎯 I notice patterns in your code - want some suggestions?",
-            "🤝 I'm here as your pair programming partner!"
-        ]
+        """Show a random idle suggestion from the JSON file."""
+        suggestions_path = Path.home() / ".local/share/goose-perception/AVATAR_SUGGESTIONS.json"
+        suggestions = []
         
+        try:
+            if suggestions_path.exists():
+                with open(suggestions_path, 'r') as f:
+                    import json
+                    data = json.load(f)
+                    suggestions = data.get("suggestions", [])
+            
+            if not suggestions:
+                # Fallback to hardcoded suggestions if file is empty or missing
+                suggestions = [
+                    "💡 I'm watching your workflow - let me know if you need help!",
+                    "🔍 I can help analyze your code or suggest improvements."
+                ]
+
+        except Exception as e:
+            print(f"Error reading suggestions file: {e}")
+            # Fallback to hardcoded suggestions on error
+            suggestions = [
+                "⚠️ Could not load suggestions, but I'm still here to help!",
+                "🤖 I seem to have misplaced my suggestion notes. How can I assist?"
+            ]
+            
         message = random.choice(suggestions)
-        # Show immediately without probability delays - much more reactive
         self.show_observer_suggestion("idle_chatter", message)
     
     def show_observer_suggestion(self, observation_type, message):

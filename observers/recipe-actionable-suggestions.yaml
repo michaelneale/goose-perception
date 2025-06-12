@@ -46,15 +46,37 @@ prompt: |
   - Need to organize or plan work
   - Time to review/clean up work
   
-  For each actionable situation, provide:
-  1. The observation (what you noticed)
-  2. The suggested action (what should be done)
-  3. The action_type (what kind of execution is needed)
+  **OUTPUT FORMAT: Valid JSON only**
   
-  **OUTPUT FORMAT:**
-  ```
-  action_type:observation_type:suggestion_text:action_command
-  ```
+  Create a JSON object with an "actionable_suggestions" array. Each suggestion should have these fields:
+  - action_type: The type of action (email, slack, meeting, calendar, github, task, reminder, document, status, review, mcp)
+  - observation_type: What kind of pattern was observed (communication, follow_up, scheduling, code_review, completion, deadline, setup, etc.)
+  - message: The suggestion text to display to the user
+  - action_command: The command/action identifier for execution
+  
+  **EXAMPLE JSON OUTPUT:**
+  {
+    "actionable_suggestions": [
+      {
+        "action_type": "email",
+        "observation_type": "communication",
+        "message": "You haven't sent an update to the team in 3 days. Send status update?",
+        "action_command": "compose_team_update"
+      },
+      {
+        "action_type": "slack",
+        "observation_type": "communication", 
+        "message": "No Slack updates sent this week. Post team status to #engineering?",
+        "action_command": "post_slack_update"
+      },
+      {
+        "action_type": "meeting",
+        "observation_type": "follow_up",
+        "message": "Yesterday's design meeting needs follow-up. Schedule planning session?",
+        "action_command": "create_follow_up_meeting"
+      }
+    ]
+  }
   
   **ACTION TYPES:**
   - email: Send an email
@@ -70,25 +92,13 @@ prompt: |
   - review: Review or organize work
   - mcp: Setup/configure required MCP servers
   
-  **EXAMPLES:**
-  ```
-  email:communication:You haven't sent an update to the team in 3 days. Send status update?:compose_team_update
-  slack:communication:No Slack updates sent this week. Post team status to #engineering?:post_slack_update
-  meeting:follow_up:Yesterday's design meeting needs follow-up. Schedule planning session?:create_follow_up_meeting
-  calendar:scheduling:You have gaps in your calendar. Block focus time for the API work?:block_focus_time
-  github:code_review:3 PRs are waiting for review. Review and merge them?:review_pending_prs
-  task:completion:You stopped working on the API refactor yesterday. Resume or reassign?:resume_or_delegate_task
-  status:update:Your project status hasn't been updated in 5 days. Update stakeholders?:update_project_status
-  reminder:deadline:The quarterly review is due Friday. Set reminder to finish it?:set_deadline_reminder
-  mcp:setup:Action needs Slack MCP server. Configure it and post team update?:setup_slack_mcp_and_post
-  ```
-  
   Focus on:
   - Recent patterns (last 1-3 days)
   - Important/urgent items
   - Communication responsibilities
   - Work momentum and completion
   
-  Save to ~/.local/share/goose-perception/ACTIONABLE_SUGGESTIONS.md
+  Save to ~/.local/share/goose-perception/ACTIONABLE_SUGGESTIONS.json as valid JSON.
   Only suggest actions based on real patterns you observe in the data.
-  If there's insufficient data, generate fewer suggestions rather than generic ones. 
+  If there's insufficient data, generate fewer suggestions rather than generic ones.
+  Do not include any text outside the JSON object - output ONLY valid JSON. 

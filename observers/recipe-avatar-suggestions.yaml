@@ -40,15 +40,22 @@ prompt: |
   - Focus suggestions ("Your most productive time is approaching")
   - Time-aware observations ("It's 2:30 PM - your energy typically dips now")
   
-  Output format:
-  suggestion_type: brief_message
+  **OUTPUT FORMAT: Valid JSON only**
   
-  Example:
-  productivity: "You've been coding for 90 minutes. Time for a 5-minute break?"
-  collaboration: "That design discussion with Alice yesterday might need follow-up"
-  focus: "It's 9:15 AM - your peak focus time! Tackle that complex task now."
-  timing: "It's 2:30 PM - perfect time for that routine task you've been putting off"
+  Create a JSON object with a "suggestions" array containing the suggestion messages as strings.
+  Each string should be the complete suggestion message ready for display.
   
-  Save the suggestions to ~/.local/share/goose-perception/AVATAR_SUGGESTIONS.md in the format above.
+  Example JSON format:
+  {
+    "suggestions": [
+      "You've been coding for 90 minutes. Time for a 5-minute break?",
+      "That design discussion with Alice yesterday might need follow-up",
+      "It's 9:15 AM - your peak focus time! Tackle that complex task now.",
+      "It's 2:30 PM - perfect time for that routine task you've been putting off"
+    ]
+  }
+  
+  Save the suggestions to ~/.local/share/goose-perception/AVATAR_SUGGESTIONS.json as valid JSON.
   Only include suggestions that are genuinely based on patterns you observe in the data.
-  If there's insufficient data, generate fewer suggestions rather than generic ones. 
+  If there's insufficient data, generate fewer suggestions rather than generic ones.
+  Do not include any text outside the JSON object - output ONLY valid JSON. 
