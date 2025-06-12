@@ -1,0 +1,101 @@
+version: 1.0.0
+title: Setup Slack MCP Server and Post Update
+author:
+  contact: mic
+description: Configure Slack MCP server and post team update
+instructions: |
+  configure Slack MCP server integration and post team status update
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+
+prompt: |
+  CURRENT DATE: $(date)
+  
+  **MISSION: Configure Slack MCP integration and post team update**
+  
+  **STEP 1: ASSESS CURRENT MCP CONFIGURATION**
+  Check if Slack MCP server is already configured:
+  - Look for existing MCP server configurations in Goose
+  - Check if Slack-related tools are available
+  - Verify any existing Slack API credentials
+  
+  **STEP 2: CONFIGURE SLACK MCP SERVER**
+  If Slack MCP server needs setup:
+  - Identify appropriate Slack MCP server implementation
+  - Add MCP server configuration to Goose settings
+  - Configure required Slack API credentials:
+    * Bot token (xoxb-...)
+    * App token if using Socket Mode
+    * Workspace/team information
+  - Update Goose configuration to include new MCP server
+  
+  **STEP 3: VERIFY MCP INTEGRATION**
+  Test the Slack MCP server setup:
+  - Restart or reload Goose to pick up new configuration
+  - Verify Slack tools are now available
+  - Test basic connectivity (list channels, test posting)
+  
+  **STEP 4: COMPOSE AND POST UPDATE**
+  Based on recent work activity in ~/.local/share/goose-perception/, create and post a team update.
+  
+  **Format for Slack (using MCP tools):**
+  ```
+  🚀 **Team Update - $(date +"%B %d")**
+  
+  ✅ **Completed This Week:**
+  • [Major accomplishments from CONTRIBUTIONS.md]
+  • [Key features delivered]
+  
+  🔄 **Currently Working On:**
+  • [Active projects from LATEST_WORK.md]
+  • [In-progress items]
+  
+  📅 **Coming Next:**
+  • [Next priorities]
+  • [Scheduled deliverables]
+  
+  ❓ **Questions/Blockers:**
+  • [Any blockers or questions]
+  • [Resource needs]
+  ```
+  
+  **STEP 5: POST USING MCP TOOLS**
+  Use Slack MCP server to post:
+  - Select appropriate channel (#engineering, #team-updates, etc.)
+  - Post the formatted update using Slack MCP tools
+  - Confirm successful posting
+  - Save confirmation/message ID for reference
+  
+  **FALLBACK APPROACH:**
+  If MCP server setup fails or isn't available:
+  1. Document the configuration requirements in ~/.local/share/goose-perception/SLACK_MCP_SETUP.md
+  2. Save formatted update to ~/.local/share/goose-perception/READY_TO_POST_SLACK.md
+  3. Provide manual posting instructions
+  4. Include MCP server setup guidance for future automation
+  
+  **CONFIGURATION GUIDANCE:**
+  Example MCP server configuration structure:
+  ```json
+  {
+    "servers": {
+      "slack": {
+        "command": "npx",
+        "args": ["@modelcontextprotocol/server-slack"],
+        "env": {
+          "SLACK_BOT_TOKEN": "xoxb-your-token",
+          "SLACK_APP_TOKEN": "xapp-your-token"
+        }
+      }
+    }
+  }
+  ```
+  
+  **OUTPUT:**
+  - Document successful MCP server setup
+  - Confirm team update posting
+  - Save configuration details for future reference
+  - Provide troubleshooting guidance if setup failed 

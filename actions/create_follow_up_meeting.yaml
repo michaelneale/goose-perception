@@ -1,0 +1,52 @@
+version: 1.0.0
+title: Create Follow-up Meeting
+author:
+  contact: mic
+description: Generate meeting details and calendar invite for follow-up sessions
+instructions: |
+  analyze recent meetings and create appropriate follow-up meeting details
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 120
+  bundled: true
+
+prompt: |
+  CURRENT DATE: $(date)
+  
+  Based on recent work and meeting activity, create follow-up meeting details.
+  
+  Analyze recent interactions and work patterns to determine:
+  - What topic needs follow-up
+  - Who should be involved
+  - Appropriate meeting length
+  - Suggested agenda items
+  - Best time slots
+  
+  Generate:
+  
+  **MEETING DETAILS:**
+  - Title: [Descriptive meeting title]
+  - Duration: [Suggested length]
+  - Participants: [Key attendees]
+  - Purpose: [Why this meeting is needed]
+  
+  **AGENDA:**
+  - Key discussion points
+  - Action items to review
+  - Decisions needed
+  - Next steps to plan
+  
+  **CALENDAR INVITE TEXT:**
+  Professional calendar description with agenda and dial-in details
+  
+  **PREPARATION NOTES:**
+  - Materials to prepare
+  - Information to gather
+  - Questions to consider
+  
+  Save meeting details to ~/.local/share/goose-perception/DRAFT_MEETING_DETAILS.md
+  Save calendar invite text to ~/.local/share/goose-perception/DRAFT_CALENDAR_INVITE.md
+  
+  If no clear follow-up context exists, suggest a general check-in or planning meeting. 

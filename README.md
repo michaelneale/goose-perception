@@ -13,7 +13,18 @@ This is the most personal way to build up a background assistant that can take a
 Run this via `just run` and let it observe how you work (watch and listen), in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
 It can check your messages and emails and schedule while you are busy, it can pick up problems and try to solve them before you notice the messages. You can leave notes for things to work on while you are solving other things. Always watching, and listening and perceiving and then acting. If this is all to much `just simple` will run just the recipesd (no voice or other enhancements)
 
-This makes use of many goose powered agents (which use recipes!) to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
+> **Goose perception has a fun or creepy avatar that will lurk on your screen** - See [AVATAR_SYSTEM.md](AVATAR_SYSTEM.md) for details about the floating avatar system that provides visual feedback and suggestions.
+
+The avatar provides different types of suggestions based on your activity:
+
+- **🔍 Work Pattern Alerts**: "I've been watching your workflow... Want me to automate it?"
+- **📅 Meeting Notices**: "Your next meeting starts in 10 minutes. Should I prepare the agenda?"
+- **🎯 Focus Suggestions**: "I notice you're switching between tasks frequently. Want help prioritizing?"
+- **⚡ Optimization Tips**: "I could automate that repetitive task you just did..."
+
+and may offer to do things for you.
+
+This makes use of many goose powered agents (which use "recipes") to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
 It works by watching how you work (screens, interactions, collaboration) and literally listening, uses many MCPs and recipes asynchronously.
 
 <img src="example.png" alt="Example notification" width="400" align="right"/>

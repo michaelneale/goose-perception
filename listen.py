@@ -33,6 +33,10 @@ from pynput.keyboard import Key, Listener
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import agent
 
+# Import avatar display system
+import avatar_display
+import observer_avatar_bridge
+
 # Add the wake-classifier directory to the path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-classifier'))
 
@@ -950,6 +954,15 @@ def main():
     transcription_in_progress = False
 
     try:
+        # Start the avatar system
+        print("🤖 Starting Goose Avatar system...")
+        avatar_display.start_avatar_system()
+        avatar_display.show_message("👁️ Goose is always here, watching and listening...")
+        
+        # Start the observer-avatar bridge
+        print("🔗 Starting Observer-Avatar bridge...")
+        observer_avatar_bridge.start_observer_bridge()
+        
         # Start the hotkey listener
         start_hotkey_listener()
         
@@ -978,6 +991,12 @@ def main():
         
         # Process audio chunks
         while running:
+            # Process Qt events to keep avatar responsive (safe approach)
+            try:
+                avatar_display.process_qt_events()
+            except:
+                pass
+            
             # Collect audio for BUFFER_DURATION seconds
             audio_data = []
             collection_start = time.time()
@@ -987,6 +1006,12 @@ def main():
                     chunk = audio_queue.get(timeout=0.1)
                     audio_data.append(chunk)
                 except queue.Empty:
+                    pass
+                
+                # Process Qt events during collection too (safe approach)
+                try:
+                    avatar_display.process_qt_events()
+                except:
                     pass
             
             if not audio_data or not running:

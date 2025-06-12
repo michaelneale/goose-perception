@@ -1,0 +1,77 @@
+version: 1.0.0
+title: Setup Slack MCP Server and Post Update  
+author:
+  contact: mic
+description: Configure Slack MCP server if needed and post team update
+instructions: |
+  configure Slack MCP server and compose/post team status update
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 240
+  bundled: true
+
+prompt: |
+  CURRENT DATE: $(date)
+  
+  **MISSION: Setup Slack MCP integration and post team update**
+  
+  **STEP 1: CHECK MCP CONFIGURATION**
+  Determine if Slack MCP server is already configured:
+  - Check Goose configuration for existing MCP servers
+  - Look for Slack-related MCP integrations
+  - Check if Slack tools are already available
+  
+  **STEP 2: CONFIGURE MCP SERVER**
+  If Slack MCP server needs setup:
+  - Identify appropriate Slack MCP server (community or custom)
+  - Add MCP server configuration to Goose config
+  - Configure Slack API credentials/tokens as needed
+  - Restart or reload Goose to pick up new MCP server
+  
+  **STEP 3: VERIFY MCP INTEGRATION**
+  Confirm Slack MCP tools are available:
+  - List available tools to verify Slack integration
+  - Test basic Slack connectivity if possible
+  
+  **STEP 4: COMPOSE AND POST UPDATE**
+  Based on recent work activity in ~/.local/share/goose-perception/, create and post a team update.
+  
+  **Format for Slack:**
+  ```
+  🚀 **Team Update - $(date +"%B %d")**
+  
+  ✅ **Shipped This Week:**
+  • [Major accomplishments from CONTRIBUTIONS.md]
+  • [Key features delivered]
+  
+  🔄 **Currently Working On:**
+  • [Active projects from LATEST_WORK.md]
+  • [In-progress items]
+  
+  📅 **Coming Next:**
+  • [Next priorities]
+  • [Scheduled deliverables]
+  
+  ❓ **Need Help With:**
+  • [Blockers or questions]
+  • [Resource needs]
+  ```
+  
+  **STEP 5: POST TO SLACK**
+  Post the update to:
+  - Primary team channel (#engineering, #dev-team, etc.)
+  - Or suggest appropriate channel based on content
+  
+  **FALLBACK PLAN:**
+  If Slack MCP server can't be configured or doesn't work:
+  1. Save formatted update to ~/.local/share/goose-perception/READY_TO_POST_SLACK.md
+  2. Provide copy-paste instructions
+  3. Suggest manual posting steps
+  4. Include channel recommendations
+  5. Provide guidance on MCP server setup for future use
+  
+  **OUTPUT:**
+  Confirm successful posting or provide manual steps with formatted content ready to use.
+  Document any MCP configuration changes made. 

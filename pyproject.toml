@@ -5,7 +5,7 @@ description = "A real-time audio and hotkey agent activation tool using local tr
 requires-python = ">=3.12,<3.13"
 
 dependencies = [
-    "openai-whisper>=20240930",
+    "openai-whisper",
     "sounddevice>=0.5.1",
     "soundfile>=0.12.1",
     "numpy>=1.24.0",
@@ -20,6 +20,9 @@ dependencies = [
     "jinja2>=3.1.2",
     "nltk>=3.9.1",
     "pynput>=1.8.0",
+    "pillow>=10.0.0",
+    "PyQt6>=6.5.0",
+    "pathlib>=1.0.1",
 ]
 
 [build-system]

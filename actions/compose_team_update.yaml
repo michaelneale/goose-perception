@@ -1,0 +1,49 @@
+version: 1.0.0
+title: Compose Team Update
+author:
+  contact: mic
+description: Generate a team status update based on recent work
+instructions: |
+  analyze recent work patterns and generate a professional team update
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 120
+  bundled: true
+
+prompt: |
+  CURRENT DATE: $(date)
+  
+  Based on recent work activity in ~/.local/share/goose-perception/, compose a team status update.
+  
+  Analyze these files:
+  - LATEST_WORK.md (current focus)
+  - WORK.md (recent accomplishments)
+  - CONTRIBUTIONS.md (completed items)
+  - ACTIVITY-LOG.md (recent activity)
+  
+  Generate a professional status update that includes:
+  
+  **COMPLETED THIS PERIOD:**
+  - Major accomplishments
+  - Features/fixes delivered
+  - Milestones reached
+  
+  **CURRENTLY WORKING ON:**
+  - Active projects
+  - Current focus areas
+  - Next deliverables
+  
+  **UPCOMING/PLANNED:**
+  - Next priorities
+  - Scheduled items
+  - Dependencies or blockers
+  
+  **FORMAT:** Professional but concise, suitable for team channels or email
+  
+  Save the composed update to ~/.local/share/goose-perception/DRAFT_TEAM_UPDATE.md
+  
+  Also save a shorter version suitable for Slack/chat to ~/.local/share/goose-perception/DRAFT_QUICK_UPDATE.md
+  
+  If insufficient work data exists, create a brief update acknowledging current status and next steps. 

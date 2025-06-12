@@ -17,6 +17,12 @@ from datetime import datetime
 from pathlib import Path
 from jinja2 import Template
 
+# Import avatar display system
+try:
+    import avatar_display
+except ImportError:
+    avatar_display = None
+
 notify_cmd = "osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'"
 
 def safe_read_file(file_path):
@@ -120,8 +126,12 @@ def run_goose_in_background(transcript):
         
         if is_screen_capture:
             log_activity("Starting to process screen capture request")
+            if avatar_display:
+                avatar_display.show_message("🖥️ I'm analyzing your screen... Let me think about this.")
         else:
             log_activity("Starting to process voice request")
+            if avatar_display:
+                avatar_display.show_message("🎙️ I heard you! Working on your request now...")
         
         # Copy the transcript to /tmp/current_transcription.txt
         with open('/tmp/current_transcription.txt', 'w') as f:
@@ -139,8 +149,12 @@ def run_goose_in_background(transcript):
         # Log completion
         if is_screen_capture:
             log_activity("Completed processing screen capture request")
+            if avatar_display:
+                avatar_display.show_message("✅ Done analyzing your screen! Check the results.")
         else:
             log_activity("Completed processing voice request")
+            if avatar_display:
+                avatar_display.show_message("✅ Finished processing your voice command!")
                 
         
     except Exception as e:
