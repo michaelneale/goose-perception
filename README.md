@@ -47,7 +47,7 @@ Both methods work asynchronously and Goose will process your requests in the bac
 > [!NOTE]
 > This is a real screenshot (blurred with AI) of a meeting where it was early morning, and goose was prepping me for the day, noting any important actions in slack and email I needed to take (knowing that I am terrible at reading email until much later in the day).
     
-Let it run for a while (ie run it all the time in the background), over time goose will start either showing things to you (with windows showing up with little web apps or reports), it will put things quietly on your calendar to remind you, prepare documents for you for up coming things.
+Let it run for a while (ie run it all the time in the background), over time goose will start either showing things to you (with windows showing up with little web apps or reports), it will put things quietly on your calendar to remind you, prepare documents for you for up coming things, it may even patch code and open pull requests if something important and urgent happens and your attention is elsewhere.
     
 For example it will do a weekly "hype doc" summary celebrating all your hard work! There are many other things it may do, they all combine together as it learns what you do.
 it knows when you are in a meeting, and can use the dialog to help you not miss follow up items and take action on them.
