@@ -11,7 +11,7 @@ Goose perception runs on your desktop and learns from how you work, without any 
 This is the most personal way to build up a background assistant that can take actions on your behalf, with out your using another tool. Just keep going, and goose will help you out. 
 
 Run this via `just run` and let it observe how you work (watch and listen), in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
-It can check your messages and emails and schedule while you are busy, it can pick up problems and try to solve them before you notice the messages. You can leave notes for things to work on while you are solving other things. Always watching, and listening and perceiving and then acting. 
+It can check your messages and emails and schedule while you are busy, it can pick up problems and try to solve them before you notice the messages. You can leave notes for things to work on while you are solving other things. Always watching, and listening and perceiving and then acting. Note `just run` will only observe and act at the time `just run-and-listen` will fetch models, train a classifier and then listen continuously (to make it more opt in)
 
 This makes use of many goose powered agents (which use recipes!) to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
 It works by watching how you work (screens, interactions, collaboration) and literally listening, uses many MCPs and recipes asynchronously.
