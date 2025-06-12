@@ -4,19 +4,6 @@
 # Set default shell to bash with error handling
 set shell := ["bash", "-c"]
 
-# Helper function to pull updates if repo is clean
-_pull-if-clean:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ -z "$(git status --porcelain)" ]; then
-        echo "Repository is clean, pulling latest changes from origin main..."
-        git fetch origin
-        git pull origin main --ff-only || {
-            echo "Warning: Could not fast-forward pull. You may need to merge manually."
-        }
-    else
-        echo "Repository has uncommitted changes, skipping git pull."
-    fi
 
 # Default recipe (runs when you just type 'just')
 default:
@@ -34,7 +21,6 @@ train-classifier:
 run-simple:
     #!/usr/bin/env bash
     set -euo pipefail
-    just _pull-if-clean
     
     # Kill any existing processes first
     just kill
@@ -47,7 +33,6 @@ run-simple:
 run: 
     #!/usr/bin/env bash
     set -euo pipefail
-    just _pull-if-clean
     
     if [ ! -d "wake-classifier/model/final" ]; then
         just train-classifier
