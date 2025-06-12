@@ -60,9 +60,10 @@ if [ ! -d ".venv" ]; then
     uv venv ./.venv
     log "Installing dependencies from pyproject.toml."
     uv pip install --requirement ./pyproject.toml
+    touch .venv/.pip-sync
     log "Python environment setup complete."
 else
-    uv pip install --requirement ./pyproject.toml
+    [ ./pyproject.toml -nt .venv/.pip-sync ] && { uv pip install --requirement ./pyproject.toml && touch .venv/.pip-sync; }
     log "Python virtual environment already exists."
 fi
 
