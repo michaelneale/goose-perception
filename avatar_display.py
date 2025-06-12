@@ -50,6 +50,10 @@ class GooseAvatar(QWidget):
         self.bubble_offset_x = -100  # Position bubble above avatar
         self.bubble_offset_y = -80   # Position bubble above avatar
         
+        # Multi-monitor support
+        self.current_screen = None
+        self.relative_position = (0.9, 0.1)  # Top-right corner by default (90% across, 10% down)
+        
         # Dragging support
         self.drag_start_pos = None
         self.is_dragging = False
@@ -129,13 +133,16 @@ class GooseAvatar(QWidget):
     
     def init_ui(self):
         """Initialize the UI components"""
-        # Set window properties for floating avatar - independent window that stays visible
+        # Set window properties for floating avatar - appears on ALL macOS Spaces
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint | 
-            Qt.WindowType.FramelessWindowHint
-            # No Tool flag - makes it independent of parent process focus on macOS
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.Tool  # Tool windows can appear on all Spaces
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        
+        # Make window appear on all macOS Spaces
+        self.setup_spaces_behavior()
         self.setFixedSize(80, 80)
         
         # Create layout
@@ -164,6 +171,11 @@ class GooseAvatar(QWidget):
         
         # Start the idle checking loop
         self.idle_timer.start(self.idle_check_interval)
+        
+        # For macOS Spaces support - ensure avatar appears on current Space
+        self.spaces_timer = QTimer()
+        self.spaces_timer.timeout.connect(self.ensure_visible_on_current_space)
+        self.spaces_timer.start(3000)  # Check every 3 seconds for responsive Space switching
     
     def position_avatar(self):
         """Position the avatar on screen"""
@@ -172,24 +184,118 @@ class GooseAvatar(QWidget):
             self.app = QApplication.instance()
         
         if self.app:
+            # Use primary screen for initial positioning
             screen = self.app.primaryScreen()
-            screen_rect = screen.availableGeometry()
+            self.current_screen = screen
+            self.position_on_screen(screen)
+    
+    def position_on_screen(self, screen):
+        """Position the avatar on a specific screen using relative positioning"""
+        if not screen:
+            return
             
-            # Position in top-right corner by default
-            x = screen_rect.width() - 150
-            y = 50
+        screen_rect = screen.availableGeometry()
+        
+        # Calculate position based on relative coordinates (0.0 to 1.0)
+        x = screen_rect.x() + int(screen_rect.width() * self.relative_position[0]) - 40  # Center avatar
+        y = screen_rect.y() + int(screen_rect.height() * self.relative_position[1])
+        
+        self.move(x, y)
+        self.avatar_x = x
+        self.avatar_y = y
+        
+        print(f"🖥️ Moved avatar to screen at ({x}, {y})")
+    
+    def ensure_visible_on_current_space(self):
+        """Ensure avatar is visible on the current macOS Space (virtual desktop)"""
+        if not self.is_visible:
+            return
             
-            self.move(x, y)
-            self.avatar_x = x
-            self.avatar_y = y
+        try:
+            # Force the avatar to be visible and on top on the current Space
+            # This helps with macOS Spaces where windows can get "lost" between desktops
+            self.show()
+            self.raise_()
+            
+            # Ensure it stays in the correct position
+            if hasattr(self, 'current_screen') and self.current_screen:
+                # Refresh position to make sure it's still correct
+                self.position_on_screen(self.current_screen)
+                
+        except Exception as e:
+            print(f"Error ensuring Space visibility: {e}")
+    
+    def setup_spaces_behavior(self):
+        """Set up the window to appear on all macOS Spaces"""
+        try:
+            # Import macOS specific modules
+            import objc
+            from Cocoa import NSApp, NSWindow
+            
+            # Schedule the space setup for after the window is fully created
+            def setup_after_show():
+                try:
+                    win_id = int(self.winId())
+                    # Find the native NSWindow
+                    app = NSApp
+                    if app:
+                        for window in app.windows():
+                            if window.windowNumber() == win_id:
+                                # Set collection behavior to appear on all Spaces
+                                # NSWindowCollectionBehaviorCanJoinAllSpaces = 1
+                                window.setCollectionBehavior_(1)
+                                print("✨ Set window to appear on all Spaces")
+                                break
+                except Exception as e:
+                    print(f"Could not set Spaces behavior: {e}")
+            
+            # Use a timer to set this after the window is shown
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, setup_after_show)  # Give window time to be created
+            
+        except ImportError as e:
+            print(f"macOS Spaces support not available (PyObjC not installed): {e}")
+        except Exception as e:
+            print(f"Error setting up Spaces behavior: {e}")
+    
+    def update_relative_position(self):
+        """Update the relative position based on current avatar location"""
+        if not self.app:
+            return
+            
+        # Find which screen the avatar is currently on
+        avatar_point = self.pos()
+        current_screen = self.app.screenAt(avatar_point)
+        
+        if current_screen:
+            self.current_screen = current_screen
+            screen_rect = current_screen.availableGeometry()
+            
+            # Calculate relative position (0.0 to 1.0)
+            rel_x = (self.avatar_x - screen_rect.x()) / screen_rect.width()
+            rel_y = (self.avatar_y - screen_rect.y()) / screen_rect.height()
+            
+            # Clamp to valid range
+            rel_x = max(0.0, min(1.0, rel_x))
+            rel_y = max(0.0, min(1.0, rel_y))
+            
+            self.relative_position = (rel_x, rel_y)
     
     def show_avatar(self):
-        """Show the avatar and keep it always visible as an overlay"""
+        """Show the avatar and keep it always visible as an overlay across Spaces"""
         if not self.is_visible:
             self.show()
             self.is_visible = True
-            # Only raise once when first showing, then let WindowStaysOnTopHint handle it
-            self.raise_()
+        
+        # Always raise to ensure visibility on current Space
+        self.raise_()
+        
+        # Force window to be visible on current Space (macOS specific)
+        try:
+            self.activateWindow()  # Brief activation to ensure Space visibility
+            self.clearFocus()      # Then immediately clear focus to avoid interruption
+        except:
+            pass
     
     def hide_avatar(self):
         """Hide the avatar"""
@@ -348,6 +454,9 @@ class GooseAvatar(QWidget):
                 self.avatar_x = new_pos.x()
                 self.avatar_y = new_pos.y()
                 
+                # Update current screen and relative position
+                self.update_relative_position()
+                
                 # Update drag position
                 self.drag_start_pos = event.globalPosition().toPoint()
                 
@@ -371,8 +480,20 @@ class GooseAvatar(QWidget):
         if self.current_message:
             self.hide_message()
         else:
-            # Simple interaction message - real chit-chat comes from recipes
-            self.show_message("👋 Click! What's up?", 2000)
+            # Show a random idle message
+            idle_messages = [
+                "👁️ Always watching...",
+                "🤔 I'm thinking of ways to help you...",
+                "📊 Analyzing your patterns...",
+                "💡 Got any tasks for me?",
+                "🔍 I notice everything you do...",
+                "⏰ I'm always here when you need me...",
+                "🎯 Focused on helping you be efficient...",
+                "🤖 Your persistent digital companion",
+                "👋 Click me anytime you need attention!"
+            ]
+            random_message = random.choice(idle_messages)
+            self.show_message(random_message, 3000)
     
     def check_for_suggestions(self):
         """Periodically check for new suggestions - now handled by observer recipes"""
@@ -496,7 +617,7 @@ def start_avatar_system():
     
     print("🤖 Goose Avatar system started... Always watching and ready to help!")
     
-    return avatar_instance
+    return app_instance, avatar_instance
 
 def show_suggestion(observation_type, message):
     """Thread-safe function to show a suggestion via the avatar system"""
