@@ -76,7 +76,7 @@ prompt: |
    * if you are working on code, prefer to work on your own code in a branch which results in a pull request (you should aim to make the build pass as well in CI)   
    * be prepared to respond to the note in future and reply to it if more instructions are given without doubling up on what you have already done    
   
-
+  IMPORTANT Check current disk free space - if it is 90% full, do not check out code to work on to make large new directories
 
 
 

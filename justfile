@@ -4,9 +4,10 @@
 # Set default shell to bash with error handling
 set shell := ["bash", "-c"]
 
+
 # Default recipe (runs when you just type 'just')
 default:
-    @just --list
+    @just run
 
 
 # Train the wake word classifier
@@ -16,10 +17,23 @@ train-classifier:
     echo "Training wake word classifier..."
     ./.use-hermit ./wake-classifier/train.sh
 
-# Run the voice recognition system
+# Run just the observers/recipes in the background
+run-simple:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    # Kill any existing processes first
+    just kill
+    
+    echo "Starting observers..."
+    cd observers 
+    ./run-observations.sh
+
+# Run the full voice recognition system (observers + voice)
 run: 
     #!/usr/bin/env bash
     set -euo pipefail
+    
     if [ ! -d "wake-classifier/model/final" ]; then
         just train-classifier
     fi

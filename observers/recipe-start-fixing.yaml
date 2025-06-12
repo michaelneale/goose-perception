@@ -65,6 +65,7 @@ prompt:
     if a document was recently edited in google drive, then you can make a copy of it and add comments or change tracking to it and act on the changes (or if clearly can be fixed in place, you can do that as a suggestion if you can)
   IMPORTANT work in ~/.local/share/goose-perception/fixing/ dir on copies of files or checkouts, unless the user has made it clear to work on something that they already have in another location 
   (we want to avoid over writing things that are already in progress by the user)
+  IMPORTANT Check current disk free space - if it is 90% full, do not check out code to work on to make large new directories
   Be thoughtful and helpful, don't over do things
 
   

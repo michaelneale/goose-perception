@@ -62,6 +62,7 @@ if [ ! -d ".venv" ]; then
     uv pip install --requirement ./pyproject.toml
     log "Python environment setup complete."
 else
+    uv pip install --requirement ./pyproject.toml
     log "Python virtual environment already exists."
 fi
 

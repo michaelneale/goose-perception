@@ -152,7 +152,7 @@ run_recipe_if_needed() {
     # Run recipe and wait for completion
     local current_hour=$(date +%H)
     local session_name="${recipe}-${current_hour}"
-    goose run --name "$session_name" --recipe "$recipe" && {
+    goose run --no-session --recipe "$recipe" && {
       # Update marker file on success
       touch "$marker_file"
       # Touch the output file to update its timestamp even if the recipe didn't modify it

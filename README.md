@@ -11,7 +11,7 @@ Goose perception runs on your desktop and learns from how you work, without any 
 This is the most personal way to build up a background assistant that can take actions on your behalf, with out your using another tool. Just keep going, and goose will help you out. 
 
 Run this via `just run` and let it observe how you work (watch and listen), in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
-It can check your messages and emails and schedule while you are busy, it can pick up problems and try to solve them before you notice the messages. You can leave notes for things to work on while you are solving other things. Always watching, and listening and perceiving and then acting. 
+It can check your messages and emails and schedule while you are busy, it can pick up problems and try to solve them before you notice the messages. You can leave notes for things to work on while you are solving other things. Always watching, and listening and perceiving and then acting. If this is all to much `just simple` will run just the recipesd (no voice or other enhancements)
 
 This makes use of many goose powered agents (which use recipes!) to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
 It works by watching how you work (screens, interactions, collaboration) and literally listening, uses many MCPs and recipes asynchronously.
@@ -47,12 +47,17 @@ Both methods work asynchronously and Goose will process your requests in the bac
 > [!NOTE]
 > This is a real screenshot (blurred with AI) of a meeting where it was early morning, and goose was prepping me for the day, noting any important actions in slack and email I needed to take (knowing that I am terrible at reading email until much later in the day).
     
-Let it run for a while (ie run it all the time in the background), over time goose will start either showing things to you (with windows showing up with little web apps or reports), it will put things quietly on your calendar to remind you, prepare documents for you for up coming things.
+Let it run for a while (ie run it all the time in the background), over time goose will start either showing things to you (with windows showing up with little web apps or reports), it will put things quietly on your calendar to remind you, prepare documents for you for up coming things, it may even patch code and open pull requests if something important and urgent happens and your attention is elsewhere.
     
 For example it will do a weekly "hype doc" summary celebrating all your hard work! There are many other things it may do, they all combine together as it learns what you do.
 it knows when you are in a meeting, and can use the dialog to help you not miss follow up items and take action on them.
 
 You will see things appear in your calendar (if you have the gcal integration enabled), notes in your notes app etc - it will work out where you manage things and interact there.
+
+<img src="chill.png" alt="time to take break" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+It may even tell you (congratulate?) it is time to take a break based on recent activity (like this!)
+  
+
 
 > [!TIP]
 > you can leave notes for goose to work on in your notes app, and it will act on them, and report back to them etc.
