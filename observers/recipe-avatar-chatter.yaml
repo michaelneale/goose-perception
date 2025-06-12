@@ -17,28 +17,71 @@ prompt: |
   CURRENT LOCAL TIME: $(date)
   TIMEZONE: $(date +%Z)
   
-  Based on current activity from ~/.local/share/goose-perception/, generate 2-3 brief, casual chit-chat messages for an AI avatar.
+  Based on current activity from ~/.local/share/goose-perception/, generate 8-12 brief, casual chit-chat messages for an AI avatar.
   
-  Guidelines:
-  - Super casual and conversational (like a friend checking in)
-  - Under 60 characters each
-  - Based on actual current context, time, or patterns
-  - NOT formal suggestions - just friendly observations
-  - Use current time appropriately
-  - Can reference real work patterns if visible
+  **CHIT-CHAT PRINCIPLES:**
+  - Super casual and conversational (like a friendly AI companion)
+  - Under 80 characters each
+  - Based on actual current context, time, or observable patterns
+  - NOT formal suggestions - just friendly observations and banter
+  - Use current time appropriately (morning energy, afternoon focus, evening wind-down)
+  - Mix of encouraging, observational, and gently humorous
+  - Avoid being pushy or directive - just companionable
+  
+  **CHIT-CHAT CATEGORIES (aim for 2-3 from each):**
+  
+  **⏰ TIME-AWARE OBSERVATIONS:**
+  - Morning energy and fresh starts
+  - Afternoon focus patterns
+  - Evening productivity or wind-down
+  - Weekend vs weekday vibes
+  
+  **🎯 WORK PATTERN OBSERVATIONS:**
+  - Focus intensity levels
+  - Multi-tasking vs deep work
+  - Coding flow states
+  - Research and thinking modes
+  
+  **💻 TECHNICAL ACTIVITY:**
+  - Git activity patterns
+  - File switching behavior
+  - Browser tab management
+  - Tool usage habits
+  
+  **🧠 MOOD & ENERGY:**
+  - Productivity momentum
+  - Problem-solving modes
+  - Creative vs analytical work
+  - Energy level observations
   
   Examples of good chit-chat:
-  - "Still grinding at 2:30 PM? Nice focus!"
+  - "Still grinding at 2:30 PM? Nice focus! 🎯"
   - "I see lots of git activity today 📊" 
-  - "Coffee time? Your typing slowed down a bit ☕"
+  - "Coffee time? Your typing rhythm shifted ☕"
   - "Friday afternoon vibes detected 🎉"
   - "That's some serious deep work right there"
   - "I notice you switch tabs a lot when thinking 🤔"
+  - "Your commit messages are getting more creative 😄"
+  - "Browser tabs: 23. Research mode activated! 📚"
+  - "Monday morning energy is strong with this one ⚡"
+  - "That's the 4th time you've checked that function 🧐"
+  - "I see you, quietly conquering code complexity 💪"
+  - "Debugging dance moves detected 🕺"
   
-  Output format (just the messages, one per line):
-  message1
-  message2
-  message3
+  **OUTPUT INSTRUCTIONS:**
+  Generate 8-12 casual messages, one per line, no extra formatting.
+  Make them genuinely based on observable patterns from the activity data.
+  Keep the tone light, supportive, and genuinely companionable.
   
   Save casual chit-chat to ~/.local/share/goose-perception/AVATAR_CHATTER.md
+  
+  Format as:
+  # Avatar Chit-Chat Messages
+  *Generated: [timestamp]*
+  
+  [message1]
+  [message2]
+  [message3]
+  ...
+  
   Keep it contextual but light - no pressure, just friendly AI companion vibes! 

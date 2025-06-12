@@ -8,7 +8,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
                             QPushButton, QHBoxLayout, QTextEdit)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform
+from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon
 import random
 
 class AvatarCommunicator(QObject):
@@ -45,11 +45,15 @@ class GooseAvatar(QWidget):
         self.drag_start_pos = None
         self.is_dragging = False
         
-        # Idle behavior settings - much more frequent and immediate
-        self.idle_check_interval = 15000  # Check every 15 seconds (was 30)
-        self.idle_suggestion_chance = 0.3  # 30% chance to show suggestion (was 0.1)
+        # Idle behavior settings - more thoughtful and less aggressive
+        self.idle_check_interval = 45000  # Check every 45 seconds (was 15)
+        self.idle_suggestion_chance = 0.15  # 15% chance to show suggestion (was 0.3)
         self.last_suggestion_time = 0
-        self.min_suggestion_interval = 45  # Minimum 45 seconds between suggestions (was 120)
+        self.min_suggestion_interval = 180  # Minimum 3 minutes between suggestions (was 45)
+        
+        # Track shown suggestions to reduce immediate repetition
+        self.recent_suggestions = []
+        self.max_recent_suggestions = 8  # Remember last 8 suggestions to avoid repeating
         
         # Timers
         self.hide_timer = QTimer()
@@ -766,7 +770,7 @@ class GooseAvatar(QWidget):
                 self.last_suggestion_time = current_time
     
     def show_idle_suggestion(self):
-        """Show a random idle suggestion from the JSON file."""
+        """Show a random idle suggestion from the JSON file, avoiding recent repeats."""
         suggestions_path = Path.home() / ".local/share/goose-perception/AVATAR_SUGGESTIONS.json"
         suggestions = []
         
@@ -791,8 +795,24 @@ class GooseAvatar(QWidget):
                 "⚠️ Could not load suggestions, but I'm still here to help!",
                 "🤖 I seem to have misplaced my suggestion notes. How can I assist?"
             ]
+        
+        # Filter out recently shown suggestions to reduce repetition
+        fresh_suggestions = [s for s in suggestions if s not in self.recent_suggestions]
+        
+        # If we've shown everything recently, reset the tracking but prefer newer suggestions
+        if not fresh_suggestions:
+            fresh_suggestions = suggestions
+            self.recent_suggestions = []
+            print("🔄 Refreshed suggestion pool - all suggestions have been shown recently")
+        
+        # Pick a random fresh suggestion
+        message = random.choice(fresh_suggestions)
+        
+        # Track this suggestion to avoid immediate repetition
+        self.recent_suggestions.append(message)
+        if len(self.recent_suggestions) > self.max_recent_suggestions:
+            self.recent_suggestions.pop(0)  # Remove oldest
             
-        message = random.choice(suggestions)
         self.show_observer_suggestion("idle_chatter", message)
     
     def show_observer_suggestion(self, observation_type, message):
@@ -827,6 +847,17 @@ def start_avatar_system():
         app_instance.setQuitOnLastWindowClosed(False)
     else:
         app_instance = QApplication.instance()
+    
+    # Set the Goose icon for the application
+    try:
+        goose_icon_path = Path(__file__).parent / "Goose.png"
+        if goose_icon_path.exists():
+            app_instance.setWindowIcon(QIcon(str(goose_icon_path)))
+            print("🪿 Set Goose.png as application icon")
+        else:
+            print("⚠️ Goose.png not found, using default icon")
+    except Exception as e:
+        print(f"⚠️ Could not set Goose icon: {e}")
     
     # Create the thread-safe communicator
     avatar_communicator = AvatarCommunicator()

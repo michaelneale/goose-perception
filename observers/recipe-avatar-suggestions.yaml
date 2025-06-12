@@ -24,38 +24,81 @@ prompt: |
   - WORK.md (detailed work log)
   - ACTIVITY-LOG.md (recent system activity)
   
-  Generate 3-5 short, contextual suggestions or observations that would be appropriate for an AI avatar to display.
+  Generate 10-15 short, contextual suggestions or observations that would be appropriate for an AI avatar to display.
   **IMPORTANT: Use the local time provided above, not UTC. All time references should be in the user's local timezone.**
+  
   Each suggestion should be:
-  - Under 100 characters 
-  - Actionable or insightful
+  - Under 120 characters 
+  - Actionable, insightful, or encouraging
   - Based on actual patterns in the data
-  - Appropriate for interrupting briefly
+  - Appropriate for brief, non-intrusive display
+  - Varied in tone and purpose
+  
+  **SUGGESTION CATEGORIES (aim for 2-3 from each):**
+  
+  **🎯 PRODUCTIVITY & FOCUS:**
+  - Deep work sessions and flow states
+  - Context switching patterns
+  - Energy level observations
+  - Optimal timing suggestions
+  
+  **🤝 COLLABORATION & COMMUNICATION:**
+  - Follow-up reminders from meetings/conversations
+  - Team interaction patterns
+  - Unfinished communication threads
+  - Community engagement opportunities
+  
+  **⚡ WORK MOMENTUM:**
+  - Progress celebrations
+  - Completion encouragement
+  - Next logical steps
+  - Priority suggestions
+  
+  **🧘 WELLNESS & BALANCE:**
+  - Break reminders based on work intensity
+  - Posture and movement suggestions
+  - Energy management tips
+  - Time awareness
+  
+  **🔍 LEARNING & IMPROVEMENT:**
+  - Skill development observations
+  - Knowledge gaps spotted
+  - Learning opportunities
+  - Best practice suggestions
   
   Focus on themes like:
-  - Productivity patterns ("You've been focused on X for 2 hours, consider a break")
-  - Follow-up reminders ("That meeting with Y yesterday might need follow-up")
-  - Work optimization ("You've been switching between tasks frequently today")
-  - Collaboration insights ("You've had several discussions about project Z")
-  - Focus suggestions ("Your most productive time is approaching")
-  - Time-aware observations ("It's 2:30 PM - your energy typically dips now")
+  - "You've been in flow for 90 mins on X - amazing focus! Maybe stretch soon?"
+  - "That discussion with [person] yesterday might need a follow-up ping"
+  - "Your commit frequency shows you're in a great debugging rhythm"
+  - "It's [time] - your historical peak productivity window!"
+  - "I notice you're switching between 4+ projects - consider time blocking?"
+  - "Great progress on [specific item] - just need to push it over the finish line"
+  - "Your keyboard activity suggests deep thinking mode engaged 🧠"
+  - "That PR review from [person] deserves a thoughtful response"
   
   **OUTPUT FORMAT: Valid JSON only**
   
-  Create a JSON object with a "suggestions" array containing the suggestion messages as strings.
+  Create a JSON object with a "suggestions" array containing 10-15 suggestion messages as strings.
   Each string should be the complete suggestion message ready for display.
   
   Example JSON format:
   {
     "suggestions": [
-      "You've been coding for 90 minutes. Time for a 5-minute break?",
+      "You've been coding for 90 minutes straight - time for a 5-minute break?",
       "That design discussion with Alice yesterday might need follow-up",
-      "It's 9:15 AM - your peak focus time! Tackle that complex task now.",
-      "It's 2:30 PM - perfect time for that routine task you've been putting off"
+      "It's 9:15 AM - your peak focus time! Tackle that complex refactor now.",
+      "I see 3 different repos active - consider focusing on one for deeper flow",
+      "Your commit messages show great progress - you're in the zone! 🚀",
+      "That code review from Bob has been waiting 2 days - quick response?",
+      "It's 2:30 PM - perfect time for routine tasks like docs or cleanup",
+      "Your typing rhythm suggests you're problem-solving something tricky",
+      "Great momentum on the user auth feature - almost there!",
+      "I notice you keep returning to that API design - trust your instincts"
     ]
   }
   
   Save the suggestions to ~/.local/share/goose-perception/AVATAR_SUGGESTIONS.json as valid JSON.
+  **Focus on being genuinely helpful - observe real patterns and suggest real value.**
   Only include suggestions that are genuinely based on patterns you observe in the data.
-  If there's insufficient data, generate fewer suggestions rather than generic ones.
+  If there's insufficient data for a category, generate fewer suggestions rather than generic ones.
   Do not include any text outside the JSON object - output ONLY valid JSON. 
