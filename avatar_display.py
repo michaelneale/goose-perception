@@ -129,15 +129,13 @@ class GooseAvatar(QWidget):
     
     def init_ui(self):
         """Initialize the UI components"""
-        # Set window properties for floating avatar - always on top
+        # Set window properties for floating avatar - independent window that stays visible
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint | 
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.Tool |
-            Qt.WindowType.WindowDoesNotAcceptFocus  # Prevents it from stealing focus
+            Qt.WindowType.FramelessWindowHint
+            # No Tool flag - makes it independent of parent process focus on macOS
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)  # Show without taking focus
         self.setFixedSize(80, 80)
         
         # Create layout
@@ -186,14 +184,12 @@ class GooseAvatar(QWidget):
             self.avatar_y = y
     
     def show_avatar(self):
-        """Show the avatar and keep it always visible"""
+        """Show the avatar and keep it always visible as an overlay"""
         if not self.is_visible:
             self.show()
-            self.raise_()
             self.is_visible = True
-        
-        # Ensure it stays on top (don't call activateWindow due to WindowDoesNotAcceptFocus)
-        self.raise_()
+            # Only raise once when first showing, then let WindowStaysOnTopHint handle it
+            self.raise_()
     
     def hide_avatar(self):
         """Hide the avatar"""
@@ -437,11 +433,11 @@ class ChatBubble(QWidget):
     
     def init_ui(self, message):
         """Initialize the chat bubble UI"""
-        # Set window properties
+        # Set window properties - independent bubble window
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint | 
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.Tool
+            Qt.WindowType.FramelessWindowHint
+            # No Tool flag - makes it independent of parent process focus on macOS
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         

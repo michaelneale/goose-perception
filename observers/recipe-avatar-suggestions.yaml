@@ -14,6 +14,9 @@ extensions:
   bundled: true
 
 prompt: |
+  CURRENT LOCAL TIME: $(date)
+  TIMEZONE: $(date +%Z)
+  
   Based on the current work context, analyze the following files in ~/.local/share/goose-perception/:
   - LATEST_WORK.md (current focus)
   - INTERACTIONS.md (recent collaborations)
@@ -22,6 +25,7 @@ prompt: |
   - ACTIVITY-LOG.md (recent system activity)
   
   Generate 3-5 short, contextual suggestions or observations that would be appropriate for an AI avatar to display.
+  **IMPORTANT: Use the local time provided above, not UTC. All time references should be in the user's local timezone.**
   Each suggestion should be:
   - Under 100 characters 
   - Actionable or insightful
@@ -34,6 +38,7 @@ prompt: |
   - Work optimization ("You've been switching between tasks frequently today")
   - Collaboration insights ("You've had several discussions about project Z")
   - Focus suggestions ("Your most productive time is approaching")
+  - Time-aware observations ("It's 2:30 PM - your energy typically dips now")
   
   Output format:
   suggestion_type: brief_message
@@ -41,7 +46,8 @@ prompt: |
   Example:
   productivity: "You've been coding for 90 minutes. Time for a 5-minute break?"
   collaboration: "That design discussion with Alice yesterday might need follow-up"
-  focus: "You work best between 9-11 AM. It's 9:15 now - time to tackle hard tasks!"
+  focus: "It's 9:15 AM - your peak focus time! Tackle that complex task now."
+  timing: "It's 2:30 PM - perfect time for that routine task you've been putting off"
   
   Save the suggestions to ~/.local/share/goose-perception/AVATAR_SUGGESTIONS.md in the format above.
   Only include suggestions that are genuinely based on patterns you observe in the data.
