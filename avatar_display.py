@@ -203,10 +203,13 @@ class GooseAvatar(QWidget):
     def should_flip_avatar(self):
         """Determine if avatar should be flipped based on screen position"""
         if self.app:
-            screen = self.app.primaryScreen()
-            screen_rect = screen.availableGeometry()
-            # Flip if avatar is on the right half of the screen
-            return self.avatar_x > screen_rect.width() / 2
+            # Find which screen the avatar is currently on
+            avatar_point = self.pos()
+            current_screen = self.app.screenAt(avatar_point)
+            if current_screen:
+                screen_rect = current_screen.availableGeometry()
+                # Flip if avatar is on the right half of its current screen
+                return self.avatar_x > screen_rect.x() + screen_rect.width() / 2
         return False
     
     def get_avatar_pixmap(self, state):
@@ -269,20 +272,23 @@ class GooseAvatar(QWidget):
         bubble_x = self.avatar_x + self.bubble_offset_x
         bubble_y = self.avatar_y + self.bubble_offset_y
         
-        # Ensure bubble stays on screen
+        # Ensure bubble stays on current screen where avatar is located
         if self.app:
-            screen = self.app.primaryScreen()
-            screen_rect = screen.availableGeometry()
-            
-            # Adjust horizontal position if bubble goes off screen
-            if bubble_x < 0:
-                bubble_x = 10  # Keep some margin from left edge
-            elif bubble_x + 300 > screen_rect.width():
-                bubble_x = screen_rect.width() - 310  # Keep some margin from right edge
-            
-            # Adjust vertical position if bubble goes off screen
-            if bubble_y < 0:
-                bubble_y = self.avatar_y + 90  # Show below avatar instead
+            # Find which screen the avatar is currently on
+            avatar_point = self.pos()
+            current_screen = self.app.screenAt(avatar_point)
+            if current_screen:
+                screen_rect = current_screen.availableGeometry()
+                
+                # Adjust horizontal position if bubble goes off current screen
+                if bubble_x < screen_rect.x():
+                    bubble_x = screen_rect.x() + 10  # Keep some margin from left edge
+                elif bubble_x + 300 > screen_rect.x() + screen_rect.width():
+                    bubble_x = screen_rect.x() + screen_rect.width() - 310  # Keep some margin from right edge
+                
+                # Adjust vertical position if bubble goes off current screen
+                if bubble_y < screen_rect.y():
+                    bubble_y = self.avatar_y + 90  # Show below avatar instead
                 
         self.chat_bubble.move(bubble_x, bubble_y)
         self.chat_bubble.show()
@@ -365,42 +371,13 @@ class GooseAvatar(QWidget):
         if self.current_message:
             self.hide_message()
         else:
-            # Show a random idle message
-            idle_messages = [
-                "👁️ Always watching...",
-                "🤔 I'm thinking of ways to help you...",
-                "📊 Analyzing your patterns...",
-                "💡 Got any tasks for me?",
-                "🔍 I notice everything you do...",
-                "⏰ I'm always here when you need me...",
-                "🎯 Focused on helping you be efficient...",
-                "🤖 Your persistent digital companion",
-                "👋 Click me anytime you need attention!"
-            ]
-            random_message = random.choice(idle_messages)
-            self.show_message(random_message, 3000)
+            # Simple interaction message - real chit-chat comes from recipes
+            self.show_message("👋 Click! What's up?", 2000)
     
     def check_for_suggestions(self):
-        """Periodically check for new suggestions"""
-        # This would integrate with the observer system
-        # For now, we'll show random suggestions occasionally
-        
-        if random.random() < 0.3 and not self.current_message:  # 30% chance
-            creepy_suggestions = [
-                "🔍 I've been watching your workflow... Want me to optimize it?",
-                "⚡ I noticed you're doing that task manually again...",
-                "📈 Your productivity dipped 12 minutes ago. Need a break?",
-                "🤖 I could automate that repetitive task you just did...",
-                "👀 I see you checking email again. Want me to summarize?",
-                "⏰ You've been working for 47 minutes. Time for a stretch?",
-                "💻 That code pattern looks familiar... want a better approach?",
-                "📝 Should I add that to your TODO list?",
-                "🎯 I can help you focus on what matters most...",
-                "🔮 Based on your patterns, you'll need coffee in 23 minutes..."
-            ]
-            
-            suggestion = random.choice(creepy_suggestions)
-            self.queue_message(suggestion)
+        """Periodically check for new suggestions - now handled by observer recipes"""
+        # Real suggestions now come from observer recipes, not hardcoded lists
+        pass
     
     def show_observer_suggestion(self, observation_type, message):
         """Show a suggestion based on observer data using pointing avatar"""

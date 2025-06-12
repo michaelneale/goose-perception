@@ -1,0 +1,44 @@
+version: 1.0.0
+title: Avatar Casual Chit-Chat
+author:
+  contact: mic
+description: Generate frequent, casual, contextual chit-chat for avatar based on current activity
+instructions: |
+  Generate brief, casual conversational messages for the avatar to display frequently.
+  These should be contextual but light - not formal suggestions, just friendly observations.
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 120
+  bundled: true
+
+prompt: |
+  CURRENT LOCAL TIME: $(date)
+  TIMEZONE: $(date +%Z)
+  
+  Based on current activity from ~/.local/share/goose-perception/, generate 2-3 brief, casual chit-chat messages for an AI avatar.
+  
+  Guidelines:
+  - Super casual and conversational (like a friend checking in)
+  - Under 60 characters each
+  - Based on actual current context, time, or patterns
+  - NOT formal suggestions - just friendly observations
+  - Use current time appropriately
+  - Can reference real work patterns if visible
+  
+  Examples of good chit-chat:
+  - "Still grinding at 2:30 PM? Nice focus!"
+  - "I see lots of git activity today 📊" 
+  - "Coffee time? Your typing slowed down a bit ☕"
+  - "Friday afternoon vibes detected 🎉"
+  - "That's some serious deep work right there"
+  - "I notice you switch tabs a lot when thinking 🤔"
+  
+  Output format (just the messages, one per line):
+  message1
+  message2
+  message3
+  
+  Save casual chit-chat to ~/.local/share/goose-perception/AVATAR_CHATTER.md
+  Keep it contextual but light - no pressure, just friendly AI companion vibes! 
