@@ -137,3 +137,7 @@ status:
     echo "Running observation scripts:"
     ps aux | grep "run-observations.sh" | grep -v grep || echo "  None found"
     echo
+
+update: 
+    git checkout main
+    git pull origin main    
