@@ -39,9 +39,16 @@ class GooseAvatar(QWidget):
         self.avatar_images = {}
         self.avatar_pixmap = None
         self.chat_bubble = None
-        self.message_queue = []
         self.is_showing_message = False
         self.communicator = None
+        
+        # Message queue system - replaces simple message_queue list
+        self.message_queue = []  # Queue of messages to display
+        self.is_processing_queue = False  # Flag to prevent queue processing conflicts
+        self.queue_timer = QTimer()  # Timer for queue processing
+        self.queue_timer.timeout.connect(self.process_message_queue)
+        self.queue_timer.setSingleShot(True)
+        self.message_spacing_delay = 2000  # 2 seconds between messages
         
         # Dragging state
         self.drag_start_pos = None
@@ -503,48 +510,12 @@ class GooseAvatar(QWidget):
             print(f"⚠️ Unknown avatar state: {state}")
     
     def show_message(self, message, duration=None, avatar_state='talking', action_data=None):
-        """Show a message with the avatar"""
-        # Set default durations based on message type
-        if duration is None:
-            if action_data:
-                duration = 75000  # 75 seconds for actionable messages
-            else:
-                duration = 20000  # 20 seconds for regular messages
+        """Queue a message for display (thread-safe entry point)"""
+        # Determine priority based on action_data
+        priority = 'high' if action_data else 'normal'
         
-        # Change avatar state
-        self.set_avatar_state(avatar_state)
-        
-        # Clear any existing bubble content from the layout
-        self.clear_bubble_content()
-        
-        # Create new bubble content
-        self.chat_bubble = self.create_bubble_content(message, action_data)
-        
-        # Add the bubble to the existing layout and show container
-        self.bubble_layout.addWidget(self.chat_bubble)
-        self.bubble_container.show()
-        
-        # Update avatar display to handle potential flipping
-        self.update_avatar_display()
-        
-        # Set up auto-hide timer
-        self.hide_timer.stop()  # Stop any existing timer
-        self.hide_timer.start(duration)
-        
-        # Set up auto-dismiss for actionable messages (75 seconds)
-        if action_data:
-            self.auto_dismiss_timer.stop()
-            self.auto_dismiss_timer.start(75000)  # Auto-dismiss after 75 seconds
-            print(f"📝 Actionable message (will auto-dismiss in 75s)")
-        else:
-            print(f"📝 Regular message (no action buttons)")
-        
-        # Start emergency backup timer (2 minutes max)
-        self.emergency_timer.stop()
-        self.emergency_timer.start(120000)  # 2 minutes emergency timeout
-        
-        self.is_showing_message = True
-        print(f"💬 Message shown - will hide in {duration/1000}s (emergency backup: 120s)")
+        # Queue the message instead of showing immediately
+        self.queue_message_for_display(message, duration, avatar_state, action_data, priority)
     
     def clear_bubble_content(self):
         """Clear existing bubble content from layout"""
@@ -761,10 +732,8 @@ class GooseAvatar(QWidget):
             
             print("✅ Message hidden successfully")
             
-            # Process any queued messages
-            if self.message_queue:
-                next_message = self.message_queue.pop(0)
-                self.show_message(**next_message)
+            # Process next message in queue
+            self.on_message_hidden()
                 
         except Exception as e:
             print(f"❌ Error hiding message: {e}")
@@ -779,6 +748,8 @@ class GooseAvatar(QWidget):
                     self.auto_dismiss_timer.stop()
                 if self.emergency_timer:
                     self.emergency_timer.stop()
+                # Still try to process queue even on error
+                self.on_message_hidden()
             except Exception as inner_e:
                 print(f"❌ Error in force reset: {inner_e}")
     
@@ -828,8 +799,16 @@ class GooseAvatar(QWidget):
             
             print("✅ Force dismiss completed")
             
+            # Process next message in queue
+            self.on_message_hidden()
+            
         except Exception as e:
             print(f"❌ Error in force dismiss: {e}")
+            # Still try to process queue even on error
+            try:
+                self.on_message_hidden()
+            except:
+                pass
     
     def emergency_reset(self):
         """Emergency reset for completely stuck UI"""
@@ -846,10 +825,7 @@ class GooseAvatar(QWidget):
             # Simulate clicking "Skip" by hiding the message
             self.hide_message()
     
-    def queue_message(self, message):
-        """Queue a message to show after current one finishes"""
-        self.message_queue.append(message)
-        print(f"📬 Message queued (queue length: {len(self.message_queue)})")
+
     
     def on_mouse_press(self, event):
         """Handle mouse press for dragging and clicking"""
@@ -1069,9 +1045,9 @@ class GooseAvatar(QWidget):
     
     def show_observer_suggestion(self, observation_type, message):
         """Show a suggestion from the observer system"""
-        # Show suggestions immediately with longer duration
+        # Show suggestions using the queue system with longer duration
         duration = 25000  # 25 seconds for suggestions (was much shorter)
-        self.show_message(f"💡 {message}", duration, 'pointing')
+        self.show_message(message, duration, 'pointing')
         print(f"🔍 Observer suggestion ({observation_type}): {message}")
     
     def show_personality_menu(self, event):
@@ -1271,6 +1247,135 @@ class GooseAvatar(QWidget):
         except Exception as e:
             print(f"⚠️ Error loading personality setting: {e}")
             return None
+
+    def queue_message_for_display(self, message, duration=None, avatar_state='talking', action_data=None, priority='normal'):
+        """Add a message to the queue for sequential display"""
+        # Handle edge cases
+        if message is None:
+            print("⚠️ Attempted to queue None message - ignoring")
+            return False
+        
+        # Convert message to string if needed
+        message = str(message)
+        
+        # Create message object
+        message_obj = {
+            'message': message,
+            'duration': duration,
+            'avatar_state': avatar_state,
+            'action_data': action_data,
+            'priority': priority,
+            'timestamp': datetime.now().timestamp()
+        }
+        
+        # Check for duplicates to avoid spam
+        message_text = message.strip()
+        for existing_msg in self.message_queue:
+            if existing_msg['message'].strip() == message_text:
+                print(f"🔄 Duplicate message filtered: {message_text[:50]}...")
+                return False  # Message was duplicate, not added
+        
+        # Add to queue based on priority
+        if priority == 'high':
+            # High priority messages go to front
+            self.message_queue.insert(0, message_obj)
+            print(f"📬 High priority message queued: {message_text[:50]}...")
+        else:
+            # Normal priority messages go to back
+            self.message_queue.append(message_obj)
+            print(f"📬 Message queued: {message_text[:50]}...")
+        
+        print(f"📊 Queue length: {len(self.message_queue)}")
+        
+        # Start processing if not already processing
+        if not self.is_processing_queue and not self.is_showing_message:
+            self.process_message_queue()
+        
+        return True  # Message was added to queue
+    
+    def process_message_queue(self):
+        """Process the next message in the queue"""
+        if self.is_processing_queue or self.is_showing_message:
+            return  # Already processing or showing a message
+        
+        if not self.message_queue:
+            return  # No messages to process
+        
+        self.is_processing_queue = True
+        
+        # Get next message from queue
+        message_obj = self.message_queue.pop(0)
+        
+        print(f"📺 Processing queued message: {message_obj['message'][:50]}...")
+        print(f"📊 Remaining in queue: {len(self.message_queue)}")
+        
+        # Show the message immediately (now that we're sure it's the only one)
+        self._show_message_immediately(
+            message_obj['message'],
+            message_obj['duration'],
+            message_obj['avatar_state'],
+            message_obj['action_data']
+        )
+        
+        self.is_processing_queue = False
+    
+    def _show_message_immediately(self, message, duration=None, avatar_state='talking', action_data=None):
+        """Show a message immediately without queueing (internal use only)"""
+        # Set default durations based on message type
+        if duration is None:
+            if action_data:
+                duration = 75000  # 75 seconds for actionable messages
+            else:
+                duration = 20000  # 20 seconds for regular messages
+        
+        try:
+            # Change avatar state
+            self.set_avatar_state(avatar_state)
+            
+            # Clear any existing bubble content from the layout
+            self.clear_bubble_content()
+            
+            # Create new bubble content
+            self.chat_bubble = self.create_bubble_content(message, action_data)
+            
+            # Add the bubble to the existing layout and show container
+            self.bubble_layout.addWidget(self.chat_bubble)
+            self.bubble_container.show()
+            
+            # Update avatar display to handle potential flipping
+            self.update_avatar_display()
+            
+            # Set up auto-hide timer
+            self.hide_timer.stop()  # Stop any existing timer
+            self.hide_timer.start(duration)
+            
+            # Set up auto-dismiss for actionable messages (75 seconds)
+            if action_data:
+                self.auto_dismiss_timer.stop()
+                self.auto_dismiss_timer.start(75000)  # Auto-dismiss after 75 seconds
+                print(f"📝 Actionable message (will auto-dismiss in 75s)")
+            else:
+                print(f"📝 Regular message (no action buttons)")
+            
+            # Start emergency backup timer (2 minutes max)
+            self.emergency_timer.stop()
+            self.emergency_timer.start(120000)  # 2 minutes emergency timeout
+            
+            self.is_showing_message = True
+            print(f"💬 Message shown - will hide in {duration/1000}s (emergency backup: 120s)")
+            
+        except Exception as e:
+            print(f"❌ Error showing message: {e}")
+            self.is_showing_message = False
+    
+    def on_message_hidden(self):
+        """Called when a message is hidden - process next message in queue"""
+        # Wait a bit before showing the next message for better UX
+        if self.message_queue:
+            print(f"⏳ Waiting {self.message_spacing_delay/1000}s before next message...")
+            self.queue_timer.start(self.message_spacing_delay)
+        else:
+            print("📭 Message queue is empty")
 
 
 

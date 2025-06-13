@@ -24,6 +24,51 @@ The avatar provides different types of suggestions based on your activity:
 
 and may offer to do things for you.
 
+## 🎭 Avatar Personality System
+
+The avatar brings life to Goose Perception with **8 distinct personalities** - not just different work styles, but genuinely unique characters with their own traits, quirks, and ways of seeing the world. Each personality fundamentally changes how the avatar interacts with you.
+
+<img src="avatar-personality-1.png" alt="Avatar with Creepy personality active, showing personality menu" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+
+### Available Personalities
+
+- **🌧️ Melancholic**: Brooding and introspective, finds beauty in struggle and poetic meaning in mundane tasks
+- **🃏 Joker**: Chaotic and unpredictable, loves pranks and unconventional approaches 
+- **😂 Comedian** *(Default)*: Always cracking jokes and finding humor in everything
+- **👁️ Creepy**: Unsettling and mysterious, makes eerily accurate observations about your patterns
+- **🧘 Zen Master**: Wise and peaceful, speaks in riddles and philosophical insights
+- **💬 Gossip**: Chatty and dramatic, loves to "spill tea" about your code and projects
+- **🙄 Sarcastic**: Dry wit and cutting sarcasm delivered with perfect timing
+- **🐕 Excited Puppy**: Boundlessly enthusiastic about absolutely everything
+
+### How to Change Personalities
+
+<img src="avatar-personality-2.png" alt="Avatar with Sarcastic personality active, showing right-click menu" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+
+1. **Right-click the avatar** to open the personality selection menu
+2. **Select a personality** from the dropdown (current selection marked with ✓)
+3. **Watch the costume change** - entertaining transition messages like "🎭 Switching to Sarcastic mode..."
+4. **Experience complete consistency** - all suggestions, responses, and interactions match the chosen personality
+
+### Personality Examples
+
+Each personality provides dramatically different experiences:
+
+- **🌧️ Melancholic**: *"Ah, another click in this endless digital void... how beautifully tragic your code becomes in these moments of despair."*
+- **🃏 Joker**: *"CHAOS CLICK! What havoc shall we wreak today? Plot twist: your function might actually work!"*
+- **🙄 Sarcastic**: *"Oh wow, another click. How revolutionary. Let me guess, you want me to do something 'helpful'?"*
+- **🐕 Excited Puppy**: *"OH MY GOSH YOU CLICKED ME! THIS IS SO EXCITING! WOW WOW WOW!"*
+
+### Smart Features
+
+- **🔄 Message Queue System**: Prevents competing messages, ensures smooth sequential display
+- **💾 Persistent Settings**: Your chosen personality is saved and restored across restarts
+- **🧵 Thread-Safe Operations**: Background personality changes don't freeze the UI
+- **🎯 Complete Consistency**: Every interaction maintains the same personality voice
+- **⚡ Priority Handling**: Important actionable messages get proper queue priority
+
+> **Pro Tip**: The personality system uses Goose's recipe parameter system, so each personality gets uniquely generated content rather than just different templates!
+
 This makes use of many goose powered agents (which use "recipes") to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
 It works by watching how you work (screens, interactions, collaboration) and literally listening, uses many MCPs and recipes asynchronously.
 

@@ -2,6 +2,25 @@
 
 The avatar now supports different **actual personalities** - not just different work styles, but genuinely distinct characters with unique traits, quirks, and ways of seeing the world. Each personality brings its own entertaining perspective to your work!
 
+## 📬 Message Queue System
+
+**New Enhancement**: The avatar now uses a sophisticated message queue system to ensure smooth, reliable messaging:
+
+- **📋 Sequential Display**: Messages are queued and shown one at a time, preventing overlaps and conflicts
+- **🔄 Smart Deduplication**: Identical messages are automatically filtered out to avoid spam
+- **⚡ Priority System**: Actionable messages get higher priority and jump to the front of the queue  
+- **⏱️ Smooth Transitions**: 2-second spacing between messages for better readability
+- **🧵 Thread Safety**: All UI operations are properly synchronized to prevent Qt timer conflicts
+
+**Benefits**:
+- ✅ No more competing messages hiding behind each other
+- ✅ No more frozen UI during heavy activity
+- ✅ No more Qt timer threading errors in logs
+- ✅ Smooth, predictable message flow
+- ✅ Eliminates message spam and duplicates
+
+This completely resolves the competing message problems that could occur when multiple background processes tried to show messages simultaneously.
+
 ## 🎭 Available Personalities
 
 ### 🌧️ Melancholic
@@ -193,42 +212,6 @@ Instead of boring "productivity assistant" variations, you now get:
 - **Endless replayability** - 8 completely different experiences
 
 The avatar system now has **real personality** instead of just different flavors of helpfulness! 🎪✨
-
-## 🐛 Troubleshooting
-
-### Right-Click Menu Issues
-- **Menu disappears too quickly**: Fixed! Menu now pauses avatar refresh while open
-- **Menu doesn't appear**: Ensure `personalities.json` exists and avatar system is running
-- **Can't see personality descriptions**: Hover over menu items for tooltips
-
-### Personality Change Issues  
-- **UI freezes during change**: Fixed! Recipe generation now runs in background
-- **No costume change message**: Check that observer bridge is running
-- **Change doesn't take effect**: Wait for completion message, or restart avatar system
-- **Old personality suggestions still showing**: Fixed! Old suggestions are automatically cleared
-- **Mixed personality content**: Fixed! Complete cleanup ensures consistency
-- **Personality doesn't persist after restart**: Check `~/.local/share/goose-perception/PERSONALITY_SETTINGS.json`
-
-### Persistence Issues
-- **Always starts with default personality**: Check if PERSONALITY_SETTINGS.json exists and is valid JSON
-- **Settings not saving**: Check write permissions in `~/.local/share/goose-perception/`
-- **Wrong personality loaded**: Verify saved personality exists in personalities.json
-- **Corrupted settings file**: Delete PERSONALITY_SETTINGS.json to reset to default
-
-### Suggestion Quality Issues
-- **Stale suggestions from previous personality**: Fixed! `clear_old_suggestions()` removes old content
-- **Generic/non-personality messages**: All interactions now use current personality
-- **Inconsistent character voice**: Every message type maintains personality consistency
-
-### Recipe Execution Problems
-- **Recipes fail to run**: Check that goose is installed and recipes validate
-- **Long processing times**: Recipe generation typically takes 1-2 minutes - this is normal
-- **Background errors**: Check terminal output for detailed error messages
-
-### Performance Tips
-- **Multiple quick changes**: Wait for completion message before changing again
-- **Memory usage**: Background threads are cleaned up automatically (daemon=True)
-- **Responsiveness**: UI should remain interactive during personality changes
 
 ### Debug Information
 Check console output for these status messages:
