@@ -15,6 +15,7 @@ extensions:
   bundled: true
 prompt: |
   please look in /tmp/screenshots for screenshots of work activity which have veen taken every 20 seconds over the past 20 minutes at least.
+  If there are ones more than 30 minutes old, remove them as they are not relevant and only focus on the newest ones
   The user is working on various projects so you are to summarize work going on as best you can, you can try to guess the project names being worked on from the context as more is revealed.
   if any screens are for chat or email pay attention to the people being communicated with and topics
   note what documents or files, directories, docs etc  they are working on 
