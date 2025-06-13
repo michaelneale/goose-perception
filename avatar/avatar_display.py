@@ -8,7 +8,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
                             QPushButton, QHBoxLayout, QTextEdit, QMenu)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction
+from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics
 import random
 import json
 from datetime import datetime
@@ -201,18 +201,19 @@ class GooseAvatar(QWidget):
         # Make window appear on all macOS Spaces
         self.setup_spaces_behavior()
         
-        # Create a fixed-size window that can accommodate both avatar and bubble
-        # Window will be 400x200 to give space for bubble above avatar
-        self.setFixedSize(400, 200)
+        # Create a flexible window that accommodates fixed-width bubbles with variable height
+        # Window size optimized for fixed width, variable height content
+        self.setFixedSize(460, 280)  # Increased height from 230 to 280 for taller bubbles
         
         # Create main widget with absolute positioning to avoid layout jumping
         self.main_widget = QWidget()
         self.main_widget.setStyleSheet("QWidget { background: transparent; }")
         
-        # Create container for bubble (initially hidden) - positioned absolutely
+        # Create container for bubble (initially hidden) - bottom-right anchored positioning
         self.bubble_container = QWidget(self.main_widget)
         self.bubble_container.setStyleSheet("QWidget { background: transparent; }")
-        self.bubble_container.setGeometry(10, 10, 380, 120)  # Fixed position and size
+        # Container positioned near avatar, will be dynamically adjusted for upward growth
+        self.bubble_container.setGeometry(10, 120, 370, 120)  # Initial position - will be recalculated
         self.bubble_container.hide()  # Hidden by default
         
         # Create the bubble layout once and reuse it
@@ -223,7 +224,7 @@ class GooseAvatar(QWidget):
         # Create container for avatar - positioned at bottom right
         self.avatar_container = QWidget(self.main_widget)
         self.avatar_container.setStyleSheet("QWidget { background: transparent; }")
-        self.avatar_container.setGeometry(320, 120, 80, 80)  # Fixed position: bottom right
+        self.avatar_container.setGeometry(380, 200, 80, 80)  # Updated position for taller window
         
         # Avatar label
         avatar_layout = QVBoxLayout()
@@ -281,7 +282,7 @@ class GooseAvatar(QWidget):
         screen_rect = screen.availableGeometry()
         
         # Calculate position based on relative coordinates (0.0 to 1.0)
-        # Account for the larger window size (400x200) and position so avatar appears in the right place
+        # Account for the window size (460x280) and position so avatar appears in the right place
         x = screen_rect.x() + int(screen_rect.width() * self.relative_position[0]) - 80  # Account for avatar being on right side of window
         y = screen_rect.y() + int(screen_rect.height() * self.relative_position[1]) - 80  # Account for avatar being at bottom of window
         
@@ -511,6 +512,51 @@ class GooseAvatar(QWidget):
     
     def show_message(self, message, duration=None, avatar_state='talking', action_data=None):
         """Queue a message for display (thread-safe entry point)"""
+        # Check if this is an encoded actionable message (new base64 format)
+        if message.startswith("ACTIONABLE_B64:"):
+            try:
+                # Parse the base64 encoded format: "ACTIONABLE_B64:{action_b64}:{actual_message}"
+                import json
+                import base64
+                parts = message.split(":", 2)  # Split only on first 2 colons
+                if len(parts) == 3:
+                    action_b64 = parts[1]
+                    actual_message = parts[2]
+                    action_json = base64.b64decode(action_b64).decode('utf-8')
+                    action_data = json.loads(action_json)
+                    message = actual_message
+                    print(f"🔧 Decoded actionable message: '{actual_message}'")
+                    print(f"🔧 Action data: {action_data}")
+                else:
+                    print(f"❌ Invalid actionable message format: {len(parts)} parts instead of 3")
+            except Exception as e:
+                print(f"❌ Error decoding actionable message: {e}")
+                print(f"❌ Raw message: {message}")
+                # Fall back to showing the raw message without action buttons
+                message = message.replace("ACTIONABLE_B64:", "")
+                action_data = None
+        # Check if this is an encoded actionable message (legacy format - for backward compatibility)
+        elif message.startswith("ACTIONABLE:"):
+            try:
+                # Parse the encoded message format: "ACTIONABLE:{action_json}:{actual_message}"
+                import json
+                parts = message.split(":", 2)  # Split only on first 2 colons
+                if len(parts) == 3:
+                    action_json = parts[1]
+                    actual_message = parts[2]
+                    action_data = json.loads(action_json)
+                    message = actual_message
+                    print(f"🔧 Decoded legacy actionable message: '{actual_message}'")
+                    print(f"🔧 Action data: {action_data}")
+                else:
+                    print(f"❌ Invalid legacy actionable message format: {len(parts)} parts instead of 3")
+            except Exception as e:
+                print(f"❌ Error decoding legacy actionable message: {e}")
+                print(f"❌ Raw message: {message}")
+                # Fall back to showing the raw message without action buttons
+                message = message.replace("ACTIONABLE:", "")
+                action_data = None
+        
         # Determine priority based on action_data
         priority = 'high' if action_data else 'normal'
         
@@ -530,7 +576,7 @@ class GooseAvatar(QWidget):
             self.chat_bubble = None
     
     def create_bubble_content(self, message, action_data=None):
-        """Create the bubble content widget"""
+        """Create the bubble content widget with fixed width and responsive height"""
         bubble_widget = QWidget()
         bubble_widget.setStyleSheet("""
             QWidget {
@@ -544,13 +590,23 @@ class GooseAvatar(QWidget):
         layout.setContentsMargins(15, 10, 15, 10)
         layout.setSpacing(8)
         
-        # Message text
+        # Message text - fixed width with responsive height
         # Convert newlines to HTML breaks and use RichText for proper rendering
         message_html = message.replace('\n', '<br/>')
         message_label = QLabel(message_html)
         message_label.setTextFormat(Qt.TextFormat.RichText)
         message_label.setWordWrap(True)
-        message_label.setMaximumWidth(280)
+        
+        # Use Qt's text measurement for font setup
+        font = QFont()
+        font.setPointSize(13)
+        font.setWeight(QFont.Weight.Medium)
+        message_label.setFont(font)
+        
+        # Fixed width - consistent across all messages
+        fixed_width = 320  # Consistent bubble width
+        message_label.setFixedWidth(fixed_width)
+        
         message_label.setStyleSheet("""
             QLabel {
                 color: white;
@@ -643,7 +699,21 @@ class GooseAvatar(QWidget):
         bubble_widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  # Allow keyboard focus
         
         bubble_widget.setLayout(layout)
-        bubble_widget.setFixedWidth(300)
+        
+        # Fixed width, variable height
+        bubble_width = fixed_width + 30  # Account for padding
+        bubble_widget.setFixedWidth(bubble_width)
+        bubble_widget.setMinimumHeight(60)   # Minimum height for small messages
+        bubble_widget.setMaximumHeight(400)  # Increased max height for long messages
+        
+        # Force proper size calculation
+        bubble_widget.adjustSize()
+        bubble_widget.updateGeometry()
+        
+        # Get the actual size after sizing
+        actual_size = bubble_widget.sizeHint()
+        print(f"📏 Fixed width bubble: {len(message)} chars → {bubble_width}x{actual_size.height()}")
+        
         return bubble_widget
     
     def execute_action(self, action_data):
@@ -824,8 +894,6 @@ class GooseAvatar(QWidget):
             print("⏰ Auto-dismissing actionable message after timeout")
             # Simulate clicking "Skip" by hiding the message
             self.hide_message()
-    
-
     
     def on_mouse_press(self, event):
         """Handle mouse press for dragging and clicking"""
@@ -1181,13 +1249,18 @@ class GooseAvatar(QWidget):
                     ]
                     completion_msg = random.choice(completion_messages)
                     
-                    # Show completion message briefly
+                    # Show completion message briefly - USE THREAD-SAFE APPROACH
                     def show_completion():
-                        self.show_message(f"{emoji} {completion_msg}", 4000, 'pointing')
+                        # Use the thread-safe communicator instead of direct call
+                        if avatar_communicator:
+                            avatar_communicator.show_message_signal.emit(f"{emoji} {completion_msg}", 4000, 'pointing')
+                        else:
+                            print(f"Avatar not available for completion message: {completion_msg}")
                     
-                    # Use QTimer to show completion message on main thread
-                    from PyQt6.QtCore import QTimer
-                    QTimer.singleShot(1000, show_completion)  # Show after 1 second delay
+                    # Wait 1 second then show completion message (thread-safe approach)
+                    import time
+                    time.sleep(1)
+                    show_completion()
                     
                 else:
                     print("⚠️ Observer bridge not available for personality update")
@@ -1272,18 +1345,18 @@ class GooseAvatar(QWidget):
         message_text = message.strip()
         for existing_msg in self.message_queue:
             if existing_msg['message'].strip() == message_text:
-                print(f"🔄 Duplicate message filtered: {message_text[:50]}...")
+                print(f"🔄 Duplicate message filtered: {message_text[:80]}...")
                 return False  # Message was duplicate, not added
         
         # Add to queue based on priority
         if priority == 'high':
             # High priority messages go to front
             self.message_queue.insert(0, message_obj)
-            print(f"📬 High priority message queued: {message_text[:50]}...")
+            print(f"📬 High priority message queued: {message_text[:80]}...")
         else:
             # Normal priority messages go to back
             self.message_queue.append(message_obj)
-            print(f"📬 Message queued: {message_text[:50]}...")
+            print(f"📬 Message queued: {message_text[:80]}...")
         
         print(f"📊 Queue length: {len(self.message_queue)}")
         
@@ -1306,7 +1379,7 @@ class GooseAvatar(QWidget):
         # Get next message from queue
         message_obj = self.message_queue.pop(0)
         
-        print(f"📺 Processing queued message: {message_obj['message'][:50]}...")
+        print(f"📺 Processing queued message: '{message_obj['message']}'")
         print(f"📊 Remaining in queue: {len(self.message_queue)}")
         
         # Show the message immediately (now that we're sure it's the only one)
@@ -1338,8 +1411,21 @@ class GooseAvatar(QWidget):
             # Create new bubble content
             self.chat_bubble = self.create_bubble_content(message, action_data)
             
-            # Add the bubble to the existing layout and show container
+            # Add the bubble to the existing layout
             self.bubble_layout.addWidget(self.chat_bubble)
+            
+            # Fixed width, variable height container - positioned bottom-right with upward growth
+            bubble_size = self.chat_bubble.sizeHint()
+            container_width = 370  # Fixed width for consistency
+            container_height = min(bubble_size.height() + 20, 420)  # Variable height, increased max
+            
+            # Position bubble to grow upward from bottom-right (near avatar)
+            # Avatar is at (380, 200), so position bubble to the left of it
+            bubble_x = 10  # Left margin 
+            bubble_y = max(10, 200 - container_height + 20)  # Position so bottom aligns near avatar, grows up
+            
+            # Update container geometry - anchored bottom-right, grows upward
+            self.bubble_container.setGeometry(bubble_x, bubble_y, container_width, container_height)
             self.bubble_container.show()
             
             # Update avatar display to handle potential flipping
@@ -1362,7 +1448,7 @@ class GooseAvatar(QWidget):
             self.emergency_timer.start(120000)  # 2 minutes emergency timeout
             
             self.is_showing_message = True
-            print(f"💬 Message shown - will hide in {duration/1000}s (emergency backup: 120s)")
+            print(f"💬 Message shown - container: {container_width}x{container_height} at ({bubble_x}, {bubble_y}) - bottom-right anchored")
             
         except Exception as e:
             print(f"❌ Error showing message: {e}")
@@ -1440,12 +1526,9 @@ def show_suggestion(observation_type, message):
 
 def show_message(message, duration=None, avatar_state='talking', action_data=None):
     """Thread-safe function to show a general message via the avatar system"""
-    global avatar_communicator, avatar_instance
-    if avatar_instance:
-        # Use the avatar instance directly for better control
-        avatar_instance.show_message(message, duration, avatar_state, action_data)
-    elif avatar_communicator:
-        # Fallback to communicator
+    global avatar_communicator
+    if avatar_communicator:
+        # Always use the thread-safe communicator instead of direct calls
         duration = duration or 20000  # Default 20 seconds
         avatar_communicator.show_message_signal.emit(message, duration, avatar_state)
     else:
@@ -1453,10 +1536,22 @@ def show_message(message, duration=None, avatar_state='talking', action_data=Non
 
 def show_actionable_message(message, action_data, duration=None, avatar_state='pointing'):
     """Thread-safe function to show an actionable message with buttons"""
-    global avatar_instance
-    if avatar_instance:
-        # Use default actionable duration (75 seconds) if not specified
-        avatar_instance.show_message(message, duration, avatar_state, action_data)
+    global avatar_communicator
+    if avatar_communicator:
+        # Use the thread-safe communicator for actionable messages too
+        duration = duration or 75000  # Default 75 seconds for actionable messages
+        # Use base64 encoding to safely encode action_data and avoid parsing issues
+        import json
+        import base64
+        try:
+            action_json = json.dumps(action_data)
+            action_b64 = base64.b64encode(action_json.encode('utf-8')).decode('utf-8')
+            encoded_message = f"ACTIONABLE_B64:{action_b64}:{message}"
+            avatar_communicator.show_message_signal.emit(encoded_message, duration, avatar_state)
+        except Exception as e:
+            print(f"Error encoding actionable message: {e}")
+            # Fallback to regular message
+            avatar_communicator.show_message_signal.emit(message, duration, avatar_state)
     else:
         print(f"Avatar not initialized. Actionable message: {message}")
 
@@ -1470,20 +1565,20 @@ def set_avatar_state(state):
 
 def show_error_message(error_msg, context=""):
     """Show an error message through the avatar"""
-    global avatar_instance
-    if avatar_instance:
+    global avatar_communicator
+    if avatar_communicator:
         full_message = f"⚠️ Error detected: {error_msg}"
         if context:
             full_message += f" (Context: {context})"
-        avatar_instance.show_message(full_message, duration=25000, avatar_state='talking')
+        avatar_communicator.show_message_signal.emit(full_message, 25000, 'talking')
         print(f"🚨 Avatar showing error: {error_msg}")
     else:
         print(f"Avatar not available for error: {error_msg}")
 
 def show_process_status(status_msg, is_error=False):
     """Show process status updates through the avatar"""
-    global avatar_instance
-    if avatar_instance:
+    global avatar_communicator
+    if avatar_communicator:
         if is_error:
             message = f"🔴 Process issue: {status_msg}"
             state = 'talking'
@@ -1493,7 +1588,7 @@ def show_process_status(status_msg, is_error=False):
             state = 'idle'
             duration = 15000
         
-        avatar_instance.show_message(message, duration=duration, avatar_state=state)
+        avatar_communicator.show_message_signal.emit(message, duration, state)
         print(f"📊 Avatar showing status: {status_msg}")
     else:
         print(f"Avatar not available for status: {status_msg}")

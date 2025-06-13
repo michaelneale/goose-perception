@@ -343,24 +343,24 @@ class ObserverAvatarBridge:
     
     def _show_actionable_suggestion(self, suggestion):
         """Show an actionable suggestion with action buttons"""
-        if avatar_display and hasattr(avatar_display, 'avatar_instance') and avatar_display.avatar_instance:
-            try:
-                # Create action data for the suggestion
-                action_data = {
-                    'action_type': suggestion['action_type'],
-                    'action_command': suggestion['action_command'],
-                    'observation_type': suggestion['observation_type']
-                }
-                
-                # Show the suggestion with action buttons (uses default 75-second duration)
-                avatar_display.avatar_instance.show_message(
-                    suggestion['message'], 
-                    avatar_state='pointing',
-                    action_data=action_data
-                )
-                
-            except Exception as e:
-                print(f"Error showing actionable suggestion: {e}")
+        try:
+            # Create action data for the suggestion
+            action_data = {
+                'action_type': suggestion['action_type'],
+                'action_command': suggestion['action_command'],
+                'observation_type': suggestion['observation_type']
+            }
+            
+            # Use the thread-safe function instead of direct avatar_instance call
+            from . import avatar_display
+            avatar_display.show_actionable_message(
+                suggestion['message'], 
+                action_data,
+                avatar_state='pointing'
+            )
+            
+        except Exception as e:
+            print(f"Error showing actionable suggestion: {e}")
     
     def _process_new_suggestions(self):
         """Process newly generated suggestions and show immediately"""
@@ -437,22 +437,23 @@ class ObserverAvatarBridge:
         suggestion_type = suggestion_types.get(suggestion['type'], 'work')
         message = suggestion['message']
         
-        if avatar_display:
-            avatar_display.show_suggestion(suggestion_type, message)
+        # Use the thread-safe function instead of direct call
+        from . import avatar_display
+        avatar_display.show_suggestion(suggestion_type, message)
     
     def _show_idle_chatter(self):
         """Show casual idle chatter from recipe-generated content"""
-        if not avatar_display:
-            return
-            
         # Show idle chatter with reasonable probability since it's contextual now
         if random.random() < 0.4:  # 40% chance for idle chatter (reduced from 50%)
             chatter_messages = self._parse_chatter_file()
             if chatter_messages:
                 # Prefer variety by checking avatar's recent suggestions if possible
-                if hasattr(avatar_display, 'avatar_instance') and avatar_display.avatar_instance:
+                from . import avatar_display
+                if (hasattr(avatar_display, 'avatar_instance') and 
+                    avatar_display.avatar_instance and
+                    hasattr(avatar_display.avatar_instance, 'recent_suggestions')):
                     # Try to avoid messages similar to recent suggestions
-                    recent_suggestions = getattr(avatar_display.avatar_instance, 'recent_suggestions', [])
+                    recent_suggestions = avatar_display.avatar_instance.recent_suggestions
                     filtered_messages = [msg for msg in chatter_messages 
                                        if not any(msg.lower() in recent.lower() or recent.lower() in msg.lower() 
                                                for recent in recent_suggestions[-3:])]  # Check last 3 suggestions
@@ -463,6 +464,7 @@ class ObserverAvatarBridge:
                 else:
                     message = random.choice(chatter_messages)
                 
+                # Use the thread-safe function instead of direct call
                 avatar_display.show_message(message, 4000)
                 print(f"💬 Showed casual chatter: {message[:50]}...")
     
@@ -478,16 +480,14 @@ class ObserverAvatarBridge:
             if random.random() > 0.3:  # 30% chance to show message
                 return
                 
-            # Simple fallback messages for file changes
+            # Simple fallback messages for file changes - use thread-safe functions
+            from . import avatar_display
             if filename == 'LATEST_WORK.md':
-                if avatar_display:
-                    avatar_display.show_message("📝 I see you're updating your current work focus...")
+                avatar_display.show_message("📝 I see you're updating your current work focus...")
             elif filename == 'INTERACTIONS.md':
-                if avatar_display:
-                    avatar_display.show_message("🤝 New interaction data updated...")
+                avatar_display.show_message("🤝 New interaction data updated...")
             elif filename == 'CONTRIBUTIONS.md':
-                if avatar_display:
-                    avatar_display.show_message("📈 Your contribution patterns have been updated...")
+                avatar_display.show_message("📈 Your contribution patterns have been updated...")
                 
         except Exception as e:
             print(f"Error processing {filename} change: {e}")
