@@ -1397,12 +1397,12 @@ def start_avatar_system():
     
     # Set the Goose icon for the application
     try:
-        goose_icon_path = Path(__file__).parent / "Goose.png"
+        goose_icon_path = Path(__file__).parent / "goose.png"
         if goose_icon_path.exists():
             app_instance.setWindowIcon(QIcon(str(goose_icon_path)))
-            print("🪿 Set Goose.png as application icon")
+            print("🪿 Set goose.png as application icon")
         else:
-            print("⚠️ Goose.png not found, using default icon")
+            print("⚠️ goose.png not found, using default icon")
     except Exception as e:
         print(f"⚠️ Could not set Goose icon: {e}")
     

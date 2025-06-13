@@ -3,7 +3,7 @@
 > [!NOTE]
 > This is experimental and very much a work in progress and showcase of async goose and recipes, use at own risk
 
-<img src="goose.png" alt="Goose Logo" width="150" align="right"/>
+<img src="avatar/goose.png" alt="Goose Logo" width="150" align="right"/>
 
 Ideally agents wouldn't have an interface that you have to learn or use, and shouldn't be chat or make you work any specific way. This project aims to address that.
 
@@ -28,7 +28,7 @@ and may offer to do things for you.
 
 The avatar brings life to Goose Perception with **8 distinct personalities** - not just different work styles, but genuinely unique characters with their own traits, quirks, and ways of seeing the world. Each personality fundamentally changes how the avatar interacts with you.
 
-<img src="avatar-personality-1.png" alt="Avatar with Creepy personality active, showing personality menu" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+<img src="avatar/avatar-personality-1.png" alt="Avatar with Creepy personality active, showing personality menu" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
 
 ### Available Personalities
 
@@ -43,7 +43,7 @@ The avatar brings life to Goose Perception with **8 distinct personalities** - n
 
 ### How to Change Personalities
 
-<img src="avatar-personality-2.png" alt="Avatar with Sarcastic personality active, showing right-click menu" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+<img src="avatar/avatar-personality-2.png" alt="Avatar with Sarcastic personality active, showing right-click menu" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
 
 1. **Right-click the avatar** to open the personality selection menu
 2. **Select a personality** from the dropdown (current selection marked with ✓)
@@ -110,7 +110,7 @@ it knows when you are in a meeting, and can use the dialog to help you not miss 
 
 You will see things appear in your calendar (if you have the gcal integration enabled), notes in your notes app etc - it will work out where you manage things and interact there.
 
-<img src="chill.png" alt="time to take break" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+<img src="avatar/chill.png" alt="time to take break" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
 It may even tell you (congratulate?) it is time to take a break based on recent activity (like this!)
   
 
