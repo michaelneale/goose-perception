@@ -65,6 +65,11 @@ class GooseAvatar(QWidget):
         self.auto_dismiss_timer.timeout.connect(self.auto_dismiss_actionable)
         self.auto_dismiss_timer.setSingleShot(True)
         
+        # Emergency backup timer - force dismiss any message stuck longer than 2 minutes
+        self.emergency_timer = QTimer()
+        self.emergency_timer.timeout.connect(self.force_dismiss_message)
+        self.emergency_timer.setSingleShot(True)
+        
         self.idle_timer = QTimer()
         self.idle_timer.timeout.connect(self.check_for_suggestions)
         
@@ -487,8 +492,12 @@ class GooseAvatar(QWidget):
         else:
             print(f"📝 Regular message (no action buttons)")
         
+        # Start emergency backup timer (2 minutes max)
+        self.emergency_timer.stop()
+        self.emergency_timer.start(120000)  # 2 minutes emergency timeout
+        
         self.is_showing_message = True
-        print(f"💬 Message shown - will hide in {duration/1000} seconds")
+        print(f"💬 Message shown - will hide in {duration/1000}s (emergency backup: 120s)")
     
     def clear_bubble_content(self):
         """Clear existing bubble content from layout"""
@@ -587,8 +596,33 @@ class GooseAvatar(QWidget):
             button_layout.addWidget(dismiss_button)
             layout.addLayout(button_layout)
         
-        # Make bubble clickable to dismiss
-        bubble_widget.mousePressEvent = lambda event: self.hide_message()
+        # Make bubble clickable to dismiss with robust error handling
+        def safe_dismiss(event):
+            try:
+                print("👆 Bubble clicked - dismissing message")
+                self.hide_message()
+            except Exception as e:
+                print(f"❌ Error dismissing via click: {e}")
+                # Fallback to force dismiss
+                self.force_dismiss_message()
+        
+        bubble_widget.mousePressEvent = safe_dismiss
+        
+        # Also add keyboard shortcut for emergency dismiss (Escape key)
+        def keypress_handler(event):
+            try:
+                if event.key() == Qt.Key.Key_Escape:
+                    print("⌨️ Escape key pressed - dismissing message")
+                    self.hide_message()
+                else:
+                    # Pass other keys to default handler
+                    QWidget.keyPressEvent(bubble_widget, event)
+            except Exception as e:
+                print(f"❌ Error in keypress handler: {e}")
+                self.force_dismiss_message()
+        
+        bubble_widget.keyPressEvent = keypress_handler
+        bubble_widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  # Allow keyboard focus
         
         bubble_widget.setLayout(layout)
         bubble_widget.setFixedWidth(300)
@@ -652,26 +686,111 @@ class GooseAvatar(QWidget):
     
     def hide_message(self):
         """Hide the current message"""
-        # Clear bubble content from the layout
-        self.clear_bubble_content()
-        
-        # Hide the bubble container
-        self.bubble_container.hide()
-        
-        # Reset avatar to idle state
-        self.set_avatar_state('idle')
-        
-        # Update avatar display (removes any flipping)
-        self.update_avatar_display()
-        
-        self.is_showing_message = False
-        self.hide_timer.stop()
-        self.auto_dismiss_timer.stop()
-        
-        # Process any queued messages
-        if self.message_queue:
-            next_message = self.message_queue.pop(0)
-            self.show_message(**next_message)
+        try:
+            print("🔄 Hiding message...")
+            
+            # Clear bubble content from the layout
+            self.clear_bubble_content()
+            
+            # Hide the bubble container
+            if self.bubble_container:
+                self.bubble_container.hide()
+            
+            # Reset avatar to idle state
+            self.set_avatar_state('idle')
+            
+            # Update avatar display (removes any flipping)
+            self.update_avatar_display()
+            
+            self.is_showing_message = False
+            
+            # Stop all timers
+            if self.hide_timer:
+                self.hide_timer.stop()
+            if self.auto_dismiss_timer:
+                self.auto_dismiss_timer.stop()
+            if self.emergency_timer:
+                self.emergency_timer.stop()
+            
+            print("✅ Message hidden successfully")
+            
+            # Process any queued messages
+            if self.message_queue:
+                next_message = self.message_queue.pop(0)
+                self.show_message(**next_message)
+                
+        except Exception as e:
+            print(f"❌ Error hiding message: {e}")
+            # Force reset state even if there's an error
+            self.is_showing_message = False
+            try:
+                if self.bubble_container:
+                    self.bubble_container.hide()
+                if self.hide_timer:
+                    self.hide_timer.stop()
+                if self.auto_dismiss_timer:
+                    self.auto_dismiss_timer.stop()
+                if self.emergency_timer:
+                    self.emergency_timer.stop()
+            except Exception as inner_e:
+                print(f"❌ Error in force reset: {inner_e}")
+    
+    def force_dismiss_message(self):
+        """Force dismiss any stuck message - emergency cleanup"""
+        print("🚨 Force dismissing stuck message")
+        try:
+            # Force hide everything
+            self.is_showing_message = False
+            
+            # Clear all bubble content aggressively
+            if hasattr(self, 'bubble_container') and self.bubble_container:
+                self.bubble_container.hide()
+                # Remove all children
+                for child in self.bubble_container.findChildren(QWidget):
+                    try:
+                        child.deleteLater()
+                    except:
+                        pass
+            
+            # Clear layout
+            if hasattr(self, 'bubble_layout') and self.bubble_layout:
+                while self.bubble_layout.count():
+                    try:
+                        child = self.bubble_layout.takeAt(0)
+                        if child and child.widget():
+                            child.widget().deleteLater()
+                    except:
+                        pass
+            
+            # Stop all timers
+            for timer_name in ['hide_timer', 'auto_dismiss_timer', 'emergency_timer']:
+                if hasattr(self, timer_name):
+                    timer = getattr(self, timer_name)
+                    if timer:
+                        try:
+                            timer.stop()
+                        except:
+                            pass
+            
+            # Reset chat bubble reference
+            self.chat_bubble = None
+            
+            # Reset avatar state
+            self.set_avatar_state('idle')
+            self.update_avatar_display()
+            
+            print("✅ Force dismiss completed")
+            
+        except Exception as e:
+            print(f"❌ Error in force dismiss: {e}")
+    
+    def emergency_reset(self):
+        """Emergency reset for completely stuck UI"""
+        print("🆘 Emergency reset triggered")
+        self.force_dismiss_message()
+        # Clear message queue
+        self.message_queue = []
+        print("✅ Emergency reset completed")
     
     def auto_dismiss_actionable(self):
         """Auto-dismiss actionable messages after timeout"""
@@ -736,6 +855,25 @@ class GooseAvatar(QWidget):
         """Handle avatar clicks"""
         print("🖱️ Avatar clicked!")
         
+        # If there's a stuck message, double-click avatar to force dismiss
+        if self.is_showing_message:
+            import time
+            current_time = time.time()
+            
+            # Track double-clicks for emergency dismiss
+            if not hasattr(self, '_last_click_time'):
+                self._last_click_time = 0
+                
+            if current_time - self._last_click_time < 0.5:  # Double-click within 500ms
+                print("🚨 Double-click detected with message showing - force dismissing!")
+                self.force_dismiss_message()
+                self._last_click_time = 0  # Reset
+                return
+            else:
+                self._last_click_time = current_time
+                print("👆 Message is showing - double-click avatar to force dismiss if stuck")
+                return
+        
         # Cycle through avatar states for testing
         states = list(self.avatar_images.keys())
         if states:
@@ -750,7 +888,8 @@ class GooseAvatar(QWidget):
             "🤖 I'm always here watching and ready to help!",
             "✨ Click me to cycle through my expressions!",
             "🎯 I can show suggestions and help with your work!",
-            "💡 Try dragging me around the screen!"
+            "💡 Try dragging me around the screen!",
+            "🆘 Double-click me to force dismiss stuck messages!"
         ]
         message = random.choice(test_messages)
         self.show_message(message, 15000, self.current_state)
@@ -950,6 +1089,28 @@ def show_process_status(status_msg, is_error=False):
         print(f"📊 Avatar showing status: {status_msg}")
     else:
         print(f"Avatar not available for status: {status_msg}")
+
+def force_dismiss_stuck_message():
+    """Emergency function to force dismiss any stuck message"""
+    global avatar_instance
+    if avatar_instance:
+        print("🆘 External force dismiss requested")
+        avatar_instance.force_dismiss_message()
+        return True
+    else:
+        print("❌ Avatar not available for force dismiss")
+        return False
+
+def emergency_avatar_reset():
+    """Emergency function to completely reset avatar UI state"""
+    global avatar_instance
+    if avatar_instance:
+        print("🆘 External emergency reset requested")
+        avatar_instance.emergency_reset()
+        return True
+    else:
+        print("❌ Avatar not available for emergency reset")
+        return False
 
 def run_app():
     """Run the Qt application event loop"""

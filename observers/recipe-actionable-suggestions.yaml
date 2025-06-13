@@ -54,6 +54,15 @@ prompt: |
   - message: The suggestion text to display to the user
   - action_command: The command/action identifier for execution
   
+  **AVAILABLE ACTION COMMANDS (only use these):**
+  - compose_team_update (email team update)
+  - create_follow_up_meeting (schedule meeting)
+  - enable_slack_and_post (setup and post to Slack)
+  - post_slack_update (post to Slack)
+  - review_pending_prs (review GitHub PRs)
+  - setup_slack_mcp_and_post (configure Slack MCP)
+  - update_project_status (update project status)
+  
   **EXAMPLE JSON OUTPUT:**
   {
     "actionable_suggestions": [
@@ -74,6 +83,18 @@ prompt: |
         "observation_type": "follow_up",
         "message": "Yesterday's design meeting needs follow-up. Schedule planning session?",
         "action_command": "create_follow_up_meeting"
+      },
+      {
+        "action_type": "github",
+        "observation_type": "code_review",
+        "message": "Several PRs pending review - check what needs attention?",
+        "action_command": "review_pending_prs"
+      },
+      {
+        "action_type": "status",
+        "observation_type": "communication",
+        "message": "Project progress looks good - time to update the team on achievements?",
+        "action_command": "update_project_status"
       }
     ]
   }
