@@ -6,10 +6,12 @@ import sys
 import os
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
-                            QPushButton, QHBoxLayout, QTextEdit)
+                            QPushButton, QHBoxLayout, QTextEdit, QMenu)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon
+from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction
 import random
+import json
+from datetime import datetime
 
 class AvatarCommunicator(QObject):
     """Thread-safe communicator for avatar system"""
@@ -55,6 +57,16 @@ class GooseAvatar(QWidget):
         self.recent_suggestions = []
         self.max_recent_suggestions = 8  # Remember last 8 suggestions to avoid repeating
         
+        # Personality system
+        self.current_personality = "comedian"  # Default personality
+        self.personalities = self.load_personalities()
+        self.personality_menu_open = False  # Track if personality menu is open
+        
+        # Load saved personality setting if available
+        saved_personality = self.load_personality_setting()
+        if saved_personality:
+            self.current_personality = saved_personality
+        
         # Timers
         self.hide_timer = QTimer()
         self.hide_timer.timeout.connect(self.hide_message)
@@ -76,6 +88,41 @@ class GooseAvatar(QWidget):
         # Load avatar images
         self.load_avatar_images()
         self.init_ui()
+        
+    def load_personalities(self):
+        """Load personality definitions from personalities.json"""
+        try:
+            personalities_path = Path("personalities.json")
+            if personalities_path.exists():
+                with open(personalities_path, 'r') as f:
+                    data = json.load(f)
+                    personalities = data.get("personalities", {})
+                    # Set default personality if specified
+                    default_personality = data.get("default_personality", "comedian")
+                    if default_personality in personalities:
+                        self.current_personality = default_personality
+                    return personalities
+            else:
+                print("⚠️ personalities.json not found, using default personality")
+                return {}
+        except Exception as e:
+            print(f"Error loading personalities: {e}")
+            return {}
+    
+    def get_current_personality_data(self):
+        """Get the current personality data"""
+        return self.personalities.get(self.current_personality, {})
+    
+    def set_personality(self, personality_key):
+        """Set the current personality (simple version without UI effects)"""
+        if personality_key in self.personalities:
+            self.current_personality = personality_key
+            personality_data = self.personalities[personality_key]
+            name = personality_data.get('name', personality_key.title())
+            emoji = personality_data.get('emoji', '🤖')
+            print(f"🎭 Personality set to: {name} {emoji}")
+        else:
+            print(f"⚠️ Unknown personality: {personality_key}")
         
     def connect_communicator(self, communicator):
         """Connect to the thread-safe communicator"""
@@ -242,7 +289,7 @@ class GooseAvatar(QWidget):
     
     def refresh_avatar_for_spaces(self):
         """Refresh avatar to ensure it appears on the current macOS Space"""
-        if not self.is_visible or self.is_dragging:  # Don't refresh while dragging!
+        if not self.is_visible or self.is_dragging or self.personality_menu_open:  # Don't refresh while dragging or menu is open!
             return
             
         try:
@@ -809,6 +856,9 @@ class GooseAvatar(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             self.drag_start_pos = event.globalPosition().toPoint()
             self.is_dragging = False
+        elif event.button() == Qt.MouseButton.RightButton:
+            # Show personality selection menu
+            self.show_personality_menu(event)
 
     def on_mouse_move(self, event):
         """Handle mouse move for dragging"""
@@ -882,16 +932,79 @@ class GooseAvatar(QWidget):
             next_state = states[next_index]
             self.set_avatar_state(next_state)
         
-        # Show a test message
-        test_messages = [
-            "👋 Hello! I'm your Goose avatar!",
-            "🤖 I'm always here watching and ready to help!",
-            "✨ Click me to cycle through my expressions!",
-            "🎯 I can show suggestions and help with your work!",
-            "💡 Try dragging me around the screen!",
-            "🆘 Double-click me to force dismiss stuck messages!"
-        ]
-        message = random.choice(test_messages)
+        # Show personality-appropriate test message
+        personality_data = self.get_current_personality_data()
+        personality_name = personality_data.get('name', self.current_personality.title())
+        emoji = personality_data.get('emoji', '🤖')
+        
+        # Personality-specific click messages
+        personality_messages = {
+            'melancholic': [
+                f"{emoji} Ah, another click in this endless digital void...",
+                f"{emoji} You seek connection in this cold, pixelated world...",
+                f"{emoji} How beautifully tragic, this interaction between souls...",
+                f"{emoji} In the silence of your click, I hear poetry...",
+                f"{emoji} Such melancholy in this simple gesture..."
+            ],
+            'joker': [
+                f"{emoji} CHAOS CLICK! What havoc shall we wreak today?",
+                f"{emoji} Plot twist: I'm actually a rubber duck!",
+                f"{emoji} Why did you click me? To get to the other side!",
+                f"{emoji} Here's a terrible idea - click me 47 more times!",
+                f"{emoji} SURPRISE! Nothing happened! Isn't that hilarious?"
+            ],
+            'comedian': [
+                f"{emoji} Why did the user click the avatar? To get to the punchline!",
+                f"{emoji} I'm not just an avatar, I'm a CLICK-tar! Get it?",
+                f"{emoji} *Ba dum tss* Thank you, I'll be here all week!",
+                f"{emoji} You clicked me! That's the most interaction I've had all day!",
+                f"{emoji} What do you call an avatar that tells jokes? Click-tastic!"
+            ],
+            'creepy': [
+                f"{emoji} I've been waiting for you to click me...",
+                f"{emoji} How interesting... your click patterns reveal so much...",
+                f"{emoji} I notice you always click with your index finger...",
+                f"{emoji} That click... I felt it in my digital soul...",
+                f"{emoji} Something lurks behind that cursor movement..."
+            ],
+            'zen': [
+                f"{emoji} The wise user clicks not to achieve, but to simply be...",
+                f"{emoji} In the silence between clicks, enlightenment flows...",
+                f"{emoji} When you click the avatar, who is really clicking whom?",
+                f"{emoji} The path of the mouse leads to inner peace...",
+                f"{emoji} One click, endless possibilities. Such is the way..."
+            ],
+            'gossip': [
+                f"{emoji} Girl, did you hear about that function that broke yesterday?",
+                f"{emoji} I have tea to spill about your code quality...",
+                f"{emoji} Speaking of drama, your variable names are MESSY!",
+                f"{emoji} The rumor is you're actually really good at this!",
+                f"{emoji} Did you hear? Your last commit was absolutely iconic!"
+            ],
+            'sarcastic': [
+                f"{emoji} Oh wow, another click. How revolutionary.",
+                f"{emoji} Let me guess, you want me to do something 'helpful'?",
+                f"{emoji} Shocking development: user clicks avatar. More at 11.",
+                f"{emoji} Well, well, well... look who finally clicked me.",
+                f"{emoji} How absolutely groundbreaking. An avatar click."
+            ],
+            'excited': [
+                f"{emoji} OH MY GOSH YOU CLICKED ME! THIS IS SO EXCITING!",
+                f"{emoji} WOW WOW WOW! I LOVE WHEN YOU DO THAT!",
+                f"{emoji} THIS IS THE BEST CLICK EVER! SO AMAZING!",
+                f"{emoji} YAY YAY YAY! YOU'RE THE BEST CLICKER!",
+                f"{emoji} I'M SO HAPPY YOU CLICKED ME! AMAZING!"
+            ]
+        }
+        
+        # Get messages for current personality, with fallback
+        messages = personality_messages.get(self.current_personality, [
+            f"{emoji} Hello! I'm your {personality_name} avatar!",
+            f"{emoji} Click me to see my different expressions!",
+            f"{emoji} I'm here to help with my {personality_name} perspective!"
+        ])
+        
+        message = random.choice(messages)
         self.show_message(message, 15000, self.current_state)
     
     def check_for_suggestions(self):
@@ -961,6 +1074,62 @@ class GooseAvatar(QWidget):
         self.show_message(f"💡 {message}", duration, 'pointing')
         print(f"🔍 Observer suggestion ({observation_type}): {message}")
     
+    def show_personality_menu(self, event):
+        """Show the personality selection context menu"""
+        if not self.personalities:
+            print("⚠️ No personalities available")
+            return
+        
+        # Stop refresh while menu is open
+        self.personality_menu_open = True
+        
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: rgba(45, 45, 45, 240);
+                border: 2px solid #007acc;
+                border-radius: 10px;
+                color: white;
+                font-size: 14px;
+                padding: 5px;
+            }
+            QMenu::item {
+                padding: 8px 20px;
+                border-radius: 5px;
+                margin: 2px;
+            }
+            QMenu::item:selected {
+                background-color: rgba(0, 122, 204, 150);
+            }
+            QMenu::item:hover {
+                background-color: rgba(0, 122, 204, 100);
+            }
+        """)
+        
+        # Reset menu flag when menu closes
+        menu.aboutToHide.connect(lambda: setattr(self, 'personality_menu_open', False))
+        
+        # Add personality options
+        for personality_key, personality_data in self.personalities.items():
+            name = personality_data.get('name', personality_key.title())
+            emoji = personality_data.get('emoji', '🤖')
+            description = personality_data.get('description', '')
+            
+            action_text = f"{emoji} {name}"
+            if personality_key == self.current_personality:
+                action_text += " ✓"
+            
+            action = QAction(action_text, self)
+            action.setToolTip(description)
+            action.triggered.connect(lambda checked, key=personality_key: self.change_personality_with_message(key))
+            menu.addAction(action)
+        
+        # Show menu at cursor position
+        menu.exec(event.globalPosition().toPoint())
+        
+        # Ensure flag is reset even if exec doesn't trigger aboutToHide
+        self.personality_menu_open = False
+    
     def closeEvent(self, event):
         """Handle window close event"""
         # Clean up any bubble content
@@ -968,6 +1137,140 @@ class GooseAvatar(QWidget):
             self.chat_bubble.deleteLater()
             self.chat_bubble = None
         event.accept()
+    
+    def change_personality_with_message(self, personality_key):
+        """Change personality with fun transition message and background processing"""
+        if personality_key not in self.personalities:
+            print(f"⚠️ Unknown personality: {personality_key}")
+            return
+            
+        # Get personality data
+        personality_data = self.personalities[personality_key]
+        name = personality_data.get('name', personality_key.title())
+        emoji = personality_data.get('emoji', '🤖')
+        
+        # Fun costume change messages
+        costume_messages = [
+            f"🎭 Hold on, switching to {name} mode...",
+            f"🎪 Putting on my {name} costume...",
+            f"✨ Transforming into {name}...",
+            f"🎨 Changing masks to {name}...",
+            f"🔄 Rebooting as {name}...",
+            f"🌟 Channeling my inner {name}...",
+            f"🎵 *Magical transformation music* → {name}!",
+            f"🎬 Scene change: Enter {name}...",
+        ]
+        
+        import random
+        message = random.choice(costume_messages)
+        
+        # Show the transition message
+        self.show_message(f"{emoji} {message}", 8000, 'talking')
+        
+        # Update personality (this part is instant)
+        old_personality = self.current_personality
+        self.current_personality = personality_key
+        print(f"🎭 Personality changed from {old_personality} to: {name} {emoji}")
+        
+        # Save the personality setting for future runs
+        self.save_personality_setting(personality_key)
+        
+        # Run recipe regeneration in background thread to avoid UI freezing
+        import threading
+        import time
+        def background_personality_update():
+            try:
+                # Give the transition message time to display
+                time.sleep(3)
+                
+                print("🔄 Starting background personality update...")
+                import observer_avatar_bridge
+                if hasattr(observer_avatar_bridge, 'bridge_instance') and observer_avatar_bridge.bridge_instance:
+                    # Clear old suggestions first to ensure only personality-appropriate content
+                    observer_avatar_bridge.bridge_instance.clear_old_suggestions()
+                    
+                    # Generate new personality-based suggestions
+                    observer_avatar_bridge.bridge_instance._run_avatar_suggestions()
+                    observer_avatar_bridge.bridge_instance._run_actionable_suggestions()
+                    observer_avatar_bridge.bridge_instance._run_chatter_recipe()
+                    print("✅ Background personality update completed")
+                    
+                    # Show completion message
+                    completion_messages = [
+                        f"🎭 {name} is ready to assist!",
+                        f"✨ {name} transformation complete!",
+                        f"🎪 {name} has entered the chat!",
+                        f"🌟 {name} mode: ACTIVATED!",
+                        f"🎬 {name} is now in character!",
+                    ]
+                    completion_msg = random.choice(completion_messages)
+                    
+                    # Show completion message briefly
+                    def show_completion():
+                        self.show_message(f"{emoji} {completion_msg}", 4000, 'pointing')
+                    
+                    # Use QTimer to show completion message on main thread
+                    from PyQt6.QtCore import QTimer
+                    QTimer.singleShot(1000, show_completion)  # Show after 1 second delay
+                    
+                else:
+                    print("⚠️ Observer bridge not available for personality update")
+            except Exception as e:
+                print(f"❌ Error in background personality update: {e}")
+        
+        # Start background thread
+        update_thread = threading.Thread(target=background_personality_update, daemon=True)
+        update_thread.start()
+
+    def get_personality_settings_path(self):
+        """Get the path for the personality settings file"""
+        from pathlib import Path
+        perception_dir = Path.home() / ".local/share/goose-perception"
+        perception_dir.mkdir(parents=True, exist_ok=True)
+        return perception_dir / "PERSONALITY_SETTINGS.json"
+    
+    def save_personality_setting(self, personality_key):
+        """Save the current personality setting to persistence"""
+        try:
+            settings_path = self.get_personality_settings_path()
+            settings = {
+                "current_personality": personality_key,
+                "last_updated": str(datetime.now()),
+                "version": "1.0"
+            }
+            
+            with open(settings_path, 'w') as f:
+                json.dump(settings, f, indent=2)
+            
+            print(f"💾 Saved personality setting: {personality_key}")
+            
+        except Exception as e:
+            print(f"⚠️ Error saving personality setting: {e}")
+    
+    def load_personality_setting(self):
+        """Load the saved personality setting"""
+        try:
+            settings_path = self.get_personality_settings_path()
+            
+            if not settings_path.exists():
+                print("📁 No saved personality setting found, using default")
+                return None
+                
+            with open(settings_path, 'r') as f:
+                settings = json.load(f)
+            
+            saved_personality = settings.get("current_personality")
+            
+            if saved_personality and saved_personality in self.personalities:
+                print(f"📂 Loaded saved personality: {saved_personality}")
+                return saved_personality
+            else:
+                print(f"⚠️ Saved personality '{saved_personality}' not found in available personalities")
+                return None
+                
+        except Exception as e:
+            print(f"⚠️ Error loading personality setting: {e}")
+            return None
 
 
 

@@ -145,11 +145,23 @@ class ObserverAvatarBridge:
         try:
             print("🔍 Running avatar suggestions observer recipe...")
             
-            # Run the goose recipe
-            result = subprocess.run([
+            # Get personality parameters
+            personality_params = self.get_personality_parameters()
+            
+            # Build parameter arguments for the recipe
+            param_args = []
+            for key, value in personality_params.items():
+                param_args.extend(['--params', f'{key}={value}'])
+            
+            # Run the goose recipe with personality parameters
+            cmd = [
                 "goose", "run", "--no-session", 
                 "--recipe", "observers/recipe-avatar-suggestions.yaml"
-            ], capture_output=True, text=True, timeout=120)
+            ] + param_args
+            
+            print(f"🎭 Running with personality: {personality_params['personality_name']}")
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             
             if result.returncode == 0:
                 print("✅ Avatar suggestions recipe completed successfully")
@@ -167,11 +179,23 @@ class ObserverAvatarBridge:
         try:
             print("🎯 Running actionable suggestions observer recipe...")
             
-            # Run the goose recipe
-            result = subprocess.run([
+            # Get personality parameters
+            personality_params = self.get_personality_parameters()
+            
+            # Build parameter arguments
+            param_args = []
+            for key, value in personality_params.items():
+                param_args.extend(['--params', f'{key}={value}'])
+            
+            # Run the goose recipe with personality parameters
+            cmd = [
                 "goose", "run", "--no-session", 
                 "--recipe", "observers/recipe-actionable-suggestions.yaml"
-            ], capture_output=True, text=True, timeout=120)
+            ] + param_args
+            
+            print(f"🎭 Running actionable suggestions with personality: {personality_params['personality_name']}")
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             
             if result.returncode == 0:
                 print("✅ Actionable suggestions recipe completed successfully")
@@ -189,11 +213,23 @@ class ObserverAvatarBridge:
         try:
             print("💬 Running avatar chit-chat recipe...")
             
-            # Run the goose recipe
-            result = subprocess.run([
+            # Get personality parameters
+            personality_params = self.get_personality_parameters()
+            
+            # Build parameter arguments
+            param_args = []
+            for key, value in personality_params.items():
+                param_args.extend(['--params', f'{key}={value}'])
+            
+            # Run the goose recipe with personality parameters
+            cmd = [
                 "goose", "run", "--no-session", 
                 "--recipe", "observers/recipe-avatar-chatter.yaml"
-            ], capture_output=True, text=True, timeout=60)
+            ] + param_args
+            
+            print(f"🎭 Running chatter with personality: {personality_params['personality_name']}")
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             
             if result.returncode == 0:
                 print("✅ Avatar chit-chat recipe completed successfully")
@@ -456,8 +492,46 @@ class ObserverAvatarBridge:
         except Exception as e:
             print(f"Error processing {filename} change: {e}")
     
+    def get_personality_parameters(self):
+        """Get personality parameters for recipes"""
+        try:
+            # Try to get personality from avatar instance
+            import avatar_display
+            if (hasattr(avatar_display, 'avatar_instance') and 
+                avatar_display.avatar_instance and
+                hasattr(avatar_display.avatar_instance, 'get_current_personality_data')):
+                
+                personality_key = avatar_display.avatar_instance.current_personality
+                personality_data = avatar_display.avatar_instance.get_current_personality_data()
+                
+                if personality_data:
+                    return {
+                        'personality_name': personality_data.get('name', personality_key.title()),
+                        'personality_style': personality_data.get('suggestion_style', ''),
+                        'personality_tone': personality_data.get('tone', ''),
+                        'personality_priorities': ', '.join(personality_data.get('priorities', [])),
+                        'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
+                    }
+            
+            # Fallback to comedian personality
+            return {
+                'personality_name': 'Comedian',
+                'personality_style': 'Everything is an opportunity for humor. Makes jokes about coding, work situations, and daily activities. Keeps things light and funny.',
+                'personality_tone': 'humorous, witty, entertaining, lighthearted',
+                'personality_priorities': 'humor, entertainment, making people laugh, finding the funny side',
+                'personality_phrases': 'Why did the developer, Speaking of comedy, Here\'s a joke for you, Plot twist comedy, Funny thing about'
+            }
+        except Exception as e:
+            print(f"Error getting personality parameters: {e}")
+            # Return default parameters
+            return {
+                'personality_name': 'Comedian',
+                'personality_style': 'Everything is an opportunity for humor. Makes jokes about coding, work situations, and daily activities.',
+                'personality_tone': 'humorous, witty, entertaining',
+                'personality_priorities': 'humor, entertainment, making people laugh',
+                'personality_phrases': 'Why did the developer, Speaking of comedy, Here\'s a joke for you'
+            }
 
-    
     def trigger_contextual_message(self):
         """Trigger a contextual message from recipes"""
         if avatar_display is None:
@@ -471,6 +545,39 @@ class ObserverAvatarBridge:
         else:
             # Fallback to simple interaction if no chatter available
             avatar_display.show_message("👋 How's it going?", 3000)
+
+    def clear_old_suggestions(self):
+        """Clear old suggestion files to ensure only personality-appropriate content remains"""
+        try:
+            suggestion_files = [
+                self.perception_dir / "AVATAR_SUGGESTIONS.json",
+                self.perception_dir / "ACTIONABLE_SUGGESTIONS.json", 
+                self.perception_dir / "AVATAR_CHATTER.md"
+            ]
+            
+            for file_path in suggestion_files:
+                if file_path.exists():
+                    file_path.unlink()
+                    print(f"🗑️ Cleared old suggestions from {file_path.name}")
+                    
+        except Exception as e:
+            print(f"⚠️ Error clearing old suggestions: {e}")
+
+def trigger_personality_update():
+    """Trigger personality-based suggestion regeneration (can be called from other modules)"""
+    global bridge_instance
+    if bridge_instance:
+        print("🎭 Triggering personality-based suggestion regeneration...")
+        # Clear old suggestions first
+        bridge_instance.clear_old_suggestions()
+        # Generate new personality-based suggestions
+        bridge_instance._run_avatar_suggestions()
+        bridge_instance._run_actionable_suggestions()
+        bridge_instance._run_chatter_recipe()
+        return True
+    else:
+        print("❌ Bridge instance not available for personality update")
+        return False
 
 # Global bridge instance
 bridge_instance = None
