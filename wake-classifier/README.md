@@ -81,7 +81,7 @@ print(f"Confidence: {details['confidence']}")
 
 ## Integration with Voice System
 
-This classifier is integrated with the Goose Voice system to determine if transcribed speech is addressed to the Goose assistant. It's used in the `listen.py` script to enhance wake word detection.
+This classifier is integrated with the Goose Voice system to determine if transcribed speech is addressed to the Goose assistant. It's used in the `perception.py` script to enhance wake word detection.
 
 Current integration:
 

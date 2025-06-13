@@ -2,7 +2,7 @@
 """
 agent.py - Process transcribed conversations and invoke Goose with the transcript
 
-This agent is invoked by listen.py when a conversation is complete.
+This agent is invoked by perception.py when a conversation is complete.
 It reads the transcript and passes it to the Goose CLI with appropriate instructions.
 The Goose process runs in the background to avoid blocking the main process.
 """
@@ -19,7 +19,7 @@ from jinja2 import Template
 
 # Import avatar display system
 try:
-    import avatar_display
+    from avatar import avatar_display
 except ImportError:
     avatar_display = None
 
@@ -56,10 +56,10 @@ def render_recipe_template(transcript, is_screen_capture=False):
     """
     # Define paths - choose the appropriate template
     if is_screen_capture:
-        template_path = Path("activation/agent-screen-activation.yaml")
+        template_path = Path("actions/agent-screen-activation.yaml")
         prefix = 'agent-screen-activation-'
     else:
-        template_path = Path("activation/agent-voice-recipe.yaml")
+        template_path = Path("actions/agent-voice-recipe.yaml")
         prefix = 'agent-voice-recipe-'
     
     perception_dir = Path("~/.local/share/goose-perception").expanduser()

@@ -374,7 +374,7 @@ During active listening, the system prioritizes capturing the complete conversat
 
 The system directly integrates with Goose through the `agent.py` module:
 
-- When a conversation is complete, `listen.py` directly calls `agent.process_conversation()`
+- When a conversation is complete, `perception.py` directly calls `agent.process_conversation()`
 - The agent reads the transcript and prepares it for Goose with appropriate instructions
 - Goose is invoked with the command: `goose run --name voice -t "The user has spoken the following..."`
 - The Goose process runs in a separate thread to avoid blocking the main application
@@ -384,7 +384,7 @@ The system directly integrates with Goose through the `agent.py` module:
 
 The system uses a multi-threaded approach to handle Goose interactions:
 
-1. **Main Thread (listen.py)**
+1. **Main Thread (perception.py)**
    - Detects wake words, processes conversations
    - Calls `agent.process_conversation()` when a conversation is complete
    - Continues listening for new wake words immediately

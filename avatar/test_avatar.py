@@ -7,7 +7,15 @@ import sys
 import time
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer
-import avatar_display
+
+# Try both relative and absolute imports for flexibility
+try:
+    from . import avatar_display
+except ImportError:
+    # Fallback for direct execution
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from avatar import avatar_display
 
 def test_avatar():
     """Test the avatar system with various creepy suggestions"""

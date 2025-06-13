@@ -13,7 +13,7 @@ from pathlib import Path
 import threading
 
 try:
-    import avatar_display
+    from . import avatar_display
 except ImportError:
     avatar_display = None
 
@@ -496,7 +496,7 @@ class ObserverAvatarBridge:
         """Get personality parameters for recipes"""
         try:
             # Try to get personality from avatar instance
-            import avatar_display
+            from . import avatar_display
             if (hasattr(avatar_display, 'avatar_instance') and 
                 avatar_display.avatar_instance and
                 hasattr(avatar_display.avatar_instance, 'get_current_personality_data')):
@@ -600,7 +600,14 @@ def trigger_contextual_message():
 
 if __name__ == "__main__":
     # Test the bridge
-    import avatar_display
+    try:
+        from . import avatar_display
+    except ImportError:
+        # Fallback for direct execution
+        import os
+        import sys
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from avatar import avatar_display
     
     # Start avatar system
     avatar_display.start_avatar_system()
