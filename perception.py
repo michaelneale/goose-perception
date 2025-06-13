@@ -94,8 +94,17 @@ running = True
 # Hotkey system globals
 hotkey_listener = None
 hotkey_pressed = False
-hotkey_combination = {Key.cmd, Key.shift}  # Cmd+Shift+G will be the trigger
-hotkey_target_key = keyboard.KeyCode.from_char('g')
+
+# Screen capture hotkey (Cmd+Shift+G)
+screen_hotkey_combination = {Key.cmd, Key.shift}
+screen_hotkey_target_key = keyboard.KeyCode.from_char('g')
+screen_hotkey_pressed = False
+
+# Optimize recipe hotkey (Cmd+Shift+R)
+optimize_hotkey_combination = {Key.cmd, Key.shift}
+optimize_hotkey_target_key = keyboard.KeyCode.from_char('r')
+optimize_hotkey_pressed = False
+
 hotkey_keys_pressed = set()
 
 # Transcription thread control
@@ -116,22 +125,30 @@ def signal_handler(sig, frame):
 
 def on_hotkey_press(key):
     """Handle hotkey press events"""
-    global hotkey_keys_pressed, hotkey_pressed
+    global hotkey_keys_pressed, screen_hotkey_pressed, optimize_hotkey_pressed
     
     # Add the pressed key to our set
     hotkey_keys_pressed.add(key)
     
-    # Check if our target combination is pressed
-    if hotkey_combination.issubset(hotkey_keys_pressed) and key == hotkey_target_key:
-        if not hotkey_pressed:  # Prevent multiple triggers
-            hotkey_pressed = True
-            print(f"\n🔥 HOTKEY DETECTED: Cmd+Shift+G")
-            # Trigger the hotkey action in a separate thread to avoid blocking
-            threading.Thread(target=handle_hotkey_action, daemon=True).start()
+    # Check for screen capture hotkey (Cmd+Shift+G)
+    if screen_hotkey_combination.issubset(hotkey_keys_pressed) and key == screen_hotkey_target_key:
+        if not screen_hotkey_pressed:  # Prevent multiple triggers
+            screen_hotkey_pressed = True
+            print(f"\n🔥 HOTKEY DETECTED: Cmd+Shift+G (Screen Capture)")
+            # Trigger the screen capture hotkey action in a separate thread to avoid blocking
+            threading.Thread(target=handle_screen_capture_hotkey, daemon=True).start()
+    
+    # Check for optimize recipe hotkey (Cmd+Shift+R)
+    elif optimize_hotkey_combination.issubset(hotkey_keys_pressed) and key == optimize_hotkey_target_key:
+        if not optimize_hotkey_pressed:  # Prevent multiple triggers
+            optimize_hotkey_pressed = True
+            print(f"\n🔥 HOTKEY DETECTED: Cmd+Shift+R (Optimize Recipe)")
+            # Trigger the optimize recipe hotkey action in a separate thread to avoid blocking
+            threading.Thread(target=handle_optimize_recipe_hotkey, daemon=True).start()
 
 def on_hotkey_release(key):
     """Handle hotkey release events"""
-    global hotkey_keys_pressed, hotkey_pressed
+    global hotkey_keys_pressed, screen_hotkey_pressed, optimize_hotkey_pressed
     
     # Remove the released key from our set
     try:
@@ -139,9 +156,10 @@ def on_hotkey_release(key):
     except KeyError:
         pass
     
-    # Reset the hotkey pressed flag when all keys are released
+    # Reset the hotkey pressed flags when all keys are released
     if not hotkey_keys_pressed:
-        hotkey_pressed = False
+        screen_hotkey_pressed = False
+        optimize_hotkey_pressed = False
 
 def capture_screen():
     """Capture the current screen and save to a temporary file"""
@@ -222,8 +240,8 @@ This is a screen capture request. The user has taken a screenshot and provided a
         print(f"❌ Error creating screen transcript: {e}")
         return None
 
-def handle_hotkey_action():
-    """Handle the hotkey action - capture screen and get user input"""
+def handle_screen_capture_hotkey():
+    """Handle the screen capture hotkey action - capture screen and get user input"""
     try:
         print("🖥️  Starting screen capture process...")
         
@@ -274,14 +292,81 @@ def handle_hotkey_action():
             print(f"⚠️ Error invoking agent for screen capture: {e}")
         
     except Exception as e:
-        print(f"❌ Error handling hotkey action: {e}")
+        print(f"❌ Error handling screen capture hotkey: {e}")
+
+def handle_optimize_recipe_hotkey():
+    """Handle the optimize recipe hotkey action - run the optimize recipe on demand"""
+    try:
+        print("🔧 Starting optimize recipe...")
+        
+        # Show notification
+        subprocess.call(
+            "osascript -e 'display notification \"Running optimization analysis...\" with title \"Goose Optimize\" sound name \"Submarine\"'",
+            shell=True
+        )
+        
+        # Change to observers directory and run the optimize recipe
+        observers_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'observers')
+        
+        print("🤖 Running optimize recipe with Goose...")
+        
+        # Run the optimize recipe using goose
+        try:
+            # Set environment variable for context strategy
+            env = os.environ.copy()
+            env['GOOSE_CONTEXT_STRATEGY'] = 'truncate'
+            
+            result = subprocess.run([
+                'goose', 'run', '--no-session', '--recipe', 'recipe-optimize.yaml'
+            ], capture_output=True, text=True, cwd=observers_dir, env=env)
+            
+            if result.returncode == 0:
+                print("✅ Optimize recipe completed successfully")
+                log_activity("Optimize recipe run via hotkey (Cmd+Shift+R)")
+                
+                # Show success notification
+                subprocess.call(
+                    "osascript -e 'display notification \"Optimization analysis complete! Check for HTML report.\" with title \"Goose Optimize\" sound name \"Glass\"'",
+                    shell=True
+                )
+            else:
+                print(f"⚠️ Optimize recipe failed with return code {result.returncode}")
+                print(f"STDOUT: {result.stdout}")
+                print(f"STDERR: {result.stderr}")
+                log_activity("Optimize recipe failed via hotkey")
+                
+                # Show error notification
+                subprocess.call(
+                    "osascript -e 'display notification \"Optimization analysis failed. Check console for details.\" with title \"Goose Optimize\" sound name \"Basso\"'",
+                    shell=True
+                )
+                
+        except Exception as e:
+            print(f"⚠️ Error running optimize recipe: {e}")
+            log_activity(f"Optimize recipe error via hotkey: {e}")
+            
+            # Show error notification
+            subprocess.call(
+                "osascript -e 'display notification \"Error running optimization. Check console for details.\" with title \"Goose Optimize\" sound name \"Basso\"'",
+                shell=True
+            )
+        
+    except Exception as e:
+        print(f"❌ Error handling optimize recipe hotkey: {e}")
+
+# Rename the old function for clarity
+def handle_hotkey_action():
+    """Legacy function name - redirects to screen capture hotkey"""
+    handle_screen_capture_hotkey()
 
 def start_hotkey_listener():
     """Start the hotkey listener in a separate thread"""
     global hotkey_listener
     
     try:
-        print("🔥 Starting hotkey listener (Cmd+Shift+G for screen capture)...")
+        print("🔥 Starting hotkey listener...")
+        print("   - Cmd+Shift+G for screen capture")
+        print("   - Cmd+Shift+R for optimize recipe")
         hotkey_listener = Listener(
             on_press=on_hotkey_press,
             on_release=on_hotkey_release

@@ -9,6 +9,20 @@ set shell := ["bash", "-c"]
 default:
     @just run
 
+# Setup required dependencies and data
+setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🔧 Setting up Goose Perception dependencies..."
+    
+    # Download required NLTK data
+    echo "📚 Downloading NLTK data..."
+    python3 -c "import nltk; nltk.download('punkt_tab', quiet=True)"
+    python3 -c "import nltk; nltk.download('averaged_perceptron_tagger_eng', quiet=True)"
+    python3 -c "import nltk; nltk.download('stopwords', quiet=True)"
+    python3 -c "import nltk; nltk.download('wordnet', quiet=True)"
+    
+    echo "✅ Setup complete!"
 
 # Train the wake word classifier
 train-classifier:
@@ -22,6 +36,9 @@ run-simple:
     #!/usr/bin/env bash
     set -euo pipefail
     
+    # Ensure setup is done
+    just setup
+    
     # Kill any existing processes first
     just kill
     
@@ -33,6 +50,9 @@ run-simple:
 run: 
     #!/usr/bin/env bash
     set -euo pipefail
+    
+    # Ensure setup is done
+    just setup
     
     if [ ! -d "wake-classifier/model/final" ]; then
         just train-classifier

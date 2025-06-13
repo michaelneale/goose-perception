@@ -343,24 +343,24 @@ class ObserverAvatarBridge:
     
     def _show_actionable_suggestion(self, suggestion):
         """Show an actionable suggestion with action buttons"""
-        if avatar_display and hasattr(avatar_display, 'avatar_instance') and avatar_display.avatar_instance:
-            try:
-                # Create action data for the suggestion
-                action_data = {
-                    'action_type': suggestion['action_type'],
-                    'action_command': suggestion['action_command'],
-                    'observation_type': suggestion['observation_type']
-                }
-                
-                # Show the suggestion with action buttons (uses default 75-second duration)
-                avatar_display.avatar_instance.show_message(
-                    suggestion['message'], 
-                    avatar_state='pointing',
-                    action_data=action_data
-                )
-                
-            except Exception as e:
-                print(f"Error showing actionable suggestion: {e}")
+        try:
+            # Create action data for the suggestion
+            action_data = {
+                'action_type': suggestion['action_type'],
+                'action_command': suggestion['action_command'],
+                'observation_type': suggestion['observation_type']
+            }
+            
+            # Use the thread-safe function instead of direct avatar_instance call
+            from . import avatar_display
+            avatar_display.show_actionable_message(
+                suggestion['message'], 
+                action_data,
+                avatar_state='pointing'
+            )
+            
+        except Exception as e:
+            print(f"Error showing actionable suggestion: {e}")
     
     def _process_new_suggestions(self):
         """Process newly generated suggestions and show immediately"""
@@ -437,32 +437,21 @@ class ObserverAvatarBridge:
         suggestion_type = suggestion_types.get(suggestion['type'], 'work')
         message = suggestion['message']
         
-        if avatar_display:
-            avatar_display.show_suggestion(suggestion_type, message)
+        # Use the thread-safe function instead of direct call
+        from . import avatar_display
+        avatar_display.show_suggestion(suggestion_type, message)
     
     def _show_idle_chatter(self):
         """Show casual idle chatter from recipe-generated content"""
-        if not avatar_display:
-            return
-            
         # Show idle chatter with reasonable probability since it's contextual now
         if random.random() < 0.4:  # 40% chance for idle chatter (reduced from 50%)
             chatter_messages = self._parse_chatter_file()
             if chatter_messages:
-                # Prefer variety by checking avatar's recent suggestions if possible
-                if hasattr(avatar_display, 'avatar_instance') and avatar_display.avatar_instance:
-                    # Try to avoid messages similar to recent suggestions
-                    recent_suggestions = getattr(avatar_display.avatar_instance, 'recent_suggestions', [])
-                    filtered_messages = [msg for msg in chatter_messages 
-                                       if not any(msg.lower() in recent.lower() or recent.lower() in msg.lower() 
-                                               for recent in recent_suggestions[-3:])]  # Check last 3 suggestions
-                    if filtered_messages:
-                        message = random.choice(filtered_messages)
-                    else:
-                        message = random.choice(chatter_messages)
-                else:
-                    message = random.choice(chatter_messages)
+                # Just pick a random message - no need to access avatar instance from background thread
+                message = random.choice(chatter_messages)
                 
+                # Use the thread-safe function instead of direct call
+                from . import avatar_display
                 avatar_display.show_message(message, 4000)
                 print(f"💬 Showed casual chatter: {message[:50]}...")
     
@@ -478,42 +467,54 @@ class ObserverAvatarBridge:
             if random.random() > 0.3:  # 30% chance to show message
                 return
                 
-            # Simple fallback messages for file changes
+            # Simple fallback messages for file changes - use thread-safe functions
+            from . import avatar_display
             if filename == 'LATEST_WORK.md':
-                if avatar_display:
-                    avatar_display.show_message("📝 I see you're updating your current work focus...")
+                avatar_display.show_message("📝 I see you're updating your current work focus...")
             elif filename == 'INTERACTIONS.md':
-                if avatar_display:
-                    avatar_display.show_message("🤝 New interaction data updated...")
+                avatar_display.show_message("🤝 New interaction data updated...")
             elif filename == 'CONTRIBUTIONS.md':
-                if avatar_display:
-                    avatar_display.show_message("📈 Your contribution patterns have been updated...")
+                avatar_display.show_message("📈 Your contribution patterns have been updated...")
                 
         except Exception as e:
             print(f"Error processing {filename} change: {e}")
     
     def get_personality_parameters(self):
-        """Get personality parameters for recipes"""
+        """Get personality parameters for recipes - thread-safe version"""
         try:
-            # Try to get personality from avatar instance
-            from . import avatar_display
-            if (hasattr(avatar_display, 'avatar_instance') and 
-                avatar_display.avatar_instance and
-                hasattr(avatar_display.avatar_instance, 'get_current_personality_data')):
-                
-                personality_key = avatar_display.avatar_instance.current_personality
-                personality_data = avatar_display.avatar_instance.get_current_personality_data()
-                
-                if personality_data:
-                    return {
-                        'personality_name': personality_data.get('name', personality_key.title()),
-                        'personality_style': personality_data.get('suggestion_style', ''),
-                        'personality_tone': personality_data.get('tone', ''),
-                        'personality_priorities': ', '.join(personality_data.get('priorities', [])),
-                        'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
-                    }
+            # Don't access avatar_instance from background threads - use fallback approach
+            # This prevents Qt threading violations while still providing personality context
             
-            # Fallback to comedian personality
+            # Try to load personality from saved settings file (thread-safe)
+            from pathlib import Path
+            import json
+            
+            settings_path = Path.home() / ".local/share/goose-perception/PERSONALITY_SETTINGS.json"
+            if settings_path.exists():
+                try:
+                    with open(settings_path, 'r') as f:
+                        settings = json.load(f)
+                    saved_personality = settings.get("current_personality", "comedian")
+                    
+                    # Load personality data from file (thread-safe)
+                    personalities_path = Path(__file__).parent / "personalities.json"
+                    if personalities_path.exists():
+                        with open(personalities_path, 'r') as f:
+                            personalities_data = json.load(f)
+                            personality_data = personalities_data.get("personalities", {}).get(saved_personality, {})
+                            
+                            if personality_data:
+                                return {
+                                    'personality_name': personality_data.get('name', saved_personality.title()),
+                                    'personality_style': personality_data.get('suggestion_style', ''),
+                                    'personality_tone': personality_data.get('tone', ''),
+                                    'personality_priorities': ', '.join(personality_data.get('priorities', [])),
+                                    'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
+                                }
+                except Exception as e:
+                    print(f"Error reading personality settings: {e}")
+            
+            # Fallback to comedian personality (thread-safe default)
             return {
                 'personality_name': 'Comedian',
                 'personality_style': 'Everything is an opportunity for humor. Makes jokes about coding, work situations, and daily activities. Keeps things light and funny.',
@@ -523,7 +524,7 @@ class ObserverAvatarBridge:
             }
         except Exception as e:
             print(f"Error getting personality parameters: {e}")
-            # Return default parameters
+            # Return safe default parameters
             return {
                 'personality_name': 'Comedian',
                 'personality_style': 'Everything is an opportunity for humor. Makes jokes about coding, work situations, and daily activities.',

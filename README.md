@@ -69,6 +69,64 @@ Each personality provides dramatically different experiences:
 
 > **Pro Tip**: The personality system uses Goose's recipe parameter system, so each personality gets uniquely generated content rather than just different templates!
 
+## 🎯 Interactive Action Menu
+
+The avatar now features a **smart action menu** that appears when you click it! Instead of just showing messages, the avatar presents you with immediate access to its most useful functions through a beautiful, personality-aware interface.
+
+<img src="avatar/avatar-menu.png" alt="Interactive Action Menu showing 6 colorful action buttons with personality greeting" width="500" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+
+### 🚀 Quick Actions at Your Fingertips
+
+When you **click the avatar**, you'll see a personality-specific greeting followed by **6 action buttons**:
+
+- **📊 Run Report** *(Blue)*: Generate optimization analysis (same as `Cmd+Shift+R` hotkey)
+- **🎤 Listen to Me** *(Red)*: Activate voice listening mode with helpful instructions  
+- **💬 Enter Prompt** *(Green)*: Open text input dialog for direct requests
+- **📋 Show Status** *(Purple)*: Display real-time system information and diagnostics
+- **🎭 Change Personality** *(Orange)*: Quick access to personality switching (redirects to right-click)
+- **📝 Recent Work** *(Gray)*: View your latest work activity and summaries
+
+### 🖥️ System Status Display
+
+The **Show Status** action provides comprehensive system information at a glance:
+
+<img src="avatar/system-status-screenshot.png" alt="System Status display showing CPU, memory, observers status, and more" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+
+- **💻 Real-time Performance**: CPU usage, memory consumption
+- **🔄 Observer Status**: Whether background recipes are running
+- **📝 Work Logs**: Status of work activity tracking files
+- **🎭 Current Personality**: Active personality mode
+- **📊 Message Queue**: Number of queued messages
+- **🏠 System Health**: Perception directory status and timestamp
+
+### ✨ Smart Features
+
+- **🎭 Personality-Aware Greetings**: Each personality has unique, character-appropriate messages
+- **🎨 Color-Coded Actions**: Visual organization with intuitive color scheme
+- **⏱️ Auto-Dismiss**: Menu automatically closes after 60 seconds if unused
+- **🔄 Thread-Safe Execution**: All actions run in background without blocking the UI
+- **📱 Responsive Design**: Fixed-width layout that grows upward from the avatar
+- **🛡️ Error Handling**: Graceful fallbacks if system information isn't available
+
+### 🎭 Personality Examples
+
+The greeting changes based on your avatar's personality:
+
+- **🙄 Sarcastic**: *"Let me guess, you want me to do something helpful?"*
+- **🃏 Joker**: *"PLOT TWIST! You want me to actually DO something?!"*
+- **🌧️ Melancholic**: *"In this digital void, what task calls to you?"*
+- **🐕 Excited Puppy**: *"OH MY GOSH YES! HOW CAN I HELP YOU TODAY?!"*
+
+### 🔧 How to Use
+
+1. **Single-click** the avatar to open the action menu
+2. **Choose an action** by clicking any of the colorful buttons  
+3. **Follow the prompts** for text input or voice activation
+4. **View results** through notifications and status updates
+5. **Double-click** the avatar if a message gets stuck (emergency dismiss)
+
+> **Note**: The action menu replaces the old avatar state cycling behavior, providing much more useful functionality while maintaining the avatar's personality and charm!
+
 This makes use of many goose powered agents (which use "recipes") to observe you as you go about your day, learn about your work, projects and more so it can suggest improvements and take actions. 
 It works by watching how you work (screens, interactions, collaboration) and literally listening, uses many MCPs and recipes asynchronously.
 
@@ -88,13 +146,17 @@ It will communicate with you via notifications (if it must), voice, or presentin
 
 Once running - just go about your day, you don't need to do anything, it will do something. 
 
+### Avatar Click Menu
+**Click the avatar** to open an interactive action menu with 6 helpful functions like running reports, voice activation, text prompts, and system status.
+
 ### Voice Activation
 You can ask goose to do something by talking - just mention "goose", it will detect that you are talking to it (vs about it).
 
 ### Hotkey Activation  
-Press `Cmd+Shift+G` to capture your screen and give Goose an instruction about what to do with it.
+- **`Cmd+Shift+G`**: Capture your screen and give Goose an instruction about what to do with it
+- **`Cmd+Shift+R`**: Run optimization analysis and generate HTML5 reports
 
-Both methods work asynchronously and Goose will process your requests in the background.
+All methods work asynchronously and Goose will process your requests in the background.
 
 ## What it can do for you
 
