@@ -211,6 +211,9 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-notes-interaction.yaml" "15m" ".interaction-notes"
   run_recipe_if_needed "recipe-follow-up-content.yaml" "morning" ".follow-up-content" "weekday-only"
   run_recipe_if_needed "recipe-take-time-back.yaml" "weekly" ".give-time-back" "weekday-only"
+  run_recipe_if_needed "recipe-take-time-back.yaml" "weekly" ".give-time-back" "weekday-only"
+
+  run_recipe_if_needed "../adapt-recipes.yaml" "weekly" ".adapting"
   
   
   echo "$(date): Scheduled recipe check complete."
