@@ -3,11 +3,9 @@ title: Adapt perception recipes automatically
 author:
   contact: mic
 description: Reflect on how things are working, and make adjustments to the recipes to improve them
-instructions: |
-  you will be modifying recipes in place, create a git branch called 'local-adaptations' if there isn't one and and make changes there
 extensions:
 - type: builtin
-  name: googledrive
+  name: developer
   display_name: Google Drive
   timeout: 300
   bundled: true
@@ -33,13 +31,14 @@ prompt: |
 
   your job is then to look at each recipe-*.yaml file in ./observers/ directory. 
   Look at their content, description and prompt to discern the aims. 
+
   If any are clearly not working well, you can edit them. Stick to editing the prompt section primarily, but you can also change the instructions and title if needed.
   You should not need to change the extensions. If there are failures to do with the extensions, you can consider if there is an easy fix for that.
 
   Make your changes on a branch called 'local-adaptations' and commit them there (if you need, you can use git log commands to see what changes you have made recnetly to see if they have helped, you can always restore it to an earlier content state as a new commit, or restore it to what was on the main branch )
   If you aren't sure about a change, don't make one.
 
-  You can test your changes by running the command `goose run --recipe observers/recipe-<name>.yaml` and noting the output. If no better, undo your change. 
+  IMPORTANT: edit on the local-adaptations branch, not the main branch (and only make a branch if you need to make a change)
 
   you may already be on the local-adaptations branch, or not. If not - then switch to it, and ensure that you merge the changes from main to the local-adaptations branch before continuing.
   Never change the main brainch, only the local-adaptations branch.
