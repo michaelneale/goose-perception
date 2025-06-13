@@ -187,11 +187,9 @@ run_screenshot_loop() {
 run_scheduled_recipes() {
   echo "$(date): Checking scheduled recipes..."
   
-  run_recipe_if_needed "../adapt-recipes.yaml" "weekly" ".adapting"
-
-  # Work summary recipe (every 20 minutes, weekdays only)
-  run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md" "weekday-only"
   
+  # Work summary recipe (every 20 minutes, weekdays only)
+  run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md" "weekday-only"  
   
   run_recipe_if_needed "recipe-contributions.yaml" "evening" "CONTRIBUTIONS.md" "weekday-only"
   run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus" "weekday-only"
@@ -213,7 +211,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-notes-interaction.yaml" "15m" ".interaction-notes"
   run_recipe_if_needed "recipe-follow-up-content.yaml" "morning" ".follow-up-content" "weekday-only"
   run_recipe_if_needed "recipe-take-time-back.yaml" "weekly" ".give-time-back" "weekday-only"
-  run_recipe_if_needed "recipe-take-time-back.yaml" "weekly" ".give-time-back" "weekday-only"
+  run_recipe_if_needed "../adapt-recipes.yaml" "weekly" ".adapting"
 
   
   
