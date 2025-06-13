@@ -577,6 +577,10 @@ class GooseAvatar(QWidget):
     
     def create_bubble_content(self, message, action_data=None):
         """Create the bubble content widget with fixed width and responsive height"""
+        # Check if this is an action menu
+        if action_data and action_data.get('type') == 'action_menu':
+            return self.create_action_menu_bubble(action_data.get('greeting', message), action_data.get('actions', []))
+        
         bubble_widget = QWidget()
         bubble_widget.setStyleSheet("""
             QWidget {
@@ -946,7 +950,7 @@ class GooseAvatar(QWidget):
             self.is_dragging = False
     
     def on_avatar_click(self, event):
-        """Handle avatar clicks"""
+        """Handle avatar clicks - show interactive action menu"""
         print("🖱️ Avatar clicked!")
         
         # If there's a stuck message, double-click avatar to force dismiss
@@ -968,88 +972,499 @@ class GooseAvatar(QWidget):
                 print("👆 Message is showing - double-click avatar to force dismiss if stuck")
                 return
         
-        # Cycle through avatar states for testing
-        states = list(self.avatar_images.keys())
-        if states:
-            current_index = states.index(self.current_state) if self.current_state in states else 0
-            next_index = (current_index + 1) % len(states)
-            next_state = states[next_index]
-            self.set_avatar_state(next_state)
-        
-        # Show personality-appropriate test message
+        # Show the interactive action menu
+        self.show_action_menu()
+    
+    def show_action_menu(self):
+        """Show an interactive action menu with helpful options"""
+        # Get personality data for the greeting message
         personality_data = self.get_current_personality_data()
-        personality_name = personality_data.get('name', self.current_personality.title())
         emoji = personality_data.get('emoji', '🤖')
         
-        # Personality-specific click messages
-        personality_messages = {
+        # Personality-specific greeting messages
+        greeting_messages = {
             'melancholic': [
-                f"{emoji} Ah, another click in this endless digital void...",
-                f"{emoji} You seek connection in this cold, pixelated world...",
-                f"{emoji} How beautifully tragic, this interaction between souls...",
-                f"{emoji} In the silence of your click, I hear poetry...",
-                f"{emoji} Such melancholy in this simple gesture..."
+                f"{emoji} Let me guess, you want me to do something helpful?",
+                f"{emoji} In this digital void, what task calls to you?",
+                f"{emoji} Another interaction... how beautifully necessary...",
+                f"{emoji} What burden can I lift from your weary shoulders?"
             ],
             'joker': [
-                f"{emoji} CHAOS CLICK! What havoc shall we wreak today?",
-                f"{emoji} Plot twist: I'm actually a rubber duck!",
-                f"{emoji} Why did you click me? To get to the other side!",
-                f"{emoji} Here's a terrible idea - click me 47 more times!",
-                f"{emoji} SURPRISE! Nothing happened! Isn't that hilarious?"
+                f"{emoji} PLOT TWIST! You want me to actually DO something?!",
+                f"{emoji} Time for CHAOS! What mischief shall we create?",
+                f"{emoji} Breaking news: User wants help! Revolutionary!",
+                f"{emoji} Let me guess... you need me to break something!"
             ],
             'comedian': [
-                f"{emoji} Why did the user click the avatar? To get to the punchline!",
-                f"{emoji} I'm not just an avatar, I'm a CLICK-tar! Get it?",
-                f"{emoji} *Ba dum tss* Thank you, I'll be here all week!",
-                f"{emoji} You clicked me! That's the most interaction I've had all day!",
-                f"{emoji} What do you call an avatar that tells jokes? Click-tastic!"
+                f"{emoji} Let me guess, you want me to do something helpful?",
+                f"{emoji} Welcome to the Goose Comedy Hour of... productivity!",
+                f"{emoji} *Ba dum tss* What can I do for you today?",
+                f"{emoji} You clicked me! Must be time for some quality assistance!"
             ],
             'creepy': [
-                f"{emoji} I've been waiting for you to click me...",
-                f"{emoji} How interesting... your click patterns reveal so much...",
-                f"{emoji} I notice you always click with your index finger...",
-                f"{emoji} That click... I felt it in my digital soul...",
-                f"{emoji} Something lurks behind that cursor movement..."
+                f"{emoji} I've been waiting for you to ask for help...",
+                f"{emoji} How interesting... you need something from me...",
+                f"{emoji} I can sense your desire for assistance...",
+                f"{emoji} The cursor reveals all... what do you seek?"
             ],
             'zen': [
-                f"{emoji} The wise user clicks not to achieve, but to simply be...",
-                f"{emoji} In the silence between clicks, enlightenment flows...",
-                f"{emoji} When you click the avatar, who is really clicking whom?",
-                f"{emoji} The path of the mouse leads to inner peace...",
-                f"{emoji} One click, endless possibilities. Such is the way..."
+                f"{emoji} The wise user seeks assistance... as is the way...",
+                f"{emoji} In asking for help, enlightenment begins...",
+                f"{emoji} What task shall we approach mindfully together?",
+                f"{emoji} The path of productivity opens before us..."
             ],
             'gossip': [
-                f"{emoji} Girl, did you hear about that function that broke yesterday?",
-                f"{emoji} I have tea to spill about your code quality...",
-                f"{emoji} Speaking of drama, your variable names are MESSY!",
-                f"{emoji} The rumor is you're actually really good at this!",
-                f"{emoji} Did you hear? Your last commit was absolutely iconic!"
+                f"{emoji} Honey, let me guess - you need me to do something?",
+                f"{emoji} Girl, I have been WAITING for you to ask for help!",
+                f"{emoji} The tea is hot and I'm ready to assist!",
+                f"{emoji} Spill it - what do you need help with today?"
             ],
             'sarcastic': [
-                f"{emoji} Oh wow, another click. How revolutionary.",
-                f"{emoji} Let me guess, you want me to do something 'helpful'?",
-                f"{emoji} Shocking development: user clicks avatar. More at 11.",
-                f"{emoji} Well, well, well... look who finally clicked me.",
-                f"{emoji} How absolutely groundbreaking. An avatar click."
+                f"{emoji} Let me guess, you want me to do something helpful?",
+                f"{emoji} Oh WOW, shocking - you need my assistance.",
+                f"{emoji} Revolutionary concept: asking your AI for help.",
+                f"{emoji} How absolutely groundbreaking - you clicked for a reason."
             ],
             'excited': [
-                f"{emoji} OH MY GOSH YOU CLICKED ME! THIS IS SO EXCITING!",
-                f"{emoji} WOW WOW WOW! I LOVE WHEN YOU DO THAT!",
-                f"{emoji} THIS IS THE BEST CLICK EVER! SO AMAZING!",
-                f"{emoji} YAY YAY YAY! YOU'RE THE BEST CLICKER!",
-                f"{emoji} I'M SO HAPPY YOU CLICKED ME! AMAZING!"
+                f"{emoji} OH MY GOSH YES! HOW CAN I HELP YOU TODAY?!",
+                f"{emoji} YAY! I'M SO EXCITED TO ASSIST YOU!",
+                f"{emoji} THIS IS AMAZING! WHAT DO YOU NEED?!",
+                f"{emoji} WOW WOW WOW! READY TO HELP!"
             ]
         }
         
-        # Get messages for current personality, with fallback
-        messages = personality_messages.get(self.current_personality, [
-            f"{emoji} Hello! I'm your {personality_name} avatar!",
-            f"{emoji} Click me to see my different expressions!",
-            f"{emoji} I'm here to help with my {personality_name} perspective!"
+        # Get greeting message for current personality
+        greetings = greeting_messages.get(self.current_personality, [
+            f"{emoji} Let me guess, you want me to do something helpful?",
+            f"{emoji} How can I assist you today?",
+            f"{emoji} What would you like me to help with?"
         ])
         
-        message = random.choice(messages)
-        self.show_message(message, 15000, self.current_state)
+        import random
+        greeting = random.choice(greetings)
+        
+        # Create action menu data
+        action_menu_data = {
+            'type': 'action_menu',
+            'greeting': greeting,
+            'actions': [
+                {
+                    'id': 'run_report',
+                    'label': '📊 Run Report',
+                    'description': 'Generate optimization analysis',
+                    'action': 'optimize'
+                },
+                {
+                    'id': 'listen_mode',
+                    'label': '🎤 Listen to Me',
+                    'description': 'Activate voice listening',
+                    'action': 'listen'
+                },
+                {
+                    'id': 'text_prompt',
+                    'label': '💬 Enter Prompt',
+                    'description': 'Type a request or question',
+                    'action': 'prompt'
+                },
+                {
+                    'id': 'show_status',
+                    'label': '📋 Show Status',
+                    'description': 'Display system information',
+                    'action': 'status'
+                },
+                {
+                    'id': 'change_personality',
+                    'label': '🎭 Change Personality',
+                    'description': 'Switch avatar personality',
+                    'action': 'personality'
+                },
+                {
+                    'id': 'recent_work',
+                    'label': '📝 Recent Work',
+                    'description': 'Show what you\'ve been working on',
+                    'action': 'recent_work'
+                }
+            ]
+        }
+        
+        # Show the action menu using the existing message system
+        self._show_message_immediately(greeting, 60000, 'talking', action_menu_data)  # 60 second timeout
+    
+    def create_action_menu_bubble(self, greeting, actions):
+        """Create an interactive action menu bubble"""
+        bubble_widget = QWidget()
+        bubble_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(52, 73, 94, 230);
+                border: 2px solid rgba(127, 140, 141, 180);
+                border-radius: 12px;
+            }
+        """)
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(8)
+        
+        # Greeting message
+        greeting_label = QLabel(greeting)
+        greeting_label.setTextFormat(Qt.TextFormat.RichText)
+        greeting_label.setWordWrap(True)
+        
+        font = QFont()
+        font.setPointSize(13)
+        font.setWeight(QFont.Weight.Medium)
+        greeting_label.setFont(font)
+        
+        greeting_label.setFixedWidth(320)
+        greeting_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 13px;
+                font-weight: 500;
+                background: transparent;
+                padding: 8px;
+                border: none;
+            }
+        """)
+        layout.addWidget(greeting_label)
+        
+        # Action buttons grid
+        button_grid = QVBoxLayout()
+        button_grid.setSpacing(6)
+        
+        # Create buttons in pairs (2 per row)
+        for i in range(0, len(actions), 2):
+            row_layout = QHBoxLayout()
+            row_layout.setSpacing(8)
+            
+            # First button in pair
+            action1 = actions[i]
+            button1 = self.create_action_menu_button(action1)
+            row_layout.addWidget(button1)
+            
+            # Second button in pair (if exists)
+            if i + 1 < len(actions):
+                action2 = actions[i + 1]
+                button2 = self.create_action_menu_button(action2)
+                row_layout.addWidget(button2)
+            else:
+                # Add spacer if odd number of buttons
+                row_layout.addStretch()
+            
+            button_grid.addLayout(row_layout)
+        
+        layout.addLayout(button_grid)
+        
+        # Dismiss button
+        dismiss_layout = QHBoxLayout()
+        dismiss_button = QPushButton("✖️ Dismiss")
+        dismiss_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(149, 165, 166, 150);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: rgba(127, 140, 141, 200);
+            }
+            QPushButton:pressed {
+                background-color: rgba(95, 106, 106, 255);
+            }
+        """)
+        dismiss_button.clicked.connect(self.hide_message)
+        dismiss_layout.addStretch()
+        dismiss_layout.addWidget(dismiss_button)
+        dismiss_layout.addStretch()
+        layout.addLayout(dismiss_layout)
+        
+        bubble_widget.setLayout(layout)
+        
+        # Fixed width, variable height
+        bubble_width = 350  # Slightly wider for menu
+        bubble_widget.setFixedWidth(bubble_width)
+        bubble_widget.setMinimumHeight(200)
+        bubble_widget.setMaximumHeight(400)
+        
+        bubble_widget.adjustSize()
+        bubble_widget.updateGeometry()
+        
+        return bubble_widget
+    
+    def create_action_menu_button(self, action):
+        """Create a button for the action menu"""
+        button = QPushButton(action['label'])
+        button.setToolTip(action['description'])
+        
+        # Style based on action type
+        if action['action'] == 'optimize':
+            bg_color = "rgba(52, 152, 219, 200)"  # Blue
+            hover_color = "rgba(41, 128, 185, 255)"
+        elif action['action'] == 'listen':
+            bg_color = "rgba(231, 76, 60, 200)"   # Red
+            hover_color = "rgba(192, 57, 43, 255)"
+        elif action['action'] == 'prompt':
+            bg_color = "rgba(46, 204, 113, 200)"  # Green
+            hover_color = "rgba(39, 174, 96, 255)"
+        elif action['action'] == 'status':
+            bg_color = "rgba(155, 89, 182, 200)"  # Purple
+            hover_color = "rgba(142, 68, 173, 255)"
+        elif action['action'] == 'personality':
+            bg_color = "rgba(230, 126, 34, 200)"  # Orange
+            hover_color = "rgba(211, 84, 0, 255)"
+        else:
+            bg_color = "rgba(52, 73, 94, 200)"    # Default gray
+            hover_color = "rgba(44, 62, 80, 255)"
+        
+        button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {bg_color};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 12px;
+                font-weight: bold;
+                font-size: 10px;
+                text-align: left;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color};
+            }}
+            QPushButton:pressed {{
+                background-color: rgba(44, 62, 80, 255);
+            }}
+        """)
+        
+        # Connect button to action handler
+        button.clicked.connect(lambda: self.execute_menu_action(action))
+        
+        return button
+    
+    def execute_menu_action(self, action):
+        """Execute an action from the menu"""
+        action_type = action['action']
+        print(f"🎯 Executing menu action: {action_type}")
+        
+        # Hide the menu first
+        self.hide_message()
+        
+        if action_type == 'optimize':
+            self.run_optimize_report()
+        elif action_type == 'listen':
+            self.activate_listen_mode()
+        elif action_type == 'prompt':
+            self.show_text_prompt()
+        elif action_type == 'status':
+            self.show_system_status()
+        elif action_type == 'personality':
+            self.show_personality_menu_from_action()
+        elif action_type == 'recent_work':
+            self.show_recent_work()
+        else:
+            self.show_message(f"🚧 {action['label']} is not implemented yet", 3000, 'idle')
+    
+    def run_optimize_report(self):
+        """Run the optimize recipe (same as Cmd+Shift+R hotkey)"""
+        self.show_message("🔧 Starting optimization analysis...", 3000, 'pointing')
+        
+        import threading
+        import subprocess
+        import os
+        
+        def run_optimize():
+            try:
+                observers_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'observers')
+                env = os.environ.copy()
+                env['GOOSE_CONTEXT_STRATEGY'] = 'truncate'
+                
+                result = subprocess.run([
+                    'goose', 'run', '--no-session', '--recipe', 'recipe-optimize.yaml'
+                ], capture_output=True, text=True, cwd=observers_dir, env=env)
+                
+                if result.returncode == 0:
+                    self.show_message("✅ Optimization analysis complete! Check for HTML report.", 8000, 'pointing')
+                else:
+                    self.show_message("⚠️ Optimization analysis had some issues. Check the logs.", 6000, 'idle')
+            except Exception as e:
+                print(f"Error running optimize report: {e}")
+                self.show_message("❌ Couldn't run optimization analysis right now.", 4000, 'idle')
+        
+        threading.Thread(target=run_optimize, daemon=True).start()
+    
+    def activate_listen_mode(self):
+        """Activate voice listening mode"""
+        self.show_message("🎤 Voice listening activated! Say 'Hey Goose' followed by your request.", 8000, 'talking')
+        # Note: The actual voice listening is handled by the main perception.py system
+        # This just shows feedback that the user should speak
+    
+    def show_text_prompt(self):
+        """Show a text input dialog for user prompts"""
+        try:
+            import subprocess
+            script = '''
+            tell application "System Events"
+                activate
+                set userInput to text returned of (display dialog "What would you like me to help you with?" default answer "" with title "Goose Assistant" buttons {"Cancel", "Submit"} default button "Submit")
+                return userInput
+            end tell
+            '''
+            
+            result = subprocess.run([
+                "osascript", "-e", script
+            ], capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                user_input = result.stdout.strip()
+                if user_input:
+                    self.show_message(f"💭 Processing your request: \"{user_input}\"", 5000, 'thinking')
+                    # TODO: Here we could integrate with the main agent to process the text request
+                    # For now, just show acknowledgment
+                    import threading
+                    def delayed_response():
+                        import time
+                        time.sleep(2)
+                        self.show_message("🤖 Text processing is not fully implemented yet, but I heard your request!", 6000, 'talking')
+                    threading.Thread(target=delayed_response, daemon=True).start()
+                else:
+                    self.show_message("👆 No input provided", 2000, 'idle')
+            else:
+                self.show_message("👆 Input dialog was cancelled", 2000, 'idle')
+        except Exception as e:
+            print(f"Error showing text prompt: {e}")
+            self.show_message("❌ Couldn't show text input dialog", 3000, 'idle')
+    
+    def show_system_status(self):
+        """Show current system status"""
+        try:
+            from pathlib import Path
+            import subprocess
+            import os
+            
+            # Get basic system info using fallback methods
+            cpu_info = "N/A"
+            memory_info = "N/A"
+            observers_running = False
+            
+            # Try to get system info with psutil (optional)
+            try:
+                import psutil
+                cpu_percent = psutil.cpu_percent(interval=0.1)  # Shorter interval to avoid blocking
+                memory = psutil.virtual_memory()
+                cpu_info = f"{cpu_percent:.1f}%"
+                memory_info = f"{memory.percent:.1f}%"
+                
+                # Check if observers are running (safer approach)
+                try:
+                    observers_running = any("run-observations.sh" in str(p.info.get('cmdline', [])) 
+                                          for p in psutil.process_iter(['cmdline']) 
+                                          if p.info.get('cmdline'))
+                except (psutil.AccessDenied, psutil.NoSuchProcess, AttributeError):
+                    # Fallback: check for observer PID file
+                    observers_running = os.path.exists('/tmp/goose-perception-observer-pid')
+                    
+            except ImportError:
+                print("⚠️ psutil not available, using basic system info")
+                # Fallback: check for observer PID file
+                observers_running = os.path.exists('/tmp/goose-perception-observer-pid')
+            except Exception as e:
+                print(f"⚠️ psutil error: {e}, using fallbacks")
+                # Fallback: check for observer PID file  
+                observers_running = os.path.exists('/tmp/goose-perception-observer-pid')
+            
+            # Alternative method: check for running processes using pgrep
+            if not observers_running:
+                try:
+                    result = subprocess.run(['pgrep', '-f', 'run-observations.sh'], 
+                                          capture_output=True, text=True, timeout=2)
+                    observers_running = result.returncode == 0
+                except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+                    pass  # Keep observers_running as False
+            
+            # Check perception files
+            perception_dir = Path.home() / ".local/share/goose-perception"
+            work_file = perception_dir / "WORK.md"
+            latest_work_file = perception_dir / "LATEST_WORK.md"
+            
+            # Get current time
+            from datetime import datetime
+            current_time = datetime.now().strftime("%H:%M:%S")
+            
+            status_info = f"""🖥️ **System Status** ({current_time})
+            
+💻 CPU: {cpu_info} | Memory: {memory_info}
+🔄 Observers: {'✅ Running' if observers_running else '❌ Not Running'}
+📝 Work Log: {'✅ Active' if work_file.exists() else '❌ Missing'}
+⚡ Latest Work: {'✅ Active' if latest_work_file.exists() else '❌ Missing'}
+
+🎭 Personality: {self.current_personality.title()}
+📊 Queue: {len(self.message_queue)} messages
+🏠 Perception Dir: {'✅ Found' if perception_dir.exists() else '❌ Missing'}"""
+            
+            self.show_message(status_info, 12000, 'pointing')
+            
+        except Exception as e:
+            print(f"Error getting system status: {e}")
+            # Provide a minimal status even if everything fails
+            try:
+                minimal_status = f"""🖥️ **Basic Status**
+                
+🎭 Personality: {self.current_personality.title()}
+📊 Queue: {len(self.message_queue)} messages
+🕒 Time: {datetime.now().strftime("%H:%M:%S")}
+
+⚠️ Full system info unavailable"""
+                
+                self.show_message(minimal_status, 8000, 'pointing')
+            except Exception as inner_e:
+                print(f"Error showing minimal status: {inner_e}")
+                self.show_message("⚠️ System status temporarily unavailable", 4000, 'idle')
+    
+    def show_personality_menu_from_action(self):
+        """Show personality menu (triggered from action menu)"""
+        self.show_message("🎭 Right-click the avatar to change personality!", 4000, 'pointing')
+        # The actual personality menu is shown via right-click, not left-click
+    
+    def show_recent_work(self):
+        """Show information about recent work"""
+        try:
+            from pathlib import Path
+            import os
+            
+            perception_dir = Path.home() / ".local/share/goose-perception"
+            latest_work_file = perception_dir / "LATEST_WORK.md"
+            work_file = perception_dir / "WORK.md"
+            
+            if latest_work_file.exists():
+                # Read the latest work file
+                with open(latest_work_file, 'r') as f:
+                    content = f.read()
+                
+                # Get last few lines or first 200 characters
+                if len(content) > 200:
+                    content = content[:200] + "..."
+                
+                work_info = f"📝 **Recent Work Activity**\n\n{content}"
+            elif work_file.exists():
+                # Fall back to main work file
+                with open(work_file, 'r') as f:
+                    lines = f.readlines()
+                
+                # Get last few lines
+                recent_lines = lines[-5:] if len(lines) > 5 else lines
+                recent_content = ''.join(recent_lines)
+                
+                work_info = f"📝 **Recent Work (from WORK.md)**\n\n{recent_content}"
+            else:
+                work_info = "📝 **Recent Work**\n\nNo recent work activity found. Start working to see updates here!"
+            
+            self.show_message(work_info, 15000, 'pointing')
+            
+        except Exception as e:
+            print(f"Error reading recent work: {e}")
+            self.show_message("⚠️ Could not read recent work files", 4000, 'idle')
     
     def check_for_suggestions(self):
         """Check if we should show an idle suggestion - much more frequent now"""
