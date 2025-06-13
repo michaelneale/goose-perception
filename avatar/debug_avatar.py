@@ -16,10 +16,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    import avatar_display
-except ImportError as e:
-    print(f"❌ Could not import avatar_display: {e}")
-    sys.exit(1)
+    from . import avatar_display
+except ImportError:
+    # Fallback for direct execution
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from avatar import avatar_display
 
 def show_status():
     """Show current avatar status"""

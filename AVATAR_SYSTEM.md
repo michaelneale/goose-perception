@@ -75,7 +75,7 @@ python test_avatar.py
 - **Size**: 80x80 pixels (configurable in `load_avatar_images()`)
 - **Position**: Top-right corner (configurable in `position_avatar()`)
 - **Transparency**: 90% opacity (configurable via `attributes('-alpha', 0.9)`)
-- **Images**: Uses `goose.png` from project root
+- **Images**: Uses `avatar/goose.png` from avatar directory
 
 ### Message Timing
 - **Display Duration**: 8 seconds (configurable via `message_duration`)
@@ -154,7 +154,7 @@ The avatar is designed to be subtly unsettling while helpful:
 
 ### Avatar Not Appearing
 - Check if Pillow is installed: `pip install pillow`
-- Verify `goose.png` exists in project root
+- Verify `avatar/goose.png` exists in avatar directory
 - Check console for error messages
 
 ### Messages Not Triggering

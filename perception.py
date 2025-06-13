@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-listen.py - Continuously listen to audio, detect wake word, and capture full conversations
+perception.py - Continuously listen to audio, detect wake word, and capture full conversations
 Enhanced with hotkey support for screen capture and text input
 """
 
@@ -34,8 +34,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import agent
 
 # Import avatar display system
-import avatar_display
-import observer_avatar_bridge
+from avatar import avatar_display
+from avatar import observer_avatar_bridge
 
 # Add the wake-classifier directory to the path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-classifier'))

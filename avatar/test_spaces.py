@@ -4,7 +4,13 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from avatar_display import start_avatar_system
+# Try both relative and absolute imports for flexibility
+try:
+    from .avatar_display import start_avatar_system
+except ImportError:
+    # Fallback for direct execution
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from avatar.avatar_display import start_avatar_system
 
 def test_spaces_avatar():
     """Test avatar with macOS Spaces support"""

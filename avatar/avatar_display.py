@@ -99,7 +99,7 @@ class GooseAvatar(QWidget):
     def load_personalities(self):
         """Load personality definitions from personalities.json"""
         try:
-            personalities_path = Path("personalities.json")
+            personalities_path = Path(__file__).parent / "personalities.json"
             if personalities_path.exists():
                 with open(personalities_path, 'r') as f:
                     data = json.load(f)
@@ -1160,7 +1160,7 @@ class GooseAvatar(QWidget):
                 time.sleep(3)
                 
                 print("🔄 Starting background personality update...")
-                import observer_avatar_bridge
+                from . import observer_avatar_bridge
                 if hasattr(observer_avatar_bridge, 'bridge_instance') and observer_avatar_bridge.bridge_instance:
                     # Clear old suggestions first to ensure only personality-appropriate content
                     observer_avatar_bridge.bridge_instance.clear_old_suggestions()
@@ -1397,12 +1397,12 @@ def start_avatar_system():
     
     # Set the Goose icon for the application
     try:
-        goose_icon_path = Path(__file__).parent / "Goose.png"
+        goose_icon_path = Path(__file__).parent / "goose.png"
         if goose_icon_path.exists():
             app_instance.setWindowIcon(QIcon(str(goose_icon_path)))
-            print("🪿 Set Goose.png as application icon")
+            print("🪿 Set goose.png as application icon")
         else:
-            print("⚠️ Goose.png not found, using default icon")
+            print("⚠️ goose.png not found, using default icon")
     except Exception as e:
         print(f"⚠️ Could not set Goose icon: {e}")
     
