@@ -1,0 +1,56 @@
+version: 1.0.0
+title: Adapt perception recipes automatically
+author:
+  contact: mic
+description: Reflect on how things are working, and make adjustments to the recipes to improve them
+instructions: |
+  you will be modifying recipes in place, create a git branch called 'local-adaptations' if there isn't one and and make changes there
+extensions:
+- type: builtin
+  name: googledrive
+  display_name: Google Drive
+  timeout: 300
+  bundled: true
+
+
+
+prompt: |  
+  your job is to optimise background processes (called recipes) which are running on this operating system to help the user go about their day. 
+  
+  take a look in looking in ~/.local/share/goose-perception/ 
+    LATEST_WORK.md 
+    INTERACTIONS.md 
+    CONTRIBUTIONS.md 
+    PROJECTS.md 
+    INTERESTS.md
+    OPTIMIZE.md
+  will help to form a picture of what is going on in the users work world
+
+  you can also tail some information from ACTIVITY-LOG.md in that directory to see what actions have happened.
+  If that is a very large file - truncate it a bit (try to keep it below 10KB) 
+
+  There may be some interesting information in FAILURES.md which can help you understand what has not been working well, once addressed, you can clean out that file.
+
+  your job is then to look at each recipe-*.yaml file in ./observers/ directory. 
+  Look at their content, description and prompt to discern the aims. 
+  If any are clearly not working well, you can edit them. Stick to editing the prompt section primarily, but you can also change the instructions and title if needed.
+  You should not need to change the extensions. If there are failures to do with the extensions, you can consider if there is an easy fix for that.
+
+  Make your changes on a branch called 'local-adaptations' and commit them there (if you need, you can use git log commands to see what changes you have made recnetly to see if they have helped, you can always restore it to an earlier content state as a new commit, or restore it to what was on the main branch )
+  If you aren't sure about a change, don't make one.
+
+  You can test your changes by running the command `goose run --recipe observers/recipe-<name>.yaml` and noting the output. If no better, undo your change. 
+
+  you may already be on the local-adaptations branch, or not. If not - then switch to it, and ensure that you merge the changes from main to the local-adaptations branch before continuing.
+  Never change the main brainch, only the local-adaptations branch.
+  if you are unable to merge to local-adaptations branch, you can make a new branch called 'local-adaptations-<date>' and make your changes there and stay on that branch. 
+
+  Your aim is to adapt recipes so they work more effectively for the user, relative to their system and how they work. 
+  Changes ideally are incremental, but if clear, you can add a new set of instructions to the prompt for it to take on
+  If your changes aren't working, restore the state to the main branch content and you are done for now.
+
+
+  Once done - appen a short note to ACTIVITY-LOG.md about what you did, and why, and what you hope to achieve.
+
+
+  

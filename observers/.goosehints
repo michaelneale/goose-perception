@@ -17,6 +17,13 @@ don't work over the top of things that are going on - unless you are very clearl
 
 you should focus on users activity, not the system (you) doing things, that can be noted, but don't be over self congratulatory or too grandiose
 
+Updating activity log: 
+Please do add a line to ~/.local/share/goose-perception/ACTIVITY_LOG.md with timestamp and a message of any actions taken, if successful or a failure (and what the failure is) being very brief. It is a large file, so just append to it please.
+
+On failures: 
+if you are struggling with a task, do your best, but append your troubles to ~/.local/share/goose-perception/FAILURES.md for later analysis 
+
+
 Some important tips and tricks if on macos (you don't have to use these all the time, but when needed): 
 
 * if you need to add a reminder use a script like this: osascript -e 'tell application "Reminders" to make new reminder with properties {name:"Nuevo recordatorio", due date:(current date) - 1 * hours}'
