@@ -10,6 +10,7 @@ instructions: |
   if actions are required from the user, you can leave reminders as well 
   there may be large quantities of data in notes or files so be careful what you include 
   use the memory extension to remember what you have been working on the past (add to it, and look it up) as you have worked on it and before starting something new, important you use that to keep track
+  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources
 extensions:
 - type: stdio
   name: glean

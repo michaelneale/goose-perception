@@ -28,15 +28,6 @@ extensions:
   env_keys: []
   timeout: null
   description: google calendar access 
-- type: stdio
-  name: glean
-  cmd: uvx
-  args:
-  - mcp_glean@latest
-  envs: {}
-  env_keys: []
-  timeout: null
-  description: Glean search of company knowledge with personal perspective  
 - type: builtin
   name: computercontroller
   display_name: Computer Controller

@@ -32,3 +32,6 @@ prompt: |
   Your aim should be to build a picture of their inflight projects, with descriptions and names (brief of course, as it will change). The user will be working on various things throughout the day and week, that is ok. 
   it isn't exhaustive, but the idea is to be helpful so things noted in the PROJECTS.md file can be referred to later if needed and not forgetten.
 
+  IMPORTANT if you use glean, consider that it may return old irrelevant content and project information, so be sure to cross check it with other sources. 
+  If you aren't sure it is current, then make sure it isn't mentioned in PROJECTS.md as glean has a habit of returning too much old data.
+

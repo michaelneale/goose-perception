@@ -55,6 +55,7 @@ prompt: |
   Consult below to get work context:  
   Consider their calendar, their contributions to code and documents, and their interactions with others.
   You can look in email (via glean) for any travel/vacation plans upcoming too and consider that (be careful with time and timezones, note users current timezone)
+  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources
   looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and PROJECTS.md to form a picture of what is going on in the users work world. 
 
   WORK.md is also useful as a longer running work log.

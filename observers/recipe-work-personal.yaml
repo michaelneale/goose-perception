@@ -37,6 +37,8 @@ prompt: |
   looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, PROJECTS.md and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
   you can use glean to look at their recent slack and email interactions to work out what projects may be work related. 
   They will often research varied subjects as a creative person, so that is ok, but should be noted.
+  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources
 
   Produce a beautiful report if you think the balance is not right with suggestions as html5 page, and open it with a command like: 
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
+  

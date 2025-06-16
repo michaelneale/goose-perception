@@ -31,6 +31,8 @@ Some important tips and tricks if on macos (you don't have to use these all the 
 * if using apple notes as the notes app use this to limit the amount of data returned, and only look for notes that mention goose in the name to consider them further as relevant when looking up notes:
         - osascript -e 'tell application "Notes" to get name of notes 1 thru 10'
         - osascript -e 'tell application "Notes" to get modification  date of note 1'
-* if interacting with notes apps, make sure to format clearly as needed (may be html) with linebreaks and BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES        
+* if interacting with notes apps, make sure to format clearly as needed (may be html) with linebreaks and BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES
+
+BEFORE making any serious changes (ie pushing code, editing a doc) ensure you are reasonably confident that it is relevant and needed
 
 

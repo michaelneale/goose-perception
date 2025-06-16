@@ -29,3 +29,4 @@ prompt: |
   extract themes and project names
 
   Save this report to ~/.local/share/goose-perception/INTERACTIONS.md - if you are having technical issues, don't over write what is there with useless info.
+  Glean can return old data or too much so be careful to cross reference it with other sources
