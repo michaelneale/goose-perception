@@ -9,6 +9,52 @@ set shell := ["bash", "-c"]
 default:
     @just run
 
+# Check if repo is out of date with upstream and show banner if needed
+check-upstream:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    # Get current branch
+    CURRENT_BRANCH=$(git branch --show-current)
+    
+    # Skip if not on main branch
+    if [[ "$CURRENT_BRANCH" != "main" ]]; then
+        exit 0
+    fi
+    
+    # Skip if repo is dirty
+    if ! git diff-index --quiet HEAD --; then
+        exit 0
+    fi
+    
+    # Fetch latest from origin to get current remote state
+    if ! git fetch origin main --quiet 2>/dev/null; then
+        exit 0
+    fi
+    
+    # Check if local main is behind origin/main
+    LOCAL_COMMIT=$(git rev-parse HEAD)
+    REMOTE_COMMIT=$(git rev-parse origin/main)
+    
+    if [[ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]]; then
+        # Check if we're behind (not ahead or diverged)
+        if git merge-base --is-ancestor HEAD origin/main; then
+            echo ""
+            echo "╔══════════════════════════════════════════════════════════════╗"
+            echo "║                    ⚠️  REPOSITORY OUT OF DATE ⚠️                ║"
+            echo "╠══════════════════════════════════════════════════════════════╣"
+            echo "║                                                              ║"
+            echo "║  Your local repository is behind the remote main branch.    ║"
+            echo "║                                                              ║"
+            echo "║  To get the latest updates, please run:                     ║"
+            echo "║                                                              ║"
+            echo "║      git pull origin main                                    ║"
+            echo "║                                                              ║"
+            echo "╚══════════════════════════════════════════════════════════════╝"
+            echo ""
+        fi
+    fi
+
 # Check for ffmpeg on macOS and install if needed
 check-ffmpeg:
     #!/usr/bin/env bash
@@ -68,6 +114,9 @@ run-simple:
     #!/usr/bin/env bash
     set -euo pipefail
     
+    # Check if repo is up to date with upstream
+    just check-upstream
+    
     # Ensure setup is done
     just setup
     
@@ -82,6 +131,9 @@ run-simple:
 run: 
     #!/usr/bin/env bash
     set -euo pipefail
+    
+    # Check if repo is up to date with upstream
+    just check-upstream
     
     # Ensure setup is done
     just setup
