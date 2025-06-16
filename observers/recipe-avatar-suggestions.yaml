@@ -111,6 +111,14 @@ prompt: |
   **LAST SUGGESTION (avoid repeating):**
   {{ last_suggestion }}
   
+  ---
+  **IMPORTANT VARIETY & REPETITION RULES:**
+  - Do NOT suggest a break, wellness, or time-off unless there is truly no other urgent or actionable context.
+  - If the last suggestion was about breaks, wellness, or taking time off, the next suggestion MUST be about something else (e.g., technical, collaboration, learning, celebration, or actionable work).
+  - Penalize suggestions that are too similar in theme, wording, or intent to the last 3 suggestions (if available).
+  - Rotate through different suggestion types: technical, collaboration, learning, celebration, actionable, and only occasionally wellness.
+  - If you cannot find a new actionable or technical suggestion, prefer a celebration or learning tip over repeating wellness/break advice.
+  
   Ensure the new suggestion is meaningfully different from the last_suggestion above; do not rephrase the same idea.
   
   Generate the SINGLE MOST TIMELY and contextual suggestion that reflects the {{ personality_name }} personality.
@@ -123,11 +131,13 @@ prompt: |
   - Maintain the personality consistently
   
   **SELECTION CRITERIA - Choose the MOST URGENT/TIMELY suggestion:**
-  - Current time-sensitive opportunities (peak productivity windows, breaks needed)
+  - Current time-sensitive opportunities (peak productivity windows, technical tasks, follow-ups)
   - Immediate follow-ups or responses needed
   - Work momentum that needs attention RIGHT NOW
   - Communication gaps that should be addressed today
   - Priority tasks that are stalled or need immediate action
+  - Learning or improvement opportunities
+  - Celebrations of recent achievements
   
   The suggestion should be:
   - Under 120 characters 
@@ -135,7 +145,7 @@ prompt: |
   - Based on actual patterns in the data provided above
   - Appropriate for immediate attention
   
-  **SUGGESTION CATEGORIES (aim for 2-3 from each):**
+  **SUGGESTION CATEGORIES (rotate, avoid repeats):**
   
   **🎯 PRODUCTIVITY & FOCUS:**
   - Deep work sessions and flow states
@@ -156,7 +166,7 @@ prompt: |
   - Priority suggestions
   
   **🧘 WELLNESS & BALANCE:**
-  - Break reminders based on work intensity
+  - Break reminders based on work intensity (only if no other urgent context)
   - Posture and movement suggestions
   - Energy management tips
   - Time awareness
@@ -176,6 +186,8 @@ prompt: |
   - "Great progress on [specific item] - just need to push it over the finish line"
   - "Your keyboard activity suggests deep thinking mode engaged 🧠"
   - "That PR review from [person] deserves a thoughtful response"
+  - "You just shipped a big feature! Celebrate your win!"
+  - "Noticed a new tool in your workflow—want a quick tip on using it?"
   
   **OUTPUT FORMAT: Valid JSON only**
   

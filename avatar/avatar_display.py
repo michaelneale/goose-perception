@@ -1723,6 +1723,18 @@ class GooseAvatar(QWidget):
         # Convert message to string if needed
         message = str(message)
         
+        # Check for recent repeats (not just in the queue)
+        message_text = message.strip()
+        for recent_msg in self.recent_suggestions:
+            if recent_msg == message_text:
+                print(f"🔄 Message filtered (recently shown): {message_text[:80]}...")
+                return False  # Message was recently shown, not added
+        # Check for duplicates in the queue to avoid spam
+        for existing_msg in self.message_queue:
+            if existing_msg['message'].strip() == message_text:
+                print(f"🔄 Duplicate message filtered: {message_text[:80]}...")
+                return False  # Message was duplicate, not added
+        
         # Create message object
         message_obj = {
             'message': message,
@@ -1732,13 +1744,6 @@ class GooseAvatar(QWidget):
             'priority': priority,
             'timestamp': datetime.now().timestamp()
         }
-        
-        # Check for duplicates to avoid spam
-        message_text = message.strip()
-        for existing_msg in self.message_queue:
-            if existing_msg['message'].strip() == message_text:
-                print(f"🔄 Duplicate message filtered: {message_text[:80]}...")
-                return False  # Message was duplicate, not added
         
         # Add to queue based on priority
         if priority == 'high':
@@ -1842,6 +1847,13 @@ class GooseAvatar(QWidget):
             self.is_showing_message = True
             print(f"💬 Message shown - container: {container_width}x{container_height} at ({bubble_x}, {bubble_y}) - bottom-right anchored")
             
+            # Update recent_suggestions to avoid immediate repeats
+            message_text = message.strip()
+            if message_text:
+                self.recent_suggestions.append(message_text)
+                if len(self.recent_suggestions) > self.max_recent_suggestions:
+                    self.recent_suggestions = self.recent_suggestions[-self.max_recent_suggestions:]
+        
         except Exception as e:
             print(f"❌ Error showing message: {e}")
             self.is_showing_message = False

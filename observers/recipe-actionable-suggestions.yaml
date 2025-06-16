@@ -119,6 +119,14 @@ prompt: |
   **LAST SUGGESTION (avoid repeating):**
   {{ last_suggestion }}
   
+  ---
+  **VARIETY & REPETITION RULES:**
+  - Do NOT repeat the same action type (e.g., communication, review, planning) unless there is no other urgent context.
+  - If the last suggestion was about communication, the next must be about something else (e.g., technical, planning, review, or project action).
+  - Penalize suggestions that are too similar in theme, wording, or intent to the last 3 (if available).
+  - Rotate through action types: communication, technical, planning, review, documentation, and only occasionally reminders.
+  - Prefer creative, technical, or impactful actions over repeating communication advice.
+  
   Ensure the new actionable suggestion is substantially different from the last_suggestion; do NOT recommend the same exact action or message.
   
   Analyze the work patterns in the data above and generate actionable suggestions that reflect the {{ personality_name }} personality.

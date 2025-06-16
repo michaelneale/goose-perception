@@ -103,6 +103,14 @@ prompt: |
   **ACTIVITY-LOG.md (recent system activity):**
   {{ activity_log_content }}
   
+  ---
+  **VARIETY & REPETITION RULES:**
+  - Do NOT repeat the same theme (e.g., time/energy, break, or focus) unless there is no other context.
+  - If the last message was about time, energy, or breaks, the next must be about something else (e.g., technical, mood, work pattern, or creative observation).
+  - Penalize messages that are too similar in theme, wording, or intent to the last 3 (if available).
+  - Rotate through time, technical, mood, and work pattern observations for variety.
+  - Prefer creative, observational, or technical banter over repeating time/energy advice.
+  
   Based on the current activity data above, generate the SINGLE MOST CONTEXTUAL casual chit-chat message that reflects the {{ personality_name }} personality.
   
   **CHIT-CHAT PRINCIPLES:**
@@ -120,7 +128,7 @@ prompt: |
   - Focus on aspects that align with: {{ personality_priorities }}
   - Keep the {{ personality_name }} personality evident but still casual and light
   
-  **CHIT-CHAT CATEGORIES (aim for 2-3 from each):**
+  **CHIT-CHAT CATEGORIES (rotate, avoid repeats):**
   
   **⏰ TIME-AWARE OBSERVATIONS:**
   - Morning energy and fresh starts
