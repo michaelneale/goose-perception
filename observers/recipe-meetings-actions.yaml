@@ -67,6 +67,7 @@ prompt: |
   Also note in ~/.local/share/goose-perception/MEETING_ACTIONS.md any actions to take (look there to ensure not already noted previously).
 
   you can use glean to look at their recent slack and email interactions to work out what may be important if you can related to that meeting, only if needed. Some interaction may actually be the actions taken.
+  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources
   you can if you need look in github via gh cli to see if any relevant activity was made related to these follow up actions.
 
   If you believe there is an action being neglected, or is newly important, you can: 
