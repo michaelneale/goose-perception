@@ -26,6 +26,16 @@ from fuzzywuzzy import fuzz
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.tag import pos_tag
+
+# Ensure required NLTK data is downloaded
+try:
+    nltk.data.find('tokenizers/punkt_tab')
+    nltk.data.find('taggers/averaged_perceptron_tagger_eng')
+except LookupError:
+    print("📚 Downloading required NLTK data...")
+    nltk.download('punkt_tab', quiet=True)
+    nltk.download('averaged_perceptron_tagger_eng', quiet=True)
+    print("✅ NLTK data downloaded successfully")
 from pynput import keyboard
 from pynput.keyboard import Key, Listener
 

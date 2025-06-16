@@ -9,20 +9,52 @@ set shell := ["bash", "-c"]
 default:
     @just run
 
+# Check for ffmpeg on macOS and install if needed
+check-ffmpeg:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    # Only check on macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "🔍 Checking for ffmpeg on macOS..."
+        
+        # Check if ffmpeg is available
+        if ! command -v ffmpeg &> /dev/null; then
+            echo "⚠️  ffmpeg not found. Installing via Homebrew..."
+            
+            # Check if brew is available
+            if ! command -v brew &> /dev/null; then
+                echo "❌ Homebrew not found. Please install Homebrew first:"
+                echo "   /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+                exit 1
+            fi
+            
+            # Install ffmpeg
+            echo "📦 Installing ffmpeg..."
+            if brew install ffmpeg; then
+                echo "✅ ffmpeg installed successfully!"
+            else
+                echo "❌ Failed to install ffmpeg. Please install manually:"
+                echo "   brew install ffmpeg"
+                exit 1
+            fi
+        else
+            echo "✅ ffmpeg is already installed"
+        fi
+    else
+        echo "ℹ️  Not on macOS, skipping ffmpeg check"
+    fi
+
 # Setup required dependencies and data
 setup:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🔧 Setting up Goose Perception dependencies..."
     
-    # Download required NLTK data
-    echo "📚 Downloading NLTK data..."
-    python3 -c "import nltk; nltk.download('punkt_tab', quiet=True)"
-    python3 -c "import nltk; nltk.download('averaged_perceptron_tagger_eng', quiet=True)"
-    python3 -c "import nltk; nltk.download('stopwords', quiet=True)"
-    python3 -c "import nltk; nltk.download('wordnet', quiet=True)"
+    # Check for ffmpeg on macOS
+    just check-ffmpeg
     
-    echo "✅ Setup complete!"
+    echo "✅ Setup complete! (NLTK data will be downloaded automatically when needed)"
 
 # Train the wake word classifier
 train-classifier:
