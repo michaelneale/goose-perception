@@ -6,7 +6,8 @@ import sys
 import os
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
-                            QPushButton, QHBoxLayout, QTextEdit, QMenu)
+                            QPushButton, QHBoxLayout, QTextEdit, QMenu, QInputDialog, 
+                            QSpinBox, QCheckBox)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics
 import random
@@ -53,6 +54,8 @@ class GooseAvatar(QWidget):
         # Dragging state
         self.drag_start_pos = None
         self.is_dragging = False
+        # Position persistence
+        self.remember_position_enabled = False
         
         # Idle behavior settings - more thoughtful and less aggressive
         self.idle_check_interval = 45000  # Check every 45 seconds (was 15)
@@ -68,6 +71,9 @@ class GooseAvatar(QWidget):
         self.current_personality = "comedian"  # Default personality
         self.personalities = self.load_personalities()
         self.personality_menu_open = False  # Track if personality menu is open
+        
+        # Load general settings (remember position etc.) before anything that depends on them
+        self._load_general_settings()
         
         # Load saved personality setting if available
         saved_personality = self.load_personality_setting()
@@ -581,6 +587,10 @@ class GooseAvatar(QWidget):
         if action_data and action_data.get('type') == 'action_menu':
             return self.create_action_menu_bubble(action_data.get('greeting', message), action_data.get('actions', []))
         
+        # Settings bubble
+        if action_data and action_data.get('type') == 'settings':
+            return self.create_settings_bubble()
+        
         bubble_widget = QWidget()
         bubble_widget.setStyleSheet("""
             QWidget {
@@ -674,17 +684,17 @@ class GooseAvatar(QWidget):
             button_layout.addWidget(dismiss_button)
             layout.addLayout(button_layout)
         
-        # Make bubble clickable to dismiss with robust error handling
-        def safe_dismiss(event):
-            try:
-                print("👆 Bubble clicked - dismissing message")
-                self.hide_message()
-            except Exception as e:
-                print(f"❌ Error dismissing via click: {e}")
-                # Fallback to force dismiss
-                self.force_dismiss_message()
-        
-        bubble_widget.mousePressEvent = safe_dismiss
+        # Only make plain information bubbles dismissable by click.
+        if action_data is None:
+            def safe_dismiss(event):
+                try:
+                    print("👆 Bubble clicked - dismissing message")
+                    self.hide_message()
+                except Exception as e:
+                    print(f"❌ Error dismissing via click: {e}")
+                    # Fallback to force dismiss
+                    self.force_dismiss_message()
+            bubble_widget.mousePressEvent = safe_dismiss
         
         # Also add keyboard shortcut for emergency dismiss (Escape key)
         def keypress_handler(event):
@@ -1083,6 +1093,12 @@ class GooseAvatar(QWidget):
                     'label': '📝 Recent Work',
                     'description': 'Show what you\'ve been working on',
                     'action': 'recent_work'
+                },
+                {
+                    'id': 'settings',
+                    'label': '⚙️ Settings',
+                    'description': 'Configure avatar behaviour',
+                    'action': 'settings'
                 }
             ]
         }
@@ -1263,6 +1279,8 @@ class GooseAvatar(QWidget):
             self.show_personality_menu_from_action()
         elif action_type == 'recent_work':
             self.show_recent_work()
+        elif action_type == 'settings':
+            self.show_settings_dialog()
         else:
             self.show_message(f"🚧 {action['label']} is not implemented yet", 3000, 'idle')
     
@@ -1836,6 +1854,246 @@ class GooseAvatar(QWidget):
             self.queue_timer.start(self.message_spacing_delay)
         else:
             print("📭 Message queue is empty")
+
+    def show_settings_dialog(self):
+        """Display inline settings bubble instead of popup dialogs"""
+        action_data = { 'type': 'settings' }
+        # Show for up to 2 minutes to give user time
+        self._show_message_immediately("⚙️ Settings", 120000, 'talking', action_data)
+
+    def create_settings_bubble(self):
+        """Create an inline settings configuration bubble"""
+        bubble_widget = QWidget()
+        bubble_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(52, 73, 94, 230);
+                border: 2px solid rgba(127, 140, 141, 180);
+                border-radius: 12px;
+            }
+        """)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(8)
+
+        # Title
+        title_label = QLabel("⚙️ Settings")
+        title_label.setTextFormat(Qt.TextFormat.RichText)
+        title_label.setWordWrap(True)
+        font = QFont()
+        font.setPointSize(13)
+        font.setWeight(QFont.Weight.Medium)
+        title_label.setFont(font)
+        title_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 13px;
+                font-weight: 500;
+                background: transparent;
+                padding: 8px;
+                border: none;
+            }
+        """)
+        layout.addWidget(title_label)
+
+        # Load current settings
+        settings_path = Path.home() / ".local/share/goose-perception/AVATAR_SETTINGS.json"
+        current_interval = 1
+        current_mute_minutes = 0
+        remember_position_val = False
+        try:
+            if settings_path.exists():
+                with open(settings_path, 'r') as f:
+                    data = json.load(f)
+                current_interval = int(data.get("suggestion_interval_minutes", 1))
+                # Calculate remaining mute duration (rounded) if set
+                mute_until = data.get("mute_until")
+                if mute_until:
+                    from datetime import datetime
+                    try:
+                        diff = datetime.fromisoformat(mute_until) - datetime.now()
+                        current_mute_minutes = max(0, int(diff.total_seconds() // 60))
+                    except Exception:
+                        current_mute_minutes = 0
+                remember_position_val = bool(data.get("remember_position", False))
+        except Exception as e:
+            print(f"⚠️ Could not load current settings: {e}")
+
+        # Suggestion interval row
+        interval_row = QHBoxLayout()
+        interval_label = QLabel("Interval (min):")
+        interval_label.setStyleSheet("color: white; font-size: 11px;")
+        interval_spin = QSpinBox()
+        interval_spin.setRange(1, 60)
+        interval_spin.setValue(current_interval)
+        interval_spin.setStyleSheet("background-color: white; color: black; padding:2px; border-radius:4px;")
+        interval_row.addWidget(interval_label)
+        interval_row.addWidget(interval_spin)
+        layout.addLayout(interval_row)
+
+        # Mute duration row
+        mute_row = QHBoxLayout()
+        mute_label = QLabel("Mute (min):")
+        mute_label.setStyleSheet("color: white; font-size: 11px;")
+        mute_spin = QSpinBox()
+        mute_spin.setRange(0, 1440)
+        mute_spin.setValue(current_mute_minutes)
+        mute_spin.setStyleSheet("background-color: white; color: black; padding:2px; border-radius:4px;")
+        mute_row.addWidget(mute_label)
+        mute_row.addWidget(mute_spin)
+        layout.addLayout(mute_row)
+
+        # Remember position checkbox
+        remember_checkbox = QCheckBox("Remember avatar position")
+        remember_checkbox.setChecked(remember_position_val)
+        remember_checkbox.setStyleSheet("color: white; font-size: 11px;")
+        layout.addWidget(remember_checkbox)
+
+        # Buttons row
+        buttons_row = QHBoxLayout()
+        save_button = QPushButton("Save")
+        save_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(46, 204, 113, 200);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: bold;
+                font-size: 10px;
+            }
+            QPushButton:hover {
+                background-color: rgba(39, 174, 96, 255);
+            }
+            QPushButton:pressed {
+                background-color: rgba(34, 153, 84, 255);
+            }
+        """)
+
+        cancel_button = QPushButton("Cancel")
+        cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(149, 165, 166, 150);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: bold;
+                font-size: 10px;
+            }
+            QPushButton:hover {
+                background-color: rgba(127, 140, 141, 200);
+            }
+            QPushButton:pressed {
+                background-color: rgba(95, 106, 106, 255);
+            }
+        """)
+
+        buttons_row.addWidget(save_button)
+        buttons_row.addWidget(cancel_button)
+        layout.addLayout(buttons_row)
+
+        def save_settings():
+            """Save settings to JSON and give feedback"""
+            try:
+                new_interval = interval_spin.value()
+                mute_minutes = mute_spin.value()
+                remember_pos = remember_checkbox.isChecked()
+
+                # Prepare settings
+                data = {}
+                if settings_path.exists():
+                    try:
+                        data = json.load(settings_path.open())
+                    except Exception:
+                        data = {}
+
+                data["suggestion_interval_minutes"] = new_interval
+                data["remember_position"] = remember_pos
+
+                from datetime import datetime, timedelta
+                if mute_minutes > 0:
+                    data["mute_until"] = (datetime.now() + timedelta(minutes=mute_minutes)).isoformat(timespec='seconds')
+                else:
+                    data.pop("mute_until", None)
+
+                # Ensure directory exists
+                settings_path.parent.mkdir(parents=True, exist_ok=True)
+                json.dump(data, settings_path.open('w'), indent=2)
+
+                # If just enabled remember-position, immediately persist current location
+                if remember_pos:
+                    self._save_position_if_needed()
+
+                # Hide bubble and show confirmation
+                self.hide_message()
+                self.show_message("⚙️ Settings saved (changes apply immediately)", 5000, 'idle')
+            except Exception as e:
+                print(f"⚠️ Could not save settings: {e}")
+                self.hide_message()
+                self.show_message(f"⚠️ Could not save settings: {e}", 5000, 'idle')
+
+        save_button.clicked.connect(save_settings)
+        cancel_button.clicked.connect(self.hide_message)
+
+        bubble_widget.setLayout(layout)
+        # Do not auto-dismiss entire settings bubble on generic clicks; rely on explicit buttons.
+
+        # Ensure proper size so the container lays out correctly
+        bubble_widget.setFixedWidth(340)
+        bubble_widget.adjustSize()
+
+        return bubble_widget
+
+    # ------------------------------------------------------------------
+    # General Settings  (suggestion interval handled elsewhere)
+    # ------------------------------------------------------------------
+    def _get_settings_path(self):
+        return Path.home() / ".local/share/goose-perception/AVATAR_SETTINGS.json"
+
+    def _load_general_settings(self):
+        """Load remember_position flag and stored coordinates."""
+        try:
+            spath = self._get_settings_path()
+            if not spath.exists():
+                return
+            with open(spath, 'r') as f:
+                data = json.load(f)
+
+            self.remember_position_enabled = bool(data.get("remember_position", False))
+            print(f"🔧 remember_position flag loaded: {self.remember_position_enabled}")
+
+            if self.remember_position_enabled and isinstance(data.get("relative_position"), list):
+                pos = data["relative_position"]
+                if len(pos) == 2 and all(isinstance(v, (int, float)) for v in pos):
+                    # Clamp between 0-1 just in case
+                    x = max(0.0, min(1.0, float(pos[0])))
+                    y = max(0.0, min(1.0, float(pos[1])))
+                    self.relative_position = (x, y)
+                    print(f"📍 Loaded saved relative position {self.relative_position}")
+        except Exception as e:
+            print(f"⚠️ Could not load general settings: {e}")
+
+    def _save_position_if_needed(self):
+        """Persist relative_position when remember_position is enabled."""
+        if not self.remember_position_enabled:
+            return
+        try:
+            spath = self._get_settings_path()
+            data = {}
+            if spath.exists():
+                try:
+                    data = json.load(spath.open())
+                except Exception:
+                    data = {}
+            data["relative_position"] = [round(self.relative_position[0], 4), round(self.relative_position[1], 4)]
+            # Keep flag in sync
+            data["remember_position"] = True
+            spath.parent.mkdir(parents=True, exist_ok=True)
+            json.dump(data, spath.open('w'), indent=2)
+            print(f"💾 Saved avatar relative position {self.relative_position}")
+        except Exception as e:
+            print(f"⚠️ Could not save avatar position: {e}")
 
 
 

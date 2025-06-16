@@ -74,6 +74,11 @@ parameters:
   requirement: optional
   default: ""
   description: "User's local timezone"
+- key: last_suggestion
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Most recent suggestion that was already displayed, to avoid repetition"
 
 prompt: |
   CURRENT LOCAL TIME: {{ current_time }}
@@ -102,6 +107,11 @@ prompt: |
   
   **ACTIVITY-LOG.md (recent system activity):**
   {{ activity_log_content }}
+  
+  **LAST SUGGESTION (avoid repeating):**
+  {{ last_suggestion }}
+  
+  Ensure the new suggestion is meaningfully different from the last_suggestion above; do not rephrase the same idea.
   
   Generate the SINGLE MOST TIMELY and contextual suggestion that reflects the {{ personality_name }} personality.
   **IMPORTANT: Use the local time provided above, not UTC. All time references should be in the user's local timezone.**

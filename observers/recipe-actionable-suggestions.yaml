@@ -74,6 +74,11 @@ parameters:
   requirement: optional
   default: ""
   description: "User's local timezone"
+- key: last_suggestion
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Most recent suggestion already shown, to prevent repetition"
 
 prompt: |
   CURRENT LOCAL TIME: {{ current_time }}
@@ -110,6 +115,11 @@ prompt: |
   
   **ACTIVITY-LOG.md (recent system activity):**
   {{ activity_log_content }}
+  
+  **LAST SUGGESTION (avoid repeating):**
+  {{ last_suggestion }}
+  
+  Ensure the new actionable suggestion is substantially different from the last_suggestion; do NOT recommend the same exact action or message.
   
   Analyze the work patterns in the data above and generate actionable suggestions that reflect the {{ personality_name }} personality.
   Look for specific patterns that need action:

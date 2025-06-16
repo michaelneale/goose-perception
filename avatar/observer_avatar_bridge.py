@@ -25,9 +25,13 @@ class ObserverAvatarBridge:
         self.last_check_times = {}
         self.last_file_contents = {}
         self.is_running = False
-        # Unified content generation timer
+        # Track last suggestion to reduce repeats
+        self.last_suggestion_text = ""
+        # Unified content generation timer (loaded from settings or default 1 minute)
         self.last_content_generation = datetime.min
-        self.content_generation_interval = timedelta(minutes=1)  # Generate content every minute (debug mode)
+        self.settings_path = Path.home() / ".local/share/goose-perception/AVATAR_SETTINGS.json"
+        self.content_generation_interval = timedelta(minutes=self._load_suggestion_interval())
+        self._settings_mtime = self.settings_path.stat().st_mtime if self.settings_path.exists() else 0
         
         # Recipe selection probabilities (which recipe to run when timer fires)
         self.suggestions_chance = 0.5     # 50% chance for helpful suggestions (higher)
@@ -83,6 +87,22 @@ class ObserverAvatarBridge:
     def _check_files(self):
         """Check monitored files for changes"""
         current_time = datetime.now()
+        
+        # Check mute status
+        if self._is_muted():
+            return  # skip processing while muted
+        
+        # Hot-reload settings if file changed
+        try:
+            if self.settings_path.exists():
+                mtime = self.settings_path.stat().st_mtime
+                if mtime != self._settings_mtime:
+                    self._settings_mtime = mtime
+                    new_interval = self._load_suggestion_interval()
+                    self.content_generation_interval = timedelta(minutes=new_interval)
+                    print(f"🔄 Reloaded avatar settings: suggestion interval now {new_interval} min")
+        except Exception as e:
+            print(f"⚠️ Could not reload avatar settings: {e}")
         
         # Check if it's time to generate new content
         if current_time - self.last_content_generation > self.content_generation_interval:
@@ -158,6 +178,12 @@ class ObserverAvatarBridge:
                     params[key] = ""
             except Exception:
                 params[key] = ""
+        
+        # Include last suggestion so recipe can avoid immediate repeats
+        if hasattr(self, 'last_suggestion_text') and self.last_suggestion_text:
+            params['last_suggestion'] = self.last_suggestion_text.replace("\n", " ")[:400]
+        else:
+            params['last_suggestion'] = ""
         
         return params
 
@@ -360,6 +386,12 @@ class ObserverAvatarBridge:
                 avatar_state='pointing'
             )
             
+            # Track last suggestion text as well (for diversity)
+            try:
+                self.last_suggestion_text = suggestion.get('message', '')
+            except Exception:
+                pass
+            
         except Exception as e:
             print(f"Error showing actionable suggestion: {e}")
     
@@ -405,6 +437,12 @@ class ObserverAvatarBridge:
         # Use the thread-safe function instead of direct call
         from . import avatar_display
         avatar_display.show_suggestion(suggestion_type, message)
+        
+        # Save last suggestion text for repetition avoidance
+        try:
+            self.last_suggestion_text = suggestion.get('message', '')
+        except Exception:
+            pass
     
     def _process_file_change(self, filename, new_content, old_content, category):
         """Process a file change and potentially trigger avatar message"""
@@ -534,6 +572,37 @@ class ObserverAvatarBridge:
             if append_mode:
                 keep_lines.append(line)
         return "\n".join(keep_lines)
+
+    # ------------------------------------------------------------------
+    # Settings loader
+    # ------------------------------------------------------------------
+    def _load_suggestion_interval(self) -> int:
+        """Load suggestion interval (minutes) from AVATAR_SETTINGS.json or return default (1)."""
+        try:
+            settings_path = Path.home() / ".local/share/goose-perception/AVATAR_SETTINGS.json"
+            if settings_path.exists():
+                import json
+                with open(settings_path, 'r') as f:
+                    data = json.load(f)
+                value = int(data.get("suggestion_interval_minutes", 1))
+                return max(1, value)
+        except Exception as e:
+            print(f"⚠️ Could not load avatar settings: {e}")
+        return 1  # default to 1 minute
+
+    def _is_muted(self) -> bool:
+        """Return True if current time is before mute_until timestamp in settings."""
+        try:
+            if self.settings_path.exists():
+                import json, datetime
+                data = json.load(self.settings_path.open())
+                mute_until = data.get("mute_until")
+                if mute_until:
+                    ts = datetime.datetime.fromisoformat(mute_until)
+                    return datetime.datetime.now() < ts
+        except Exception:
+            pass
+        return False
 
 def trigger_personality_update():
     """Trigger personality-based suggestion regeneration (can be called from other modules)"""
