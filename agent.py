@@ -15,7 +15,7 @@ import threading
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from jinja2 import Template
+from jinja2 import Environment, BaseLoader
 
 # Import avatar display system
 try:
@@ -73,8 +73,14 @@ def render_recipe_template(transcript, is_screen_capture=False):
     interactions = safe_read_file(perception_dir / "INTERACTIONS.md")
     contributions = safe_read_file(perception_dir / "CONTRIBUTIONS.md")
     
+    # Create Jinja environment with autoescape enabled for security
+    env = Environment(
+        loader=BaseLoader(),
+        autoescape=True  # Enable autoescaping to prevent XSS/injection attacks
+    )
+    
     # Create Jinja template and render
-    template = Template(template_content)
+    template = env.from_string(template_content)
     rendered_content = template.render(
         latest_work=latest_work,
         interactions=interactions,
