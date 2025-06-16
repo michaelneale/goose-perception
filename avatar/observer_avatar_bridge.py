@@ -148,8 +148,12 @@ class ObserverAvatarBridge:
             try:
                 file_path = self.perception_dir / filename
                 if file_path.exists():
-                    content = file_path.read_text()[:4000]
-                    params[key] = content.replace("\n", "\\n")
+                    raw = file_path.read_text(errors='ignore')
+                    recent = self._slice_recent_minutes(raw, minutes=15)
+                    if not recent:
+                        # fallback to last 4000 chars if no recent slice found
+                        recent = raw[-4000:]
+                    params[key] = recent.replace("\n", "\\n")
                 else:
                     params[key] = ""
             except Exception:
@@ -510,6 +514,26 @@ class ObserverAvatarBridge:
             except Exception:
                 continue
         return None
+
+    @staticmethod
+    def _slice_recent_minutes(text: str, minutes: int = 15) -> str:
+        """Return section of text whose timestamp is within last N minutes."""
+        import re, datetime
+        cutoff = datetime.datetime.now() - datetime.timedelta(minutes=minutes)
+        ts_re = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
+        keep_lines = []
+        append_mode = False
+        for line in text.splitlines():
+            m = ts_re.search(line)
+            if m:
+                try:
+                    ts = datetime.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+                    append_mode = ts >= cutoff
+                except ValueError:
+                    append_mode = False
+            if append_mode:
+                keep_lines.append(line)
+        return "\n".join(keep_lines)
 
 def trigger_personality_update():
     """Trigger personality-based suggestion regeneration (can be called from other modules)"""
