@@ -39,10 +39,45 @@ parameters:
   requirement: optional
   default: "Why did the developer, Speaking of comedy, Here's a joke for you, Plot twist comedy, Funny thing about"
   description: "Example phrases characteristic of the personality"
+- key: latest_work_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of LATEST_WORK.md file"
+- key: interactions_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of INTERACTIONS.md file"
+- key: contributions_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of CONTRIBUTIONS.md file"
+- key: work_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of WORK.md file"
+- key: activity_log_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of ACTIVITY-LOG.md file"
+- key: current_time
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Current local time"
+- key: timezone
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "User's local timezone"
 
 prompt: |
-  CURRENT LOCAL TIME: $(date)
-  TIMEZONE: $(date +%Z)
+  CURRENT LOCAL TIME: {{ current_time }}
+  TIMEZONE: {{ timezone }}
   
   **PERSONALITY CONTEXT:**
   {{ personality_name }} Avatar Personality
@@ -51,28 +86,44 @@ prompt: |
   Key Priorities: {{ personality_priorities }}
   Typical Phrases: {{ personality_phrases }}
   
-  Based on the current work context, analyze the following files in ~/.local/share/goose-perception/:
-  - LATEST_WORK.md (current focus)
-  - INTERACTIONS.md (recent collaborations)
-  - CONTRIBUTIONS.md (recent activity)
-  - WORK.md (detailed work log)
-  - ACTIVITY-LOG.md (recent system activity)
+  **WORK CONTEXT DATA:**
   
-  Generate 10-15 short, contextual suggestions or observations that reflect the {{ personality_name }} personality.
+  **LATEST_WORK.md (current focus):**
+  {{ latest_work_content }}
+  
+  **INTERACTIONS.md (recent collaborations):**
+  {{ interactions_content }}
+  
+  **CONTRIBUTIONS.md (recent activity):**
+  {{ contributions_content }}
+  
+  **WORK.md (detailed work log):**
+  {{ work_content }}
+  
+  **ACTIVITY-LOG.md (recent system activity):**
+  {{ activity_log_content }}
+  
+  Generate the SINGLE MOST TIMELY and contextual suggestion that reflects the {{ personality_name }} personality.
   **IMPORTANT: Use the local time provided above, not UTC. All time references should be in the user's local timezone.**
   
   **PERSONALITY ADAPTATION:** 
   - Adapt your language and suggestions to match the {{ personality_tone }} tone
   - Focus on priorities like: {{ personality_priorities }}
   - Use phrases similar to: {{ personality_phrases }}
-  - Maintain the personality consistently across all suggestions
+  - Maintain the personality consistently
   
-  Each suggestion should be:
+  **SELECTION CRITERIA - Choose the MOST URGENT/TIMELY suggestion:**
+  - Current time-sensitive opportunities (peak productivity windows, breaks needed)
+  - Immediate follow-ups or responses needed
+  - Work momentum that needs attention RIGHT NOW
+  - Communication gaps that should be addressed today
+  - Priority tasks that are stalled or need immediate action
+  
+  The suggestion should be:
   - Under 120 characters 
-  - Actionable, insightful, or encouraging
-  - Based on actual patterns in the data
-  - Appropriate for brief, non-intrusive display
-  - Varied in tone and purpose
+  - The MOST actionable and time-sensitive right now
+  - Based on actual patterns in the data provided above
+  - Appropriate for immediate attention
   
   **SUGGESTION CATEGORIES (aim for 2-3 from each):**
   
@@ -118,27 +169,17 @@ prompt: |
   
   **OUTPUT FORMAT: Valid JSON only**
   
-  Create a JSON object with a "suggestions" array containing 10-15 suggestion messages as strings.
-  Each string should be the complete suggestion message ready for display.
+  Create a JSON object with a "suggestion" field containing the single most timely suggestion message as a string.
+  The string should be the complete suggestion message ready for immediate display.
   
   Example JSON format:
   {
-    "suggestions": [
-      "You've been coding for 90 minutes straight - time for a 5-minute break?",
-      "That design discussion with Alice yesterday might need follow-up",
-      "It's 9:15 AM - your peak focus time! Tackle that complex refactor now.",
-      "I see 3 different repos active - consider focusing on one for deeper flow",
-      "Your commit messages show great progress - you're in the zone! 🚀",
-      "That code review from Bob has been waiting 2 days - quick response?",
-      "It's 2:30 PM - perfect time for routine tasks like docs or cleanup",
-      "Your typing rhythm suggests you're problem-solving something tricky",
-      "Great momentum on the user auth feature - almost there!",
-      "I notice you keep returning to that API design - trust your instincts"
-    ]
+    "suggestion": "You've been coding for 90 minutes straight - time for a 5-minute break?"
   }
   
-  Save the suggestions to ~/.local/share/goose-perception/AVATAR_SUGGESTIONS.json as valid JSON.
+  Save the suggestion to ~/.local/share/goose-perception/AVATAR_MESSAGE.json as valid JSON.
   **Focus on being genuinely helpful - observe real patterns and suggest real value.**
-  Only include suggestions that are genuinely based on patterns you observe in the data.
-  If there's insufficient data for a category, generate fewer suggestions rather than generic ones.
-  Do not include any text outside the JSON object - output ONLY valid JSON. 
+  Only provide a suggestion that is genuinely based on patterns you observe in the provided data.
+  If there's insufficient data, provide no suggestion rather than a generic one.
+  Do not include any text outside the JSON object - output ONLY valid JSON.  
+  Overwrite the file if it already exists.

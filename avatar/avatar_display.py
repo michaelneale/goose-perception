@@ -1481,50 +1481,9 @@ class GooseAvatar(QWidget):
                 self.last_suggestion_time = current_time
     
     def show_idle_suggestion(self):
-        """Show a random idle suggestion from the JSON file, avoiding recent repeats."""
-        suggestions_path = Path.home() / ".local/share/goose-perception/AVATAR_SUGGESTIONS.json"
-        suggestions = []
-        
-        try:
-            if suggestions_path.exists():
-                with open(suggestions_path, 'r') as f:
-                    import json
-                    data = json.load(f)
-                    suggestions = data.get("suggestions", [])
-            
-            if not suggestions:
-                # Fallback to hardcoded suggestions if file is empty or missing
-                suggestions = [
-                    "💡 I'm watching your workflow - let me know if you need help!",
-                    "🔍 I can help analyze your code or suggest improvements."
-                ]
-
-        except Exception as e:
-            print(f"Error reading suggestions file: {e}")
-            # Fallback to hardcoded suggestions on error
-            suggestions = [
-                "⚠️ Could not load suggestions, but I'm still here to help!",
-                "🤖 I seem to have misplaced my suggestion notes. How can I assist?"
-            ]
-        
-        # Filter out recently shown suggestions to reduce repetition
-        fresh_suggestions = [s for s in suggestions if s not in self.recent_suggestions]
-        
-        # If we've shown everything recently, reset the tracking but prefer newer suggestions
-        if not fresh_suggestions:
-            fresh_suggestions = suggestions
-            self.recent_suggestions = []
-            print("🔄 Refreshed suggestion pool - all suggestions have been shown recently")
-        
-        # Pick a random fresh suggestion
-        message = random.choice(fresh_suggestions)
-        
-        # Track this suggestion to avoid immediate repetition
-        self.recent_suggestions.append(message)
-        if len(self.recent_suggestions) > self.max_recent_suggestions:
-            self.recent_suggestions.pop(0)  # Remove oldest
-            
-        self.show_observer_suggestion("idle_chatter", message)
+        """Show idle suggestion from hardcoded or previous pool"""
+        # Disabled: hard-coded idle chatter now replaced by recipe-generated chatter
+        return  # Rely on observer bridge recipe output instead
     
     def show_observer_suggestion(self, observation_type, message):
         """Show a suggestion from the observer system"""

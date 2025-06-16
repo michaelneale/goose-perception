@@ -39,10 +39,45 @@ parameters:
   requirement: optional
   default: "Why did the developer, Speaking of comedy, Here's a joke for you, Plot twist comedy, Funny thing about"
   description: "Example phrases characteristic of the personality"
+- key: latest_work_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of LATEST_WORK.md file"
+- key: interactions_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of INTERACTIONS.md file"
+- key: contributions_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of CONTRIBUTIONS.md file"
+- key: work_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of WORK.md file"
+- key: activity_log_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of ACTIVITY-LOG.md file"
+- key: current_time
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Current local time"
+- key: timezone
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "User's local timezone"
 
 prompt: |
-  CURRENT LOCAL TIME: $(date)
-  TIMEZONE: $(date +%Z)
+  CURRENT LOCAL TIME: {{ current_time }}
+  TIMEZONE: {{ timezone }}
   
   **PERSONALITY CONTEXT:**
   {{ personality_name }} Avatar Personality
@@ -51,12 +86,29 @@ prompt: |
   Key Priorities: {{ personality_priorities }}
   Typical Phrases: {{ personality_phrases }}
   
-  Based on current activity from ~/.local/share/goose-perception/, generate 8-12 brief, casual chit-chat messages that reflect the {{ personality_name }} personality.
+  **CURRENT ACTIVITY DATA:**
+  
+  **LATEST_WORK.md (current focus):**
+  {{ latest_work_content }}
+  
+  **INTERACTIONS.md (recent collaborations):**
+  {{ interactions_content }}
+  
+  **CONTRIBUTIONS.md (recent activity):**
+  {{ contributions_content }}
+  
+  **WORK.md (detailed work log):**
+  {{ work_content }}
+  
+  **ACTIVITY-LOG.md (recent system activity):**
+  {{ activity_log_content }}
+  
+  Based on the current activity data above, generate the SINGLE MOST CONTEXTUAL casual chit-chat message that reflects the {{ personality_name }} personality.
   
   **CHIT-CHAT PRINCIPLES:**
   - Super casual and conversational (like a friendly AI companion)
   - Under 80 characters each
-  - Based on actual current context, time, or observable patterns
+  - Based on actual current context, time, or observable patterns from the data
   - NOT formal suggestions - just friendly observations and banter
   - Use current time appropriately (morning energy, afternoon focus, evening wind-down)
   - Mix of encouraging, observational, and gently humorous
@@ -108,20 +160,13 @@ prompt: |
   - "I see you, quietly conquering code complexity 💪"
   - "Debugging dance moves detected 🕺"
   
-  **OUTPUT INSTRUCTIONS:**
-  Generate 8-12 casual messages, one per line, no extra formatting.
-  Make them genuinely based on observable patterns from the activity data.
-  Keep the tone light, supportive, and genuinely companionable.
+  **OUTPUT FORMAT: Valid JSON only**
+  Create a JSON object with a single key "chatter" whose value is the casual message string.
+  The message must be under 80 characters.
+  Example:
+  {
+    "chatter": "Still grinding at 2:30 PM? Nice focus! 🎯"
+  }
   
-  Save casual chit-chat to ~/.local/share/goose-perception/AVATAR_CHATTER.md
-  
-  Format as:
-  # Avatar Chit-Chat Messages
-  *Generated: [timestamp]*
-  
-  [message1]
-  [message2]
-  [message3]
-  ...
-  
-  Keep it contextual but light - no pressure, just friendly AI companion vibes! 
+  Save this JSON to ~/.local/share/goose-perception/AVATAR_MESSAGE.json (overwriting any existing file).
+  Do not include any text outside the JSON object.

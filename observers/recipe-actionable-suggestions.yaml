@@ -39,10 +39,45 @@ parameters:
   requirement: optional
   default: "Why did the developer, Speaking of comedy, Here's a joke for you, Plot twist comedy, Funny thing about"
   description: "Example phrases characteristic of the personality"
+- key: latest_work_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of LATEST_WORK.md file"
+- key: interactions_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of INTERACTIONS.md file"
+- key: contributions_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of CONTRIBUTIONS.md file"
+- key: work_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of WORK.md file"
+- key: activity_log_content
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Content of ACTIVITY-LOG.md file"
+- key: current_time
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "Current local time"
+- key: timezone
+  input_type: string
+  requirement: optional
+  default: ""
+  description: "User's local timezone"
 
 prompt: |
-  CURRENT LOCAL TIME: $(date)
-  TIMEZONE: $(date +%Z)
+  CURRENT LOCAL TIME: {{ current_time }}
+  TIMEZONE: {{ timezone }}
   
   **PERSONALITY CONTEXT:**
   {{ personality_name }} Avatar Personality
@@ -59,7 +94,24 @@ prompt: |
   - Actions should leverage available MCP tools when possible
   - If MCP integration is needed, suggest configuring appropriate MCP servers
   
-  Analyze work patterns in ~/.local/share/goose-perception/ and generate actionable suggestions that reflect the {{ personality_name }} personality.
+  **WORK PATTERN DATA:**
+  
+  **LATEST_WORK.md (current focus):**
+  {{ latest_work_content }}
+  
+  **INTERACTIONS.md (recent collaborations):**
+  {{ interactions_content }}
+  
+  **CONTRIBUTIONS.md (recent activity):**
+  {{ contributions_content }}
+  
+  **WORK.md (detailed work log):**
+  {{ work_content }}
+  
+  **ACTIVITY-LOG.md (recent system activity):**
+  {{ activity_log_content }}
+  
+  Analyze the work patterns in the data above and generate actionable suggestions that reflect the {{ personality_name }} personality.
   Look for specific patterns that need action:
   
   **COMMUNICATION GAPS:**
@@ -88,7 +140,7 @@ prompt: |
   
   **OUTPUT FORMAT: Valid JSON only**
   
-  Create a JSON object with an "actionable_suggestions" array. Each suggestion should have these fields:
+  Create a JSON object with a single "actionable_suggestion" object (not an array). The suggestion should have these fields:
   - action_type: The type of action (email, slack, meeting, calendar, github, task, reminder, document, status, review, mcp)
   - observation_type: What kind of pattern was observed (communication, follow_up, scheduling, code_review, completion, deadline, setup, etc.)
   - message: The suggestion text to display to the user
@@ -105,38 +157,12 @@ prompt: |
   
   **EXAMPLE JSON OUTPUT:**
   {
-    "actionable_suggestions": [
-      {
-        "action_type": "email",
-        "observation_type": "communication",
-        "message": "You haven't sent an update to the team in 3 days. Send status update?",
-        "action_command": "compose_team_update"
-      },
-      {
-        "action_type": "slack",
-        "observation_type": "communication", 
-        "message": "No Slack updates sent this week. Post team status to #engineering?",
-        "action_command": "post_slack_update"
-      },
-      {
-        "action_type": "meeting",
-        "observation_type": "follow_up",
-        "message": "Yesterday's design meeting needs follow-up. Schedule planning session?",
-        "action_command": "create_follow_up_meeting"
-      },
-      {
-        "action_type": "github",
-        "observation_type": "code_review",
-        "message": "Several PRs pending review - check what needs attention?",
-        "action_command": "review_pending_prs"
-      },
-      {
-        "action_type": "status",
-        "observation_type": "communication",
-        "message": "Project progress looks good - time to update the team on achievements?",
-        "action_command": "update_project_status"
-      }
-    ]
+    "actionable_suggestion": {
+      "action_type": "email",
+      "observation_type": "communication",
+      "message": "You haven't sent an update to the team in 3 days. Send status update?",
+      "action_command": "compose_team_update"
+    }
   }
   
   **ACTION TYPES:**
@@ -159,7 +185,13 @@ prompt: |
   - Communication responsibilities
   - Work momentum and completion
   
-  Save to ~/.local/share/goose-perception/ACTIONABLE_SUGGESTIONS.json as valid JSON.
-  Only suggest actions based on real patterns you observe in the data.
-  If there's insufficient data, generate fewer suggestions rather than generic ones.
-  Do not include any text outside the JSON object - output ONLY valid JSON. 
+  **SELECTION CRITERIA - Choose the MOST URGENT actionable item:**
+  - Focus on the single most time-sensitive action needed right now
+  - Prioritize communication gaps that need immediate attention
+  - Choose actions that will have the biggest impact on current work momentum
+  - Select based on patterns showing the highest urgency or opportunity cost
+  
+  Save to ~/.local/share/goose-perception/AVATAR_MESSAGE.json as valid JSON.
+  Only suggest an action based on real patterns you observe in the provided data.
+  If there's insufficient data, provide no suggestion rather than a generic one.
+  Do not include any text outside the JSON object - output ONLY valid JSON. Overwrite the file if it already exists.
