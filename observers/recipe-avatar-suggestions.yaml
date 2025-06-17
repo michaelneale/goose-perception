@@ -1,4 +1,3 @@
-# INSTRUCTION: Do NOT generate suggestions that reference the current time, 'right now', or the last few minutes. Suggestions should be general, or reference past events (e.g., 'earlier today', 'in the last few hours', 'at 4:45 p.m. you...'). The system may show suggestions with a delay, so avoid anything that would only make sense in real-time.
 version: 1.0.0
 title: Avatar Suggestions
 author:
@@ -6,13 +5,7 @@ author:
 description: Generate contextual avatar messages based on current work patterns and observations
 instructions: |
   Generate suggestions for the avatar to display based on accumulated knowledge and context.
-# INSTRUCTION: Do NOT generate suggestions that reference the current time, 'right now', or the last few minutes. Suggestions should be general, or reference past events (e.g., 'earlier today', 'in the last few hours', 'at 4:45 p.m. you...'). The system may show suggestions with a delay, so avoid anything that would only make sense in real-time.
-version: 1.0.0
-title: Avatar Suggestions
-author:
-  contact: mic
-description: Generate contextual avatar messages based on current work patterns and observations
-instructions: |
+  IMPORTANT: Do NOT generate suggestions that reference the current time, 'right now', or the last few minutes. Suggestions should be general, or reference past events (e.g., 'earlier today', 'in the last few hours', 'at 4:45 p.m. you...'). The system may show suggestions with a delay, so avoid anything that would only make sense in real-time.
   analyze current work patterns and generate short, contextual suggestions for the avatar display
   focus on actionable insights and productivity improvements
 extensions:
@@ -150,4 +143,6 @@ prompt: |
   **Focus on being genuinely helpful - observe real patterns and suggest real value.**
   Only include suggestions that are genuinely based on patterns you observe in the data.
   If there's insufficient data for a category, generate fewer suggestions rather than generic ones.
-  Do not include any text outside the JSON object - output ONLY valid JSON. 
+  Do not include any text outside the JSON object - output ONLY valid JSON.
+  
+  ONLY use the last 8 hours of data from each file (WORK.md, LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, ACTIVITY-LOG.md). Ignore events older than 8 hours unless they are directly relevant to a current pattern or follow-up. Do not reference old history or stale events. 

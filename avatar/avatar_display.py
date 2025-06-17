@@ -13,6 +13,7 @@ import random
 import json
 from datetime import datetime
 import re
+import time
 
 class AvatarCommunicator(QObject):
     """Thread-safe communicator for avatar system"""
@@ -1630,24 +1631,19 @@ class GooseAvatar(QWidget):
         
         # Run recipe regeneration in background thread to avoid UI freezing
         import threading
-        import time
         def background_personality_update():
             try:
-                # Give the transition message time to display
-                time.sleep(3)
-                
+                # Removed time.sleep(3)
                 print("🔄 Starting background personality update...")
                 from . import observer_avatar_bridge
                 if hasattr(observer_avatar_bridge, 'bridge_instance') and observer_avatar_bridge.bridge_instance:
                     # Clear old suggestions first to ensure only personality-appropriate content
                     observer_avatar_bridge.bridge_instance.clear_old_suggestions()
-                    
                     # Generate new personality-based suggestions
                     observer_avatar_bridge.bridge_instance._run_avatar_suggestions()
                     observer_avatar_bridge.bridge_instance._run_actionable_suggestions()
                     observer_avatar_bridge.bridge_instance._run_chatter_recipe()
                     print("✅ Background personality update completed")
-                    
                     # Show completion message
                     completion_messages = [
                         f"🎭 {name} is ready to assist!",
@@ -1657,25 +1653,17 @@ class GooseAvatar(QWidget):
                         f"🎬 {name} is now in character!",
                     ]
                     completion_msg = random.choice(completion_messages)
-                    
-                    # Show completion message briefly - USE THREAD-SAFE APPROACH
                     def show_completion():
-                        # Use the thread-safe communicator instead of direct call
                         if avatar_communicator:
                             avatar_communicator.show_message_signal.emit(f"{emoji} {completion_msg}", 4000, 'pointing')
                         else:
                             print(f"Avatar not available for completion message: {completion_msg}")
-                    
-                    # Wait 1 second then show completion message (thread-safe approach)
-                    import time
-                    time.sleep(1)
+                    # Removed time.sleep(1)
                     show_completion()
-                    
                 else:
                     print("⚠️ Observer bridge not available for personality update")
             except Exception as e:
                 print(f"❌ Error in background personality update: {e}")
-        
         # Start background thread
         update_thread = threading.Thread(target=background_personality_update, daemon=True)
         update_thread.start()
