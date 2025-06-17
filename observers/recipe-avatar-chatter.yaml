@@ -1,3 +1,5 @@
+# INSTRUCTION: Do NOT generate chit-chat that references the current time, 'right now', or the last few minutes. Chit-chat can reference general time-of-day (morning, afternoon, evening), past events, or patterns, but must be robust to delayed delivery. Avoid anything that would only make sense in real-time.
+
 version: 1.0.0
 title: Avatar Casual Chit-Chat
 author:
@@ -6,6 +8,7 @@ description: Generate frequent, casual, contextual chit-chat for avatar based on
 instructions: |
   Generate brief, casual conversational messages for the avatar to display frequently.
   These should be contextual but light - not formal suggestions, just friendly observations.
+  IMPORTANT: Do NOT generate chit-chat that references the current time, 'right now', or the last few minutes. Chit-chat can reference general time-of-day (morning, afternoon, evening), past events, or patterns, but must be robust to delayed delivery. Avoid anything that would only make sense in real-time.
 extensions:
 - type: builtin
   name: developer
@@ -41,6 +44,8 @@ parameters:
   description: "Example phrases characteristic of the personality"
 
 prompt: |
+  IMPORTANT: Do NOT generate chit-chat that references the current time, 'right now', or the last few minutes. Chit-chat can reference general time-of-day (morning, afternoon, evening), past events, or patterns, but must be robust to delayed delivery. Avoid anything that would only make sense in real-time.
+
   CURRENT LOCAL TIME: $(date)
   TIMEZONE: $(date +%Z)
   

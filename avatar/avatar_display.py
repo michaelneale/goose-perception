@@ -12,6 +12,7 @@ from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransfo
 import random
 import json
 from datetime import datetime
+import re
 
 class AvatarCommunicator(QObject):
     """Thread-safe communicator for avatar system"""
@@ -1481,49 +1482,42 @@ class GooseAvatar(QWidget):
                 self.last_suggestion_time = current_time
     
     def show_idle_suggestion(self):
-        """Show a random idle suggestion from the JSON file, avoiding recent repeats."""
+        """Show a random idle suggestion from the JSON file, avoiding recent repeats and skipping time-specific language."""
+        import re
         suggestions_path = Path.home() / ".local/share/goose-perception/AVATAR_SUGGESTIONS.json"
         suggestions = []
-        
         try:
             if suggestions_path.exists():
                 with open(suggestions_path, 'r') as f:
                     import json
                     data = json.load(f)
                     suggestions = data.get("suggestions", [])
-            
-            if not suggestions:
-                # Fallback to hardcoded suggestions if file is empty or missing
-                suggestions = [
-                    "💡 I'm watching your workflow - let me know if you need help!",
-                    "🔍 I can help analyze your code or suggest improvements."
-                ]
-
         except Exception as e:
             print(f"Error reading suggestions file: {e}")
-            # Fallback to hardcoded suggestions on error
-            suggestions = [
-                "⚠️ Could not load suggestions, but I'm still here to help!",
-                "🤖 I seem to have misplaced my suggestion notes. How can I assist?"
-            ]
-        
+            # Do not show any suggestion if file is missing or error occurs
+            return
+
+        # Filter out suggestions with time-specific language (e.g., 'right now', 'in the last \\d+ minutes', etc.)
+        time_specific_pattern = re.compile(r"right now|in the last \\d+ minutes|in the last minute|at this exact moment|currently|just now|this minute|past \\d+ minutes", re.IGNORECASE)
+        filtered_suggestions = [s for s in suggestions if not time_specific_pattern.search(s)]
+
         # Filter out recently shown suggestions to reduce repetition
-        fresh_suggestions = [s for s in suggestions if s not in self.recent_suggestions]
-        
-        # If we've shown everything recently, reset the tracking but prefer newer suggestions
+        fresh_suggestions = [s for s in filtered_suggestions if s not in self.recent_suggestions]
+
+        # If no valid suggestions, do not show anything
         if not fresh_suggestions:
-            fresh_suggestions = suggestions
-            self.recent_suggestions = []
-            print("🔄 Refreshed suggestion pool - all suggestions have been shown recently")
-        
+            print("No valid idle suggestions to show.")
+            return
+
         # Pick a random fresh suggestion
+        import random
         message = random.choice(fresh_suggestions)
-        
+
         # Track this suggestion to avoid immediate repetition
         self.recent_suggestions.append(message)
         if len(self.recent_suggestions) > self.max_recent_suggestions:
             self.recent_suggestions.pop(0)  # Remove oldest
-            
+
         self.show_observer_suggestion("idle_chatter", message)
     
     def show_observer_suggestion(self, observation_type, message):

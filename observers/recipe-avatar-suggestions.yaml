@@ -1,3 +1,12 @@
+# INSTRUCTION: Do NOT generate suggestions that reference the current time, 'right now', or the last few minutes. Suggestions should be general, or reference past events (e.g., 'earlier today', 'in the last few hours', 'at 4:45 p.m. you...'). The system may show suggestions with a delay, so avoid anything that would only make sense in real-time.
+version: 1.0.0
+title: Avatar Suggestions
+author:
+  contact: mic
+description: Generate contextual avatar messages based on current work patterns and observations
+instructions: |
+  Generate suggestions for the avatar to display based on accumulated knowledge and context.
+# INSTRUCTION: Do NOT generate suggestions that reference the current time, 'right now', or the last few minutes. Suggestions should be general, or reference past events (e.g., 'earlier today', 'in the last few hours', 'at 4:45 p.m. you...'). The system may show suggestions with a delay, so avoid anything that would only make sense in real-time.
 version: 1.0.0
 title: Avatar Suggestions
 author:
