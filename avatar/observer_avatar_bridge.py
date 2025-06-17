@@ -518,9 +518,9 @@ class ObserverAvatarBridge:
                 self._process_new_suggestions()
                 return
             # For other files, trigger suggestion generation and queue if new
-            if filename in ['WORK.md', 'LATEST_WORK.md', 'INTERACTIONS.md', 'CONTRIBUTIONS.md', 'ACTIVITY-LOG.md']:
-                self._run_avatar_suggestions()
-                self._process_new_suggestions()
+            if filename in ['WORK.md', 'LATEST_WORK.md', 'INTERACTIONS.md', 'CONTRIBUTIONS.md', 'ACTIVITY-LOG.md', 'recipe-avatar-suggestions.yaml', 'recipe-actionable-suggestions.yaml', 'recipe-avatar-chatter.yaml']:
+                self.on_context_or_recipe_change()
+                return
             # Show a contextual message (unchanged)
             if random.random() > 0.3:
                 return
@@ -791,8 +791,18 @@ class ObserverAvatarBridge:
             print(f"⚠️ Error loading avatar state: {e}")
 
     def clear_all_state(self):
-        """Clear all suggestion, actionable, and chit-chat files and reset queues/sets."""
+        """Clear all suggestion, actionable, and chit-chat files and reset queues/sets. Also delete AVATAR_MESSAGE.json and other legacy message files."""
         self.clear_old_suggestions()
+        # Remove legacy/auxiliary message files
+        legacy_files = [
+            self.perception_dir / "AVATAR_MESSAGE.json",
+            self.perception_dir / "AVATAR_MESSAGE.md",
+            self.perception_dir / "AVATAR_MESSAGE.txt"
+        ]
+        for file_path in legacy_files:
+            if file_path.exists():
+                file_path.unlink()
+                print(f"🗑️ Cleared legacy message file: {file_path.name}")
         self.suggestion_queue = []
         self.shown_suggestions = set()
         self.last_suggestion_display = datetime.min
@@ -814,6 +824,15 @@ class ObserverAvatarBridge:
         self._run_actionable_suggestions()
         self._run_chatter_recipe()
         print("[PERSONALITY] Regenerated all suggestions after personality switch.")
+
+    def on_context_or_recipe_change(self):
+        """Call this after context or recipe change to clear state and regenerate suggestions."""
+        print("[CONTEXT/RECIPE] Detected context or recipe change. Clearing all state and regenerating suggestions.")
+        self.clear_all_state()
+        self._run_avatar_suggestions()
+        self._run_actionable_suggestions()
+        self._run_chatter_recipe()
+        print("[CONTEXT/RECIPE] Regenerated all suggestions after context/recipe change.")
 
 def trigger_personality_update():
     """Trigger personality-based suggestion regeneration (can be called from other modules)"""
