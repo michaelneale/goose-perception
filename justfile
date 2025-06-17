@@ -163,7 +163,7 @@ run:
 
 kill:
     #!/usr/bin/env bash
-    echo "🛑 KILLING ALL GOOSE PERCEPTION PROCESSES..."
+    echo "🚦 KILLING ALL GOOSE PERCEPTION PROCESSES..."
     
     # Create halt file
     touch /tmp/goose-perception-halt 2>/dev/null || true

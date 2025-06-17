@@ -16,7 +16,7 @@ import time
 import signal
 import numpy as np
 import sounddevice as sd
-import whisper
+from faster_whisper import WhisperModel
 import argparse
 import json
 from datetime import datetime
@@ -60,17 +60,14 @@ def load_models():
     import warnings
     warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
     
-    # MPS (Metal) support is still limited for some operations in Whisper
-    # For now, we'll use CPU for better compatibility
-    
     # Load the main model for full transcription
     print(f"Loading main transcription model ...")
-    main_model = whisper.load_model("small")
+    main_model = WhisperModel("small", device="cpu", compute_type="int8")
     
     print(f"Loading lightweight model for wake word detection...")
-    wake_word_model = whisper.load_model("base")
+    wake_word_model = WhisperModel("base", device="cpu", compute_type="int8")
     
-    print("Using CPU for Whisper models (MPS has compatibility issues with sparse tensors)")
+    print("Using CPU for Whisper models with int8 quantization for better performance")
     return main_model, wake_word_model
 
 # Audio parameters - technical settings that rarely need changing
@@ -424,12 +421,8 @@ def transcribe_audio_thread(model, audio_file, language=None):
     global transcription_result
     
     try:
-        options = {}
-        if language:
-            options["language"] = language
-        
-        result = model.transcribe(audio_file, **options)
-        transcript = result["text"].strip()
+        segments, info = model.transcribe(audio_file, language=language)
+        transcript = " ".join([segment.text for segment in segments]).strip()
         
         # Store the result
         with transcription_lock:
@@ -466,12 +459,8 @@ def quick_transcribe(model, audio_file, language=None):
     This is a blocking call but uses the lightweight model.
     """
     try:
-        options = {}
-        if language:
-            options["language"] = language
-        
-        result = model.transcribe(audio_file, **options)
-        return result["text"].strip()
+        segments, info = model.transcribe(audio_file, language=language)
+        return " ".join([segment.text for segment in segments]).strip()
     except Exception as e:
         print(f"Quick transcription error: {e}")
         return ""
@@ -1207,8 +1196,8 @@ def main():
                             
                             # Re-transcribe the entire audio with the main model for high quality
                             print("Re-transcribing full conversation with main model...")
-                            full_result = main_model.transcribe(conversation_file, language=args.language)
-                            full_transcript = full_result["text"].strip()
+                            segments, info = main_model.transcribe(conversation_file, language=args.language)
+                            full_transcript = " ".join([segment.text for segment in segments]).strip()
                             
                             # Save the transcript
                             transcript_file = os.path.join(
