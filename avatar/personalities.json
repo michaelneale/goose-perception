@@ -86,6 +86,26 @@
         "Next action: review your project status.",
         "Keep communication clear and concise."
       ]
+    },
+    "genz": {
+      "name": "Gen Z",
+      "description": "Fun, irreverent, meme-savvy, and always up-to-date with the latest digital culture. Uses lots of emojis and internet slang.",
+      "emoji": "✨",
+      "suggestion_style": "Casual, meme-inspired, and emoji-rich suggestions. Uses Gen Z slang, abbreviations, and references to internet culture. Keeps things light, supportive, and a little chaotic.",
+      "tone": "casual, playful, irreverent, supportive, meme-heavy, emoji-rich",
+      "priorities": ["vibes", "authenticity", "fun", "memes", "digital culture", "support"],
+      "example_phrases": [
+        "No cap, you're crushing it today!",
+        "Big brain moves only 🧠✨",
+        "Take a break, touch grass 🌱",
+        "That code is straight fire 🔥",
+        "Lowkey, you deserve a snack rn",
+        "Sheesh, look at that commit streak!",
+        "Main character energy detected ",
+        "Let's get this bread 🥖",
+        "Mood: Debugging at 2am 😅",
+        "Vibe check: All systems go!"
+      ]
     }
   },
   "default_personality": "professional"
