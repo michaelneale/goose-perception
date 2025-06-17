@@ -11,6 +11,9 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 import threading
+import hashlib
+import pickle
+import json
 
 try:
     from . import avatar_display
@@ -56,6 +59,28 @@ class ObserverAvatarBridge:
         # Track shown actionable suggestions to cycle through them
         self.shown_actionable_suggestions = []
         self.max_remembered_actionable = 6  # Remember last 6 shown to avoid immediate repeats
+        
+        self.suggestion_queue = []  # Queue for pending suggestions
+        self.shown_suggestions = set()  # Hashes of shown suggestions
+        self.last_suggestion_display = datetime.min  # Last time a suggestion was shown
+        self.min_suggestion_interval = timedelta(minutes=3)  # Minimum 3 minutes between suggestions
+
+        self.actionable_suggestion_queue = []
+        self.shown_actionable_suggestions = set()
+        self.last_actionable_display = datetime.min
+        self.min_actionable_interval = timedelta(minutes=3)
+
+        self.chitchat_queue = []
+        self.shown_chitchat = set()
+        self.last_chitchat_display = datetime.min
+        self.min_chitchat_interval = timedelta(minutes=3)
+
+        self.completed_suggestions = set()
+        self.dismissed_suggestions = set()
+
+        self.state_dir = Path.home() / ".local/share/goose-perception/avatar_state"
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        self._load_state()
     
     def start_monitoring(self):
         """Start monitoring observer files"""
@@ -77,11 +102,14 @@ class ObserverAvatarBridge:
         while self.is_running:
             try:
                 self._check_files()
-                # Check every 15 seconds for more responsive avatar
+                self._show_next_queued_suggestion()
+                self._show_next_actionable_suggestion()
+                self._show_next_chitchat()
+                self._save_state()
                 time.sleep(15)
             except Exception as e:
                 print(f"Error in observer bridge: {e}")
-                time.sleep(60)  # Wait longer on error
+                time.sleep(60)
     
     def _check_files(self):
         """Check monitored files for changes"""
@@ -140,35 +168,64 @@ class ObserverAvatarBridge:
             except Exception as e:
                 print(f"Error checking {filename}: {e}")
     
+    def get_recent_file_content(self, filename, hours=8):
+        """Return only the last N hours of lines from a log file."""
+        file_path = self.perception_dir / filename
+        if not file_path.exists():
+            return ''
+        try:
+            now = datetime.now()
+            lines = []
+            with open(file_path, 'r') as f:
+                for line in f:
+                    # Try to parse timestamp at the start of the line (ISO or similar)
+                    # If not possible, just include all lines (fallback)
+                    try:
+                        ts_str = line.split(' ', 1)[0]
+                        ts = datetime.fromisoformat(ts_str)
+                        if now - ts <= timedelta(hours=hours):
+                            lines.append(line)
+                    except Exception:
+                        lines.append(line)
+            return ''.join(lines)
+        except Exception as e:
+            print(f"[CONTEXT] Error reading {filename}: {e}")
+            return ''
+
+    def build_recent_context(self, hours=8):
+        """Build context from the last N hours of all relevant files."""
+        files = ["WORK.md", "LATEST_WORK.md", "INTERACTIONS.md", "CONTRIBUTIONS.md", "ACTIVITY-LOG.md"]
+        context = {}
+        for fname in files:
+            context[fname] = self.get_recent_file_content(fname, hours=hours)
+        return context
+
     def _run_avatar_suggestions(self):
-        """Run the avatar suggestions observer recipe"""
+        """Run the avatar suggestions observer recipe with recent context and logging."""
         try:
             print("🔍 Running avatar suggestions observer recipe...")
-            
-            # Get personality parameters
             personality_params = self.get_personality_parameters()
-            
-            # Build parameter arguments for the recipe
+            print(f"[PERSONALITY] Using for suggestions: {personality_params}")
+            context = self.build_recent_context(hours=8)
+            # Save context to a temp file for the recipe to use
+            context_path = self.perception_dir / "RECENT_CONTEXT.json"
+            with open(context_path, 'w') as f:
+                json.dump(context, f)
             param_args = []
             for key, value in personality_params.items():
                 param_args.extend(['--params', f'{key}={value}'])
-            
-            # Run the goose recipe with personality parameters
+            param_args.extend(['--params', f'recent_context={context_path}'])
             cmd = [
                 "goose", "run", "--no-session", 
                 "--recipe", "observers/recipe-avatar-suggestions.yaml"
             ] + param_args
-            
             print(f"🎭 Running with personality: {personality_params['personality_name']}")
-            
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-            
             if result.returncode == 0:
                 print("✅ Avatar suggestions recipe completed successfully")
                 self._process_new_suggestions()
             else:
                 print(f"❌ Avatar suggestions recipe failed: {result.stderr}")
-                
         except subprocess.TimeoutExpired:
             print("⏰ Avatar suggestions recipe timed out")
         except Exception as e:
@@ -250,7 +307,6 @@ class ObserverAvatarBridge:
             return suggestions
             
         try:
-            import json
             with open(suggestions_file, 'r') as f:
                 data = json.load(f)
                 raw_suggestions = data.get("suggestions", [])
@@ -298,7 +354,6 @@ class ObserverAvatarBridge:
             return suggestions
             
         try:
-            import json
             with open(actionable_file, 'r') as f:
                 data = json.load(f)
                 raw_suggestions = data.get("actionable_suggestions", [])
@@ -363,16 +418,15 @@ class ObserverAvatarBridge:
             print(f"Error showing actionable suggestion: {e}")
     
     def _process_new_suggestions(self):
-        """Process newly generated suggestions and show immediately"""
+        """Process newly generated suggestions and queue if new."""
         suggestions = self._parse_suggestions_file()
-        
         if not suggestions:
             return
-            
-        # Show new suggestions immediately - they're fresh and relevant!
-        suggestion = random.choice(suggestions)
-        self._show_suggestion(suggestion)
-        print(f"💡 Immediately showing new suggestion: {suggestion['message']}")
+        for suggestion in suggestions:
+            suggestion_hash = self._hash_suggestion(suggestion)
+            if suggestion_hash not in self.shown_suggestions and suggestion_hash not in self.completed_suggestions and suggestion_hash not in self.dismissed_suggestions:
+                self.suggestion_queue.append(suggestion)
+        self._save_state()
     
     def _show_existing_actionable_suggestion(self):
         """Show an actionable suggestion from the existing pool"""
@@ -393,16 +447,19 @@ class ObserverAvatarBridge:
             # If we've shown everything recently, reset the tracking
             if not fresh_suggestions:
                 fresh_suggestions = actionable_suggestions
-                self.shown_actionable_suggestions = []
+                self.shown_actionable_suggestions = set()
                 print("🔄 Cycling through actionable suggestions - all have been shown recently")
             
             # Pick a fresh suggestion
             suggestion = random.choice(fresh_suggestions)
             
             # Track this suggestion
-            self.shown_actionable_suggestions.append(suggestion['action_command'])
+            self.shown_actionable_suggestions.add(suggestion['action_command'])
             if len(self.shown_actionable_suggestions) > self.max_remembered_actionable:
-                self.shown_actionable_suggestions.pop(0)  # Remove oldest
+                # Remove oldest by converting to list, popping, and converting back
+                temp = list(self.shown_actionable_suggestions)
+                temp.pop(0)
+                self.shown_actionable_suggestions = set(temp)
             
             self._show_actionable_suggestion(suggestion)
             print(f"🎯 Showing actionable suggestion: {suggestion['action_type']} - {suggestion['message'][:60]}...")
@@ -410,16 +467,15 @@ class ObserverAvatarBridge:
             print("🎲 Skipped showing actionable suggestion (probability)")
     
     def _show_existing_suggestion(self):
-        """Show a suggestion from the existing pool"""
+        """Show a suggestion from the existing pool if new and not shown recently."""
         suggestions = self._parse_suggestions_file()
-        
         if not suggestions:
             return
-            
-        # Show existing suggestions with moderate probability
-        if random.random() < 0.4:  # 40% chance to show existing suggestion
-            suggestion = random.choice(suggestions)
-            self._show_suggestion(suggestion)
+        for suggestion in suggestions:
+            suggestion_hash = self._hash_suggestion(suggestion)
+            if suggestion_hash not in self.shown_suggestions:
+                self.suggestion_queue.append(suggestion)
+                break  # Only queue one at a time
     
     def _show_suggestion(self, suggestion):
         """Helper method to show a suggestion with proper avatar state"""
@@ -456,18 +512,18 @@ class ObserverAvatarBridge:
                 print(f"💬 Showed casual chatter: {message[:50]}...")
     
     def _process_file_change(self, filename, new_content, old_content, category):
-        """Process a file change and potentially trigger avatar message"""
         try:
             # Handle avatar suggestions file updates
             if filename == 'AVATAR_SUGGESTIONS.json':
                 self._process_new_suggestions()
                 return
-            
-            # For other files, occasionally show a contextual message
-            if random.random() > 0.3:  # 30% chance to show message
+            # For other files, trigger suggestion generation and queue if new
+            if filename in ['WORK.md', 'LATEST_WORK.md', 'INTERACTIONS.md', 'CONTRIBUTIONS.md', 'ACTIVITY-LOG.md', 'recipe-avatar-suggestions.yaml', 'recipe-actionable-suggestions.yaml', 'recipe-avatar-chatter.yaml']:
+                self.on_context_or_recipe_change()
                 return
-                
-            # Simple fallback messages for file changes - use thread-safe functions
+            # Show a contextual message (unchanged)
+            if random.random() > 0.3:
+                return
             from . import avatar_display
             if filename == 'LATEST_WORK.md':
                 avatar_display.show_message("📝 I see you're updating your current work focus...")
@@ -475,35 +531,28 @@ class ObserverAvatarBridge:
                 avatar_display.show_message("🤝 New interaction data updated...")
             elif filename == 'CONTRIBUTIONS.md':
                 avatar_display.show_message("📈 Your contribution patterns have been updated...")
-                
         except Exception as e:
             print(f"Error processing {filename} change: {e}")
     
     def get_personality_parameters(self):
-        """Get personality parameters for recipes - thread-safe version"""
+        """Get personality parameters for recipes - thread-safe version with extra logging and robust fallback"""
         try:
-            # Don't access avatar_instance from background threads - use fallback approach
-            # This prevents Qt threading violations while still providing personality context
-            
-            # Try to load personality from saved settings file (thread-safe)
             from pathlib import Path
             import json
-            
             settings_path = Path.home() / ".local/share/goose-perception/PERSONALITY_SETTINGS.json"
             if settings_path.exists():
                 try:
                     with open(settings_path, 'r') as f:
                         settings = json.load(f)
                     saved_personality = settings.get("current_personality", "comedian")
-                    
-                    # Load personality data from file (thread-safe)
+                    print(f"[PERSONALITY] Loaded from settings: {saved_personality}")
                     personalities_path = Path(__file__).parent / "personalities.json"
                     if personalities_path.exists():
                         with open(personalities_path, 'r') as f:
                             personalities_data = json.load(f)
                             personality_data = personalities_data.get("personalities", {}).get(saved_personality, {})
-                            
                             if personality_data:
+                                print(f"[PERSONALITY] Using personality data: {personality_data.get('name', saved_personality.title())}")
                                 return {
                                     'personality_name': personality_data.get('name', saved_personality.title()),
                                     'personality_style': personality_data.get('suggestion_style', ''),
@@ -511,10 +560,29 @@ class ObserverAvatarBridge:
                                     'personality_priorities': ', '.join(personality_data.get('priorities', [])),
                                     'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
                                 }
+                            else:
+                                print(f"[PERSONALITY] No data found for personality: {saved_personality}, falling back to default.")
                 except Exception as e:
-                    print(f"Error reading personality settings: {e}")
-            
-            # Fallback to comedian personality (thread-safe default)
+                    print(f"[PERSONALITY] Error reading personality settings: {e}")
+            else:
+                print("[PERSONALITY] Settings file not found, using default personality.")
+            # Fallback to professional if available, else comedian
+            fallback_personality = "professional"
+            personalities_path = Path(__file__).parent / "personalities.json"
+            if personalities_path.exists():
+                with open(personalities_path, 'r') as f:
+                    personalities_data = json.load(f)
+                    if fallback_personality in personalities_data.get("personalities", {}):
+                        print(f"[PERSONALITY] Fallback to: {fallback_personality}")
+                        personality_data = personalities_data["personalities"][fallback_personality]
+                        return {
+                            'personality_name': personality_data.get('name', fallback_personality.title()),
+                            'personality_style': personality_data.get('suggestion_style', ''),
+                            'personality_tone': personality_data.get('tone', ''),
+                            'personality_priorities': ', '.join(personality_data.get('priorities', [])),
+                            'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
+                        }
+            print("[PERSONALITY] Fallback to comedian personality.")
             return {
                 'personality_name': 'Comedian',
                 'personality_style': 'Everything is an opportunity for humor. Makes jokes about coding, work situations, and daily activities. Keeps things light and funny.',
@@ -523,8 +591,7 @@ class ObserverAvatarBridge:
                 'personality_phrases': 'Why did the developer, Speaking of comedy, Here\'s a joke for you, Plot twist comedy, Funny thing about'
             }
         except Exception as e:
-            print(f"Error getting personality parameters: {e}")
-            # Return safe default parameters
+            print(f"[PERSONALITY] Error getting personality parameters: {e}")
             return {
                 'personality_name': 'Comedian',
                 'personality_style': 'Everything is an opportunity for humor. Makes jokes about coding, work situations, and daily activities.',
@@ -563,6 +630,209 @@ class ObserverAvatarBridge:
                     
         except Exception as e:
             print(f"⚠️ Error clearing old suggestions: {e}")
+
+    def _remove_suggestion_from_file(self, suggestion, file_path, key):
+        """Remove a suggestion from the given JSON file under the specified key."""
+        try:
+            if not file_path.exists():
+                return
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+            suggestions = data.get(key, [])
+            # Remove the first matching suggestion (by string match)
+            if isinstance(suggestion, dict):
+                msg = suggestion.get('message', '')
+            else:
+                msg = suggestion
+            new_suggestions = [s for s in suggestions if (s if isinstance(s, str) else s.get('message', '')) != msg]
+            data[key] = new_suggestions
+            if new_suggestions:
+                with open(file_path, 'w') as f:
+                    json.dump(data, f, indent=2)
+            else:
+                file_path.unlink()  # Delete file if empty
+        except Exception as e:
+            print(f"⚠️ Error removing suggestion from {file_path}: {e}")
+
+    def _remove_chitchat_from_file(self, message, file_path):
+        """Remove a chit-chat message from the .md file."""
+        try:
+            if not file_path.exists():
+                return
+            lines = file_path.read_text().splitlines()
+            # Remove the first matching message line
+            new_lines = [line for line in lines if line.strip() != message.strip()]
+            if new_lines:
+                file_path.write_text('\n'.join(new_lines))
+            else:
+                file_path.unlink()
+        except Exception as e:
+            print(f"⚠️ Error removing chit-chat from {file_path}: {e}")
+
+    def _show_next_queued_suggestion(self):
+        now = datetime.now()
+        if self.suggestion_queue and (now - self.last_suggestion_display > self.min_suggestion_interval):
+            suggestion = self.suggestion_queue.pop(0)
+            self._show_suggestion(suggestion)
+            suggestion_hash = self._hash_suggestion(suggestion)
+            self.shown_suggestions.add(suggestion_hash)
+            self.last_suggestion_display = now
+            # Remove from AVATAR_SUGGESTIONS.json
+            suggestions_path = self.perception_dir / "AVATAR_SUGGESTIONS.json"
+            self._remove_suggestion_from_file(suggestion, suggestions_path, "suggestions")
+            self._save_state()
+
+    def _show_next_actionable_suggestion(self):
+        now = datetime.now()
+        if self.actionable_suggestion_queue and (now - self.last_actionable_display > self.min_actionable_interval):
+            suggestion = self.actionable_suggestion_queue.pop(0)
+            self._show_actionable_suggestion(suggestion)
+            suggestion_hash = self._hash_suggestion(suggestion)
+            self.shown_actionable_suggestions.add(suggestion_hash)
+            self.last_actionable_display = now
+            # Remove from ACTIONABLE_SUGGESTIONS.json
+            actionable_path = self.perception_dir / "ACTIONABLE_SUGGESTIONS.json"
+            self._remove_suggestion_from_file(suggestion, actionable_path, "actionable_suggestions")
+            self._save_state()
+
+    def _show_next_chitchat(self):
+        now = datetime.now()
+        if self.chitchat_queue and (now - self.last_chitchat_display > self.min_chitchat_interval):
+            message = self.chitchat_queue.pop(0)
+            self._show_chitchat(message)
+            message_hash = self._hash_chitchat(message)
+            self.shown_chitchat.add(message_hash)
+            self.last_chitchat_display = now
+            # Remove from AVATAR_CHATTER.md
+            chatter_path = self.perception_dir / "AVATAR_CHATTER.md"
+            self._remove_chitchat_from_file(message, chatter_path)
+            self._save_state()
+
+    def _show_chitchat(self, message):
+        from . import avatar_display
+        avatar_display.show_message(message, 4000)
+
+    def _hash_suggestion(self, suggestion):
+        s = f"{suggestion.get('type','')}|{suggestion.get('message','')}"
+        return hashlib.sha256(s.encode('utf-8')).hexdigest()
+
+    def _hash_chitchat(self, message):
+        return hashlib.sha256(message.encode('utf-8')).hexdigest()
+
+    def record_feedback(self, suggestion, feedback_type):
+        """Record user feedback (accepted/rejected) for a suggestion, storing the full suggestion."""
+        feedback_file = self.state_dir / "avatar_feedback.json"
+        entry = {
+            "suggestion": suggestion,  # Store the full suggestion dict or string
+            "type": suggestion.get('type', 'unknown') if isinstance(suggestion, dict) else 'unknown',
+            "timestamp": datetime.now().isoformat(),
+            "feedback": feedback_type
+        }
+        # Load existing feedback
+        if feedback_file.exists():
+            with open(feedback_file, "r") as f:
+                try:
+                    data = json.load(f)
+                except Exception:
+                    data = {"feedback": []}
+        else:
+            data = {"feedback": []}
+        data["feedback"].append(entry)
+        with open(feedback_file, "w") as f:
+            json.dump(data, f, indent=2)
+
+    def mark_suggestion_completed(self, suggestion):
+        suggestion_hash = self._hash_suggestion(suggestion)
+        self.completed_suggestions.add(suggestion_hash)
+        self.record_feedback(suggestion, "accepted")
+        self._save_state()
+
+    def mark_suggestion_dismissed(self, suggestion):
+        suggestion_hash = self._hash_suggestion(suggestion)
+        self.dismissed_suggestions.add(suggestion_hash)
+        self.record_feedback(suggestion, "rejected")
+        self._save_state()
+
+    def _save_state(self):
+        state = {
+            'suggestion_queue': self.suggestion_queue,
+            'shown_suggestions': list(self.shown_suggestions),
+            'last_suggestion_display': self.last_suggestion_display,
+            'actionable_suggestion_queue': self.actionable_suggestion_queue,
+            'shown_actionable_suggestions': list(self.shown_actionable_suggestions),
+            'last_actionable_display': self.last_actionable_display,
+            'chitchat_queue': self.chitchat_queue,
+            'shown_chitchat': list(self.shown_chitchat),
+            'last_chitchat_display': self.last_chitchat_display,
+            'completed_suggestions': list(self.completed_suggestions),
+            'dismissed_suggestions': list(self.dismissed_suggestions),
+        }
+        with open(self.state_dir / "avatar_state.pkl", "wb") as f:
+            pickle.dump(state, f)
+
+    def _load_state(self):
+        try:
+            state_file = self.state_dir / "avatar_state.pkl"
+            if state_file.exists():
+                with open(state_file, "rb") as f:
+                    state = pickle.load(f)
+                self.suggestion_queue = state.get('suggestion_queue', [])
+                self.shown_suggestions = set(state.get('shown_suggestions', []))
+                self.last_suggestion_display = state.get('last_suggestion_display', datetime.min)
+                self.actionable_suggestion_queue = state.get('actionable_suggestion_queue', [])
+                self.shown_actionable_suggestions = set(state.get('shown_actionable_suggestions', []))
+                self.last_actionable_display = state.get('last_actionable_display', datetime.min)
+                self.chitchat_queue = state.get('chitchat_queue', [])
+                self.shown_chitchat = set(state.get('shown_chitchat', []))
+                self.last_chitchat_display = state.get('last_chitchat_display', datetime.min)
+                self.completed_suggestions = set(state.get('completed_suggestions', []))
+                self.dismissed_suggestions = set(state.get('dismissed_suggestions', []))
+        except Exception as e:
+            print(f"⚠️ Error loading avatar state: {e}")
+
+    def clear_all_state(self):
+        """Clear all suggestion, actionable, and chit-chat files and reset queues/sets. Also delete AVATAR_MESSAGE.json and other legacy message files."""
+        self.clear_old_suggestions()
+        # Remove legacy/auxiliary message files
+        legacy_files = [
+            self.perception_dir / "AVATAR_MESSAGE.json",
+            self.perception_dir / "AVATAR_MESSAGE.md",
+            self.perception_dir / "AVATAR_MESSAGE.txt"
+        ]
+        for file_path in legacy_files:
+            if file_path.exists():
+                file_path.unlink()
+                print(f"🗑️ Cleared legacy message file: {file_path.name}")
+        self.suggestion_queue = []
+        self.shown_suggestions = set()
+        self.last_suggestion_display = datetime.min
+        self.actionable_suggestion_queue = []
+        self.shown_actionable_suggestions = set()
+        self.last_actionable_display = datetime.min
+        self.chitchat_queue = []
+        self.shown_chitchat = set()
+        self.last_chitchat_display = datetime.min
+        self.completed_suggestions = set()
+        self.dismissed_suggestions = set()
+        self._save_state()
+        print("[STATE] All suggestion/chitchat state cleared.")
+
+    def on_personality_switch(self):
+        """Call this after personality switch to clear state and regenerate suggestions."""
+        self.clear_all_state()
+        self._run_avatar_suggestions()
+        self._run_actionable_suggestions()
+        self._run_chatter_recipe()
+        print("[PERSONALITY] Regenerated all suggestions after personality switch.")
+
+    def on_context_or_recipe_change(self):
+        """Call this after context or recipe change to clear state and regenerate suggestions."""
+        print("[CONTEXT/RECIPE] Detected context or recipe change. Clearing all state and regenerating suggestions.")
+        self.clear_all_state()
+        self._run_avatar_suggestions()
+        self._run_actionable_suggestions()
+        self._run_chatter_recipe()
+        print("[CONTEXT/RECIPE] Regenerated all suggestions after context/recipe change.")
 
 def trigger_personality_update():
     """Trigger personality-based suggestion regeneration (can be called from other modules)"""

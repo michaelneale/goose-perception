@@ -1,9 +1,12 @@
+# INSTRUCTION: Do NOT generate suggestions that reference the current time, 'right now', or the last few minutes. Suggestions should be general, or reference past events (e.g., 'earlier today', 'in the last few hours', 'at 4:45 p.m. you...'). The system may show suggestions with a delay, so avoid anything that would only make sense in real-time.
 version: 1.0.0
 title: Actionable Avatar Suggestions
 author:
   contact: mic
 description: Generate actionable avatar suggestions with specific executable actions
 instructions: |
+  Generate actionable suggestions for the avatar to display based on accumulated knowledge and context.
+  IMPORTANT: Do NOT generate suggestions that reference the current time, 'right now', or the last few minutes. Suggestions can reference general time-of-day (morning, afternoon, evening), past events, or patterns, but must be robust to delayed delivery. Avoid anything that would only make sense in real-time.
   analyze work patterns and generate actionable suggestions that the avatar can execute
   focus on specific actions like sending emails, creating meetings, updating status, managing tasks
 extensions:
@@ -41,6 +44,8 @@ parameters:
   description: "Example phrases characteristic of the personality"
 
 prompt: |
+  IMPORTANT: Do NOT generate suggestions that reference the current time, 'right now', or the last few minutes. Suggestions can reference general time-of-day (morning, afternoon, evening), past events, or patterns, but must be robust to delayed delivery. Avoid anything that would only make sense in real-time.
+
   CURRENT LOCAL TIME: $(date)
   TIMEZONE: $(date +%Z)
   

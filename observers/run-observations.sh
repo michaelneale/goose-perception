@@ -237,14 +237,14 @@ run_scheduled_recipes() {
   # Work summary recipe (every 20 minutes, weekdays only)
   run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md" "weekday-only"  
   
-  run_recipe_if_needed "recipe-contributions.yaml" "evening" "CONTRIBUTIONS.md" "weekday-only"
+  run_recipe_if_needed "recipe-contributions.yaml" "hourly" "CONTRIBUTIONS.md" "weekday-only"
   run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus" "weekday-only"
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
 
   
   run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md" "weekday-only"
   run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
-  run_recipe_if_needed "recipe-interactions.yaml" "daily" "INTERACTIONS.md"
+  run_recipe_if_needed "recipe-interactions.yaml" "hourly" "INTERACTIONS.md"
   run_recipe_if_needed "recipe-important-attention-message.yaml" "hourly" ".important-messages" "weekday-only"
   run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
   run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention" "weekday-only"

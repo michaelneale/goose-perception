@@ -12,6 +12,8 @@ from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransfo
 import random
 import json
 from datetime import datetime
+import re
+import time
 
 class AvatarCommunicator(QObject):
     """Thread-safe communicator for avatar system"""
@@ -1514,49 +1516,42 @@ class GooseAvatar(QWidget):
                 self.last_suggestion_time = current_time
     
     def show_idle_suggestion(self):
-        """Show a random idle suggestion from the JSON file, avoiding recent repeats."""
+        """Show a random idle suggestion from the JSON file, avoiding recent repeats and skipping time-specific language."""
+        import re
         suggestions_path = Path.home() / ".local/share/goose-perception/AVATAR_SUGGESTIONS.json"
         suggestions = []
-        
         try:
             if suggestions_path.exists():
                 with open(suggestions_path, 'r') as f:
                     import json
                     data = json.load(f)
                     suggestions = data.get("suggestions", [])
-            
-            if not suggestions:
-                # Fallback to hardcoded suggestions if file is empty or missing
-                suggestions = [
-                    "💡 I'm watching your workflow - let me know if you need help!",
-                    "🔍 I can help analyze your code or suggest improvements."
-                ]
-
         except Exception as e:
             print(f"Error reading suggestions file: {e}")
-            # Fallback to hardcoded suggestions on error
-            suggestions = [
-                "⚠️ Could not load suggestions, but I'm still here to help!",
-                "🤖 I seem to have misplaced my suggestion notes. How can I assist?"
-            ]
-        
+            # Do not show any suggestion if file is missing or error occurs
+            return
+
+        # Filter out suggestions with time-specific language (e.g., 'right now', 'in the last \\d+ minutes', etc.)
+        time_specific_pattern = re.compile(r"right now|in the last \\d+ minutes|in the last minute|at this exact moment|currently|just now|this minute|past \\d+ minutes", re.IGNORECASE)
+        filtered_suggestions = [s for s in suggestions if not time_specific_pattern.search(s)]
+
         # Filter out recently shown suggestions to reduce repetition
-        fresh_suggestions = [s for s in suggestions if s not in self.recent_suggestions]
-        
-        # If we've shown everything recently, reset the tracking but prefer newer suggestions
+        fresh_suggestions = [s for s in filtered_suggestions if s not in self.recent_suggestions]
+
+        # If no valid suggestions, do not show anything
         if not fresh_suggestions:
-            fresh_suggestions = suggestions
-            self.recent_suggestions = []
-            print("🔄 Refreshed suggestion pool - all suggestions have been shown recently")
-        
+            print("No valid idle suggestions to show.")
+            return
+
         # Pick a random fresh suggestion
+        import random
         message = random.choice(fresh_suggestions)
-        
+
         # Track this suggestion to avoid immediate repetition
         self.recent_suggestions.append(message)
         if len(self.recent_suggestions) > self.max_recent_suggestions:
             self.recent_suggestions.pop(0)  # Remove oldest
-            
+
         self.show_observer_suggestion("idle_chatter", message)
     
     def show_observer_suggestion(self, observation_type, message):
@@ -1669,24 +1664,19 @@ class GooseAvatar(QWidget):
         
         # Run recipe regeneration in background thread to avoid UI freezing
         import threading
-        import time
         def background_personality_update():
             try:
-                # Give the transition message time to display
-                time.sleep(3)
-                
+                # Removed time.sleep(3)
                 print("🔄 Starting background personality update...")
                 from . import observer_avatar_bridge
                 if hasattr(observer_avatar_bridge, 'bridge_instance') and observer_avatar_bridge.bridge_instance:
                     # Clear old suggestions first to ensure only personality-appropriate content
                     observer_avatar_bridge.bridge_instance.clear_old_suggestions()
-                    
                     # Generate new personality-based suggestions
                     observer_avatar_bridge.bridge_instance._run_avatar_suggestions()
                     observer_avatar_bridge.bridge_instance._run_actionable_suggestions()
                     observer_avatar_bridge.bridge_instance._run_chatter_recipe()
                     print("✅ Background personality update completed")
-                    
                     # Show completion message
                     completion_messages = [
                         f"🎭 {name} is ready to assist!",
@@ -1696,25 +1686,17 @@ class GooseAvatar(QWidget):
                         f"🎬 {name} is now in character!",
                     ]
                     completion_msg = random.choice(completion_messages)
-                    
-                    # Show completion message briefly - USE THREAD-SAFE APPROACH
                     def show_completion():
-                        # Use the thread-safe communicator instead of direct call
                         if avatar_communicator:
                             avatar_communicator.show_message_signal.emit(f"{emoji} {completion_msg}", 4000, 'pointing')
                         else:
                             print(f"Avatar not available for completion message: {completion_msg}")
-                    
-                    # Wait 1 second then show completion message (thread-safe approach)
-                    import time
-                    time.sleep(1)
+                    # Removed time.sleep(1)
                     show_completion()
-                    
                 else:
                     print("⚠️ Observer bridge not available for personality update")
             except Exception as e:
                 print(f"❌ Error in background personality update: {e}")
-        
         # Start background thread
         update_thread = threading.Thread(target=background_personality_update, daemon=True)
         update_thread.start()
