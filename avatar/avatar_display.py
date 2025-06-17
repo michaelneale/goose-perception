@@ -749,17 +749,39 @@ class GooseAvatar(QWidget):
         """Run the action recipe in background"""
         try:
             import subprocess
+            from datetime import datetime
+            from pathlib import Path
             
             # Map action commands to recipe files
             recipe_path = f"actions/{action_command}.yaml"
             
             print(f"Running recipe: {recipe_path}")
             
+            # Log action start
+            log_path = Path.home() / ".local/share/goose-perception/actions_taken.txt"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(log_path, "a") as f:
+                f.write(f"\n--- {timestamp} ---\n")
+                f.write(f"ACTION: {action_command}\n")
+                f.write(f"RECIPE: {recipe_path}\n")
+                f.write("STATUS: Starting...\n")
+            
             # Run the goose recipe
             result = subprocess.run([
                 "goose", "run", "--no-session", 
                 "--recipe", recipe_path
             ], capture_output=True, text=True, timeout=180)
+            
+            # Log the result
+            with open(log_path, "a") as f:
+                f.write(f"RESULT: {'SUCCESS' if result.returncode == 0 else 'FAILED'}\n")
+                if result.stdout:
+                    f.write(f"STDOUT:\n{result.stdout}\n")
+                if result.stderr:
+                    f.write(f"STDERR:\n{result.stderr}\n")
+                f.write("--- END ---\n\n")
             
             if result.returncode == 0:
                 print(f"✅ Action {action_command} completed successfully")
@@ -772,9 +794,20 @@ class GooseAvatar(QWidget):
         except subprocess.TimeoutExpired:
             print(f"⏰ Action {action_command} timed out")
             self.show_message("⏰ Action is taking longer than expected...", 4000, 'idle')
+            # Log timeout
+            with open(log_path, "a") as f:
+                f.write("RESULT: TIMEOUT\n")
+                f.write("--- END ---\n\n")
         except Exception as e:
             print(f"Error running action {action_command}: {e}")
             self.show_message("❌ Couldn't execute that action right now.", 3000, 'idle')
+            # Log error
+            try:
+                with open(log_path, "a") as f:
+                    f.write(f"RESULT: ERROR - {str(e)}\n")
+                    f.write("--- END ---\n\n")
+            except:
+                pass  # Don't fail if logging fails
     
     def hide_message(self):
         """Hide the current message"""
