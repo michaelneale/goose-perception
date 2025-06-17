@@ -13,6 +13,17 @@ mkdir -p "$SCREENSHOT_DIR"
 PERCEPTION_DIR="$HOME/.local/share/goose-perception"
 mkdir -p "$PERCEPTION_DIR"
 
+# Create automated-actions and adapted-observers directories
+mkdir -p "$PERCEPTION_DIR/automated-actions/daily"
+mkdir -p "$PERCEPTION_DIR/automated-actions/weekly"
+mkdir -p "$PERCEPTION_DIR/adapted-observers"
+
+# Copy .goosehints file to each directory
+GOOSEHINTS_FILE="./observers/.goosehints"
+cp "$GOOSEHINTS_FILE" "$PERCEPTION_DIR/automated-actions/daily/.goosehints"
+cp "$GOOSEHINTS_FILE" "$PERCEPTION_DIR/automated-actions/weekly/.goosehints"
+cp "$GOOSEHINTS_FILE" "$PERCEPTION_DIR/adapted-observers/.goosehints"
+
 rm -f /tmp/goose-perception-halt
 
 # Function to log activity to ACTIVITY-LOG.md
@@ -58,6 +69,15 @@ run_recipe_if_needed() {
   local marker_file="$PERCEPTION_DIR/.recipe-last-run-$(basename "$recipe" .yaml)"
   local full_output_path="$PERCEPTION_DIR/$output_file"
   
+  # Check for adapted recipe first
+  local adapted_recipe_path="$PERCEPTION_DIR/adapted-observers/$(basename "$recipe")"
+  local recipe_to_run="$recipe"
+  
+  if [ -f "$adapted_recipe_path" ]; then
+    echo "$(date): Found adapted recipe: $adapted_recipe_path"
+    recipe_to_run="$adapted_recipe_path"
+  fi
+  
   # Check if weekday_only is enabled and today is weekend
   if [ "$weekday_only" = "weekday-only" ]; then
     local day_of_week=$(date +%u)  # 1=Monday, 7=Sunday
@@ -101,13 +121,13 @@ run_recipe_if_needed() {
     esac
     
     # Run the recipe
-    echo "$(date): Running $recipe recipe ($frequency)..."
-    log_activity "Starting $recipe ($frequency)"
-    GOOSE_CONTEXT_STRATEGY="truncate" goose run --no-session --recipe "$recipe" && {
+    echo "$(date): Running $recipe_to_run recipe ($frequency)..."
+    log_activity "Starting $recipe_to_run ($frequency)"
+    GOOSE_CONTEXT_STRATEGY="truncate" goose run --no-session --recipe "$recipe_to_run" && {
       touch "$marker_file"
       [ -n "$output_file" ] && touch "$full_output_path"
-      log_activity "Completed $recipe"
-    } || log_activity "Failed $recipe"
+      log_activity "Completed $recipe_to_run"
+    } || log_activity "Failed $recipe_to_run"
     return 0
   fi
   
@@ -147,18 +167,18 @@ run_recipe_if_needed() {
   
   # Check if marker file doesn't exist or is older than frequency
   if [ ! -f "$marker_file" ] || [ $(find "$marker_file" $find_time -print | wc -l) -gt 0 ]; then
-    echo "$(date): Running $recipe recipe ($frequency)..."
-    log_activity "Starting $recipe ($frequency)"
+    echo "$(date): Running $recipe_to_run recipe ($frequency)..."
+    log_activity "Starting $recipe_to_run ($frequency)"
     # Run recipe and wait for completion
     local current_hour=$(date +%H)
-    local session_name="${recipe}-${current_hour}"
-    goose run --no-session --recipe "$recipe" && {
+    local session_name="${recipe_to_run}-${current_hour}"
+    goose run --no-session --recipe "$recipe_to_run" && {
       # Update marker file on success
       touch "$marker_file"
       # Touch the output file to update its timestamp even if the recipe didn't modify it
       [ -n "$output_file" ] && touch "$full_output_path"
-      log_activity "Completed $recipe"
-    } || log_activity "Failed $recipe"
+      log_activity "Completed $recipe_to_run"
+    } || log_activity "Failed $recipe_to_run"
   else
     echo "$(date): Skipping $recipe, ran recently (frequency: $frequency)."
   fi
@@ -187,6 +207,32 @@ run_screenshot_loop() {
 run_scheduled_recipes() {
   echo "$(date): Checking scheduled recipes..."
   
+  # Check for automated recipes in ~/.local/share/goose-perception/automated-actions/
+  local automated_dir="$HOME/.local/share/goose-perception/automated-actions"
+  
+  # Check daily recipes
+  if [ -d "$automated_dir/daily" ]; then
+    echo "$(date): Checking daily automated recipes..."
+    for recipe in "$automated_dir/daily"/*.yaml; do
+      if [ -f "$recipe" ]; then
+        local recipe_name=$(basename "$recipe")
+        echo "$(date): Found daily recipe: $recipe_name"
+        run_recipe_if_needed "$recipe" "daily" ""
+      fi
+    done
+  fi
+  
+  # Check weekly recipes
+  if [ -d "$automated_dir/weekly" ]; then
+    echo "$(date): Checking weekly automated recipes..."
+    for recipe in "$automated_dir/weekly"/*.yaml; do
+      if [ -f "$recipe" ]; then
+        local recipe_name=$(basename "$recipe")
+        echo "$(date): Found weekly recipe: $recipe_name"
+        run_recipe_if_needed "$recipe" "weekly" ""
+      fi
+    done
+  fi
   
   # Work summary recipe (every 20 minutes, weekdays only)
   run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md" "weekday-only"  
