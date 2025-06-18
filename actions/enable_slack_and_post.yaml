@@ -17,60 +17,48 @@ prompt: |
   
   **MISSION: Setup Slack MCP integration and post team update**
   
-  **STEP 1: CHECK MCP CONFIGURATION**
-  Determine if Slack MCP server is already configured:
-  - Check Goose configuration for existing MCP servers
-  - Look for Slack-related MCP integrations
-  - Check if Slack tools are already available
+  **STEP 1: CHECK SLACK MCP INTEGRATION**
+  First, check if Slack MCP server is configured and available:
+  - Check current MCP server configuration
+  - Verify Slack MCP tools are available
+  - If not configured, suggest MCP server setup (like composing message to copy/paste)
   
-  **STEP 2: CONFIGURE MCP SERVER**
-  If Slack MCP server needs setup:
-  - Identify appropriate Slack MCP server (community or custom)
-  - Add MCP server configuration to Goose config
-  - Configure Slack API credentials/tokens as needed
-  - Restart or reload Goose to pick up new MCP server
+  **STEP 2: COMPOSE TEAM UPDATE**
+  Based on recent work activity in ~/.local/share/goose-perception/, compose a team status update suitable for Slack.
   
-  **STEP 3: VERIFY MCP INTEGRATION**
-  Confirm Slack MCP tools are available:
-  - List available tools to verify Slack integration
-  - Test basic Slack connectivity if possible
+  Analyze these files:
+  - LATEST_WORK.md (current focus)
+  - WORK.md (recent accomplishments)  
+  - CONTRIBUTIONS.md (completed items)
+  - ACTIVITY-LOG.md (recent activity)
   
-  **STEP 4: COMPOSE AND POST UPDATE**
-  Based on recent work activity in ~/.local/share/goose-perception/, create and post a team update.
+  **SLACK UPDATE FORMAT:**
+  Create concise, emoji-friendly update suitable for team channels:
   
-  **Format for Slack:**
-  ```
-  🚀 **Team Update - $(date +"%B %d")**
+  📅 **Weekly Update - [Date]**
   
-  ✅ **Shipped This Week:**
-  • [Major accomplishments from CONTRIBUTIONS.md]
-  • [Key features delivered]
+  ✅ **Completed:**
+  - [Key accomplishments]
+  - [Features delivered]
   
-  🔄 **Currently Working On:**
-  • [Active projects from LATEST_WORK.md]
-  • [In-progress items]
+  🔄 **In Progress:**
+  - [Current work]
+  - [Next deliverables]
   
-  📅 **Coming Next:**
-  • [Next priorities]
-  • [Scheduled deliverables]
+  📋 **Next Up:**
+  - [Upcoming priorities]
+  - [Dependencies/blockers]
   
-  ❓ **Need Help With:**
-  • [Blockers or questions]
-  • [Resource needs]
-  ```
+  **STEP 3: POST OR PREPARE**
+  If Slack MCP server is configured:
+  - Use Slack MCP tools to post the update to appropriate channel(s): {{ user_prefs.slack_channels }}
+  - Confirm successful posting
   
-  **STEP 5: POST TO SLACK**
-  Post the update to:
-  - Primary team channel (#engineering, #dev-team, etc.)
-  - Or suggest appropriate channel based on content
-  
-  **FALLBACK PLAN:**
-  If Slack MCP server can't be configured or doesn't work:
-  1. Save formatted update to ~/.local/share/goose-perception/READY_TO_POST_SLACK.md
-  2. Provide copy-paste instructions
-  3. Suggest manual posting steps
-  4. Include channel recommendations
-  5. Provide guidance on MCP server setup for future use
+  If Slack MCP server not available:
+  - Save formatted message to ~/.local/share/goose-perception/READY_TO_POST_SLACK.md
+  - Provide instructions for manual posting
+  - Include suggested channels: {{ user_prefs.slack_channels }}
+  - Provide guidance on configuring Slack MCP server for future use
   
   **OUTPUT:**
   Confirm successful posting or provide manual steps with formatted content ready to use.

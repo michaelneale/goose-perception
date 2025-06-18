@@ -16,6 +16,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from jinja2 import Environment, BaseLoader
+import yaml
 
 # Import avatar display system
 try:
@@ -24,6 +25,13 @@ except ImportError:
     avatar_display = None
 
 notify_cmd = "osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'"
+
+# Load user preferences
+user_prefs = {}
+prefs_path = Path("user_prefs.yaml")
+if prefs_path.exists():
+    with open(prefs_path, "r") as f:
+        user_prefs = yaml.safe_load(f)
 
 def safe_read_file(file_path):
     """
@@ -85,7 +93,8 @@ def render_recipe_template(transcript, is_screen_capture=False):
         latest_work=latest_work,
         interactions=interactions,
         contributions=contributions,
-        transcription=transcript
+        transcription=transcript,
+        user_prefs=user_prefs  # Pass user preferences to the template
     )
     
     # Create a temporary file for the rendered template

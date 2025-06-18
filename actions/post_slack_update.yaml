@@ -49,13 +49,13 @@ prompt: |
   
   **STEP 3: POST OR PREPARE**
   If Slack MCP server is configured:
-  - Use Slack MCP tools to post the update to appropriate channel (#engineering, #team-updates, etc.)
+  - Use Slack MCP tools to post the update to appropriate channel(s): {{ user_prefs.slack_channels }}
   - Confirm successful posting
   
   If Slack MCP server not available:
   - Save formatted message to ~/.local/share/goose-perception/SLACK_UPDATE_DRAFT.md
   - Provide instructions for manual posting
-  - Include suggested channels and timing
+  - Include suggested channels: {{ user_prefs.slack_channels }}
   - Provide guidance on configuring Slack MCP server for future use
   
   **OUTPUT:**

@@ -1,0 +1,6 @@
+announcement_channel: '#mnovichtest2'
+notification_urgency: mentions,  emails from management and build failures
+preferred_update_time: ''
+reminders_enabled: true
+send_email_updates: false
+team_channel: '#mnovichtest2'

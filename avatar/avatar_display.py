@@ -6,7 +6,7 @@ import sys
 import os
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
-                            QPushButton, QHBoxLayout, QTextEdit, QMenu)
+                            QPushButton, QHBoxLayout, QTextEdit, QMenu, QLineEdit)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics
 import random
@@ -14,6 +14,7 @@ import json
 from datetime import datetime
 import re
 import time
+import yaml
 
 class AvatarCommunicator(QObject):
     """Thread-safe communicator for avatar system"""
@@ -97,7 +98,233 @@ class GooseAvatar(QWidget):
         # Load avatar images
         self.load_avatar_images()
         self.init_ui()
+        self.is_onboarding = False
+        self.onboard_user_if_needed()
         
+    def set_interactive_mode(self, interactive):
+        """Toggle window flags to allow/disallow keyboard focus."""
+        if interactive:
+            print("Entering interactive mode for onboarding.")
+            # Flags that allow focus but keep the window as a floating tool
+            flags = (
+                Qt.WindowType.WindowStaysOnTopHint |
+                Qt.WindowType.FramelessWindowHint |
+                Qt.WindowType.Tool  # Behaves as a floating tool window
+            )
+            self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, False)
+            self.setWindowFlags(flags)
+            self.setFocusPolicy(Qt.FocusPolicy.StrongFocus) # Allow the main window to get focus
+        else:
+            print("Exiting interactive mode.")
+            # Restore default non-interactive flags
+            flags = (
+                Qt.WindowType.WindowStaysOnTopHint |
+                Qt.WindowType.FramelessWindowHint |
+                Qt.WindowType.WindowDoesNotAcceptFocus
+            )
+            self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+            self.setWindowFlags(flags)
+            self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        # Re-show the window for flags to apply
+        self.show()
+        if interactive:
+            self.activateWindow() # Bring it to the front
+            self.raise_()
+
+    def onboard_user_if_needed(self):
+        prefs_path = Path("user_prefs.yaml")
+        if prefs_path.exists():
+            with open(prefs_path, "r") as f:
+                self.user_prefs = yaml.safe_load(f)
+            self.is_onboarding = False
+            return
+        self.user_prefs = {}
+        self.is_onboarding = True
+        self.set_interactive_mode(True)
+        self.onboarding_questions = [
+            {"key": "team_channel", "question": "What is your main team Slack channel for project or daily updates?", "type": "text", "required": True},
+            {"key": "announcement_channel", "question": "Which Slack channel should Goose use for broader announcements? (optional)", "type": "text", "required": False},
+            {"key": "send_email_updates", "question": "Should Goose send email updates? (yes/no)", "type": "yesno", "required": True},
+            {"key": "email_recipients", "question": "Who should receive email updates? (comma-separated)", "type": "text", "required": False, "condition": lambda prefs: prefs.get("send_email_updates", False)},
+            {"key": "notification_urgency", "question": "What types of events should trigger an immediate notification? (e.g., direct mentions, urgent blockers, leadership emails) (optional)", "type": "text", "required": False},
+            {"key": "reminders_enabled", "question": "Do you want reminders for unfinished tasks, PR reviews, or follow-ups? (yes/no)", "type": "yesno", "required": True},
+            {"key": "preferred_update_time", "question": "What time of day should Goose post updates or send emails? (optional)", "type": "text", "required": False}
+        ]
+        self.current_onboarding_index = 0
+        self.show_next_onboarding_question()
+
+    def show_next_onboarding_question(self):
+        # Skip conditional questions if needed
+        while self.current_onboarding_index < len(self.onboarding_questions):
+            q = self.onboarding_questions[self.current_onboarding_index]
+            if "condition" in q and not q["condition"](self.user_prefs):
+                self.current_onboarding_index += 1
+            else:
+                break
+        if self.current_onboarding_index >= len(self.onboarding_questions):
+            # Onboarding complete
+            prefs_path = Path("user_prefs.yaml")
+            with open(prefs_path, "w") as f:
+                yaml.safe_dump(self.user_prefs, f)
+            self.is_onboarding = False
+            self.set_interactive_mode(False)
+            self.show_message("✅ Setup complete! You can edit your preferences in user_prefs.yaml anytime.", 5000, 'talking')
+            return
+        q = self.onboarding_questions[self.current_onboarding_index]
+        self.show_onboarding_bubble(q)
+
+    def show_onboarding_bubble(self, question_obj):
+        self.clear_bubble_content()
+        # Use the same layout and style as create_bubble_content
+        bubble_widget = QWidget()
+        bubble_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(52, 73, 94, 230);
+                border: 2px solid rgba(127, 140, 141, 180);
+                border-radius: 12px;
+            }
+        """)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(8)
+        # Question label (styled like actionable message)
+        question_label = QLabel(question_obj["question"])
+        question_label.setWordWrap(True)
+        font = QFont()
+        font.setPointSize(13)
+        font.setWeight(QFont.Weight.Medium)
+        question_label.setFont(font)
+        question_label.setFixedWidth(320)
+        question_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 13px;
+                font-weight: 500;
+                background: transparent;
+                padding: 8px;
+                border: none;
+            }
+        """)
+        layout.addWidget(question_label)
+        # Input field (extra row)
+        input_field = QLineEdit()
+        input_field.setFixedWidth(300)
+        input_field.setMinimumHeight(32)
+        input_field.setStyleSheet("""
+            QLineEdit {
+                background-color: white;
+                color: #222;
+                border: 1px solid #bbb;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 13px;
+            }
+        """)
+        layout.addWidget(input_field, alignment=Qt.AlignmentFlag.AlignHCenter)
+        # Buttons (styled like actionable suggestion buttons, but larger font)
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)
+        submit_button = QPushButton("Submit")
+        submit_button.setFixedWidth(120)
+        submit_button.setMinimumHeight(32)
+        submit_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(46, 204, 113, 200);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: rgba(39, 174, 96, 255);
+            }
+            QPushButton:pressed {
+                background-color: rgba(34, 153, 84, 255);
+            }
+        """)
+        button_layout.addWidget(submit_button)
+        if not question_obj.get("required", True):
+            skip_button = QPushButton("Skip")
+            skip_button.setFixedWidth(120)
+            skip_button.setMinimumHeight(32)
+            skip_button.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(149, 165, 166, 150);
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: rgba(127, 140, 141, 200);
+                }
+                QPushButton:pressed {
+                    background-color: rgba(95, 106, 106, 255);
+                }
+            """)
+            button_layout.addWidget(skip_button)
+            def on_skip():
+                self.user_prefs[question_obj["key"]] = ""
+                self.current_onboarding_index += 1
+                self.show_next_onboarding_question()
+            skip_button.clicked.connect(on_skip)
+        layout.addLayout(button_layout)
+        input_field.returnPressed.connect(submit_button.click)
+        input_field.setFocus()
+        if question_obj["type"] == "yesno":
+            input_field.setPlaceholderText("yes or no")
+        def on_submit():
+            answer = input_field.text().strip()
+            if question_obj["type"] == "yesno":
+                self.user_prefs[question_obj["key"]] = answer.lower() in ["yes", "y"]
+            else:
+                self.user_prefs[question_obj["key"]] = answer
+            self.current_onboarding_index += 1
+            self.show_next_onboarding_question()
+        submit_button.clicked.connect(on_submit)
+        bubble_widget.setLayout(layout)
+        bubble_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        input_field.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        input_field.setFocus()
+        self.clear_bubble_content()
+        self.bubble_layout.addWidget(bubble_widget)
+        # --- NEW: Adjust size and set container geometry like actionable suggestions ---
+        bubble_widget.adjustSize()
+        bubble_widget.updateGeometry()
+        bubble_size = bubble_widget.sizeHint()
+        container_width = 350
+        container_height = min(bubble_size.height() + 20, 420)
+        self.bubble_container.setGeometry(10, max(10, 200 - container_height + 20), container_width, container_height)
+        # --- END NEW ---
+        self.bubble_container.setFixedWidth(350)
+        self.bubble_container.setMinimumHeight(0)
+        self.bubble_container.setMaximumHeight(400)
+        self.bubble_container.show()
+        input_field.setFocus()
+        self.activateWindow()
+    
+    def ask_onboarding_question(self, question):
+        import subprocess
+        script = f'''
+        tell application "System Events"
+            activate
+            set userInput to text returned of (display dialog "{question}" default answer "" with title "Goose Onboarding" buttons {{"Cancel", "OK"}} default button "OK")
+            return userInput
+        end tell
+        '''
+        result = subprocess.run([
+            "osascript", "-e", script
+        ], capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return ""
+    
     def load_personalities(self):
         """Load personality definitions from personalities.json"""
         try:
@@ -199,6 +426,7 @@ class GooseAvatar(QWidget):
             Qt.WindowType.WindowDoesNotAcceptFocus  # Prevent focus stealing - NO Tool flag!
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         
         # Make window appear on all macOS Spaces
         self.setup_spaces_behavior()
@@ -513,7 +741,12 @@ class GooseAvatar(QWidget):
             print(f"⚠️ Unknown avatar state: {state}")
     
     def show_message(self, message, duration=None, avatar_state='talking', action_data=None):
-        """Queue a message for display (thread-safe entry point)"""
+        # Suppress all messages except onboarding if onboarding is in progress
+        if getattr(self, 'is_onboarding', False):
+            # Only allow onboarding bubbles
+            if not (hasattr(self, 'onboarding_questions') and any(q["question"] in message for q in self.onboarding_questions)):
+                print("[Onboarding] Suppressing message:", message)
+                return
         # Check if this is an encoded actionable message (new base64 format)
         if message.startswith("ACTIONABLE_B64:"):
             try:
@@ -1011,6 +1244,10 @@ class GooseAvatar(QWidget):
         self.show_action_menu()
     
     def show_action_menu(self):
+        # Suppress action menu if onboarding is in progress
+        if getattr(self, 'is_onboarding', False):
+            print("[Onboarding] Suppressing action menu during onboarding.")
+            return
         """Show an interactive action menu with helpful options"""
         # Get personality data for the greeting message
         personality_data = self.get_current_personality_data()

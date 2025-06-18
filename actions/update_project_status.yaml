@@ -58,4 +58,12 @@ prompt: |
   
   Save executive summary to ~/.local/share/goose-perception/DRAFT_STATUS_SUMMARY.md
   Save detailed status to ~/.local/share/goose-perception/DRAFT_DETAILED_STATUS.md
+  
+  # Email update logic
+  {% if user_prefs.send_email_updates %}
+  Also, send the project status update to the following email recipients: {{ user_prefs.email_recipients }}
+  {% else %}
+  Do not send email updates as per user preferences.
+  {% endif %}
+  
   Save stakeholder update to ~/.local/share/goose-perception/DRAFT_STAKEHOLDER_UPDATE.md 

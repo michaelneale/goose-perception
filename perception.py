@@ -26,6 +26,8 @@ from fuzzywuzzy import fuzz
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.tag import pos_tag
+import yaml
+from pathlib import Path
 
 # Ensure required NLTK data is downloaded
 try:
@@ -959,6 +961,14 @@ def analyze_audio(audio_data):
     }
 
 def main():
+    # Only load user_prefs.yaml if it exists; do not prompt for onboarding here
+    prefs_path = Path("user_prefs.yaml")
+    user_prefs = None
+    if prefs_path.exists():
+        with open(prefs_path, "r") as f:
+            user_prefs = yaml.safe_load(f)
+    # user_prefs is now available for use in the rest of main()
+
     parser = argparse.ArgumentParser(description="Listen to audio and transcribe using Whisper")
     parser.add_argument("--language", type=str, default=None, help="Language code (optional, e.g., 'en', 'es', 'fr')")
     parser.add_argument("--device", type=int, default=None, help="Audio input device index")
