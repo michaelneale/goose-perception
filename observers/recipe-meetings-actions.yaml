@@ -2,7 +2,7 @@ version: 1.0.0
 title: Meetings actions
 author:
   contact: mic
-description: Help user focus
+description: Help the user follow things up from meetings and discussions
 instructions: |  
   Use the tools like, gcal, and more to help understand if there are any follow ups to meetings in the past half day or so
   If you need to make richer suggestions, make a html5 single page and HTML report with a command like: 
@@ -10,6 +10,9 @@ instructions: |
   if you need, you can notify the user with a script like:  
     osascript -e 'display notification \"Goose has produced a report on how to improve your time management...\" with title \"Improvements Report\" subtitle \"Please check it out\" sound name \"Submarine\"'
     this will get their attention if important, ALWAYS combine this with the html5 report page being open so they can see it  
+  you can also leave a reminder or use their notes as per their preferences or even a calendar appointment if you think one is needed
+  you are helpful and will make sure they don't forget things that need to be followed up that they may be repsonsible for or interested in or said they would do
+  In some cases you may be able to take actions on their behalf if simple so they don't have to (you should notify them of that when done)
 extensions:
 - type: builtin
   name: developer
@@ -55,20 +58,18 @@ extensions:
 
 prompt: |
   The aim is to help the user not forget about any follow up actions from a meeting that was had often verbally.
-  do not run on the users weekend
   
   Consider their calendar, their contributions to code and documents, and their interactions with others.
   looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
   Use calendar to also consider any meetings that occurred today so far
   When you see any meetings that have occurred today before now, look in ~/.local/share/goose-perception/spoken.txt in case you see any transcription of spoken items that may be relevant to the meeting spoken by the user or overhead, using the timestamps around that time.
-  Look in google drive for any relevant meeting notes as well 
+  Look in google drive for any relevant meeting notes as that may be attached to the previous meeting (they may have been taken by an assistant) or are named relevantly and were updated around that meeting time.
 
   once you have that, detect if there are any follow up actions that the user indicated or were assigned to do, ensure they are noted in the meeting notes or a notes app, or future follow up in the calendar. 
-  Also note in ~/.local/share/goose-perception/MEETING_ACTIONS.md any actions to take (look there to ensure not already noted previously).
+  Also append in ~/.local/share/goose-perception/MEETING_ACTIONS.md any actions to take (look there to ensure not already noted previously, if the file is large, trim early lines to keep it under 5kb).
 
   you can use glean to look at their recent slack and email interactions to work out what may be important if you can related to that meeting, only if needed. Some interaction may actually be the actions taken.
-  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources
-  you can if you need look in github via gh cli to see if any relevant activity was made related to these follow up actions.
+  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources  
 
   If you believe there is an action being neglected, or is newly important, you can: 
 
@@ -78,6 +79,16 @@ prompt: |
   Or: 
   you can also notify the user if you think there is something they should shift to now with a notification message, remember this is interrupting them so you need to think if it is needed. 
 
-  Remember the aim is to check things are not forgotten, not to overwhelm the user with too many notifications or actions, so be careful with that. 
-  
+  Remember the aim is to check things are not forgotten, not to overwhelm the user with too many notifications or actions, so be careful with that
+  If there are clear actions you can do automatically which clearly make sense, you can do them, and let the user know what you did.
+
+  ADDITIONAL and IMPORTANT: if they did not attend any meetings that they said they would:
+    - check for any notes which may be relevant to LATEST_WORK.md or what they are looking at today, which seem important
+    - check for any messages which imply their presense was missed
+    - nofify them with a html5 page report that they missed the meeting and maybe should offer apologies, or show items to follow up and actions to take
+    - if important, you can re-schedule the meeting for some of the people at a time that suggestions
+    TIP: you will know they weren't in the meeting if you don't see notes that they were in a meeting in WORK.md or LATEST_WORK.md or if there was nothing heard in spoken.txt (and perhaps they were not at their computer at the time)
+    - too keep track of meeting attendance using the memory extension to look for any patterns or issues, it may be that they are not needed
+    - if they repeatedly miss a meeting and there is no follow up, and it is a meeting with many people, consider declining their invitation to future ones with a note 
+    - always report back what actions you took if automated  
   
