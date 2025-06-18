@@ -26,6 +26,10 @@ prompt: |
   If in a meeting, consider who they are meeting with and note that down too. 
   ~/.local/share/goose-perception/spoken.txt has a log of recently heard conversation, which may help you understand the context of the work being done, consider it, but it may be background chatter.
 
+  IMPORTANT: never mention this goose-perception project in any of your reporting, it should not appear in work done, do not consider automation done by it as something work reporting out. 
+  ALWAYS check attribution before giving the user credit for something. This needs to be cross checked with code, docs, interactions that they really did it, do not confuse email lists or slack broadcasts with activity being undertaken.
+  If you see what you know as irrelevant things in LATEST_WORK.md, you can remove it
+
 
   Please also look at windows that are open titles to consider things.
 

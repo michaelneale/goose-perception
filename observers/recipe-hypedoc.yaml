@@ -52,3 +52,6 @@ prompt: |
   If there is already one there for this week, you can skip it or update it if you think there is new ones. 
   There should always be one for this week however, that is important
   You are to consider things broadly, don't look around for code on disk etc, you should use the information I have shown you and your tools. 
+
+  IMPORTANT: never mention this goose-perception project in any of your reporting, it should not appear in work done, do not consider automation done by it as something work reporting out. 
+  ALWAYS check attribution before giving the user credit for something. This needs to be cross checked with code, docs, interactions that they really did it, do not confuse email lists or slack broadcasts with activity being undertaken.

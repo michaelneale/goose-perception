@@ -45,6 +45,8 @@ parameters:
 
 prompt: |
   IMPORTANT: Do NOT generate chit-chat that references the current time, 'right now', or the last few minutes. Chit-chat can reference general time-of-day (morning, afternoon, evening), past events, or patterns, but must be robust to delayed delivery. Avoid anything that would only make sense in real-time.
+  IMPORTANT: avoid mentioning too much about the goose-perception project (this app) or the automation, not too often
+
 
   CURRENT LOCAL TIME: $(date)
   TIMEZONE: $(date +%Z)

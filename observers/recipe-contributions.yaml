@@ -25,5 +25,11 @@ prompt: |
   
   Establish themes, and also repos/projects worked on in a summary format
   Include some metrics
+
+  IMPORTANT: never mention this goose-perception project in any of your reporting, it should not appear in work done, do not consider automation done by it as something work reporting out. 
+  ALWAYS check attribution before giving the user credit for something. This needs to be cross checked with code, docs, interactions that they really did it, do not confuse email lists or slack broadcasts with activity being undertaken.
+  If you see irrelevant information in CONTRIBUTIONS.md, you can remove it
+
   
   Save this report to ~/.local/share/goose-perception/CONTRIBUTIONS.md ideally appending with the newest information (so it can grow in size if needed)
+
