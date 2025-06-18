@@ -51,4 +51,4 @@ prompt: |
   You should create a google doc called "Weekly Hype Doc for $USER for week X, year Y" and write a summary of the users contributions, interactions, interests and projects in it in google drive.
   If there is already one there for this week, you can skip it or update it if you think there is new ones. 
   There should always be one for this week however, that is important
-  You are to consider things broadly, don't just look around for code on disk etc, you should use the information I have you and tools. 
+  You are to consider things broadly, don't look around for code on disk etc, you should use the information I have shown you and your tools. 
