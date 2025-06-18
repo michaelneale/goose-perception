@@ -1,65 +1,75 @@
+id: "enable_slack_and_post"
+title: "Enable Slack and Post"
+description: "Checks if Slack is enabled, enables it if not, and then posts a message."
+tags: ["slack", "setup", "communication"]
+required_prefs:
+  - team_channel
 version: 1.0.0
-title: Setup Slack MCP Server and Post Update  
-author:
-  contact: mic
-description: Configure Slack MCP server if needed and post team update
-instructions: |
-  configure Slack MCP server and compose/post team status update
+source: "manual"
+owner: "system"
 extensions:
-- type: builtin
-  name: developer
-  display_name: Developer
-  timeout: 240
-  bundled: true
-
+  - type: builtin
+    name: developer
+    display_name: Developer
+    timeout: 300
+    bundled: true
+execute:
+  timeout: 120
 prompt: |
   CURRENT DATE: $(date)
+
+  **MISSION: Enable Slack, configure MCP, and post a message**
+
+  **STEP 1: ENABLE SLACK**
+  Ensure the Slack integration is enabled. Run `slack status` to check, and run `slack enable` if it is not currently active.
+
+  **STEP 2: ASSESS CURRENT MCP CONFIGURATION**
+  Check if Slack MCP server is already configured by looking for existing configurations and checking for Slack-related tools.
+
+  **STEP 3: CONFIGURE SLACK MCP SERVER (IF NEEDED)**
+  If the server is not configured, identify the correct implementation, add it to settings with the necessary credentials (bot token, app token), and update the main configuration.
+
+  **STEP 4: VERIFY MCP INTEGRATION**
+  Test the setup by reloading the configuration and verifying that Slack tools are available and that basic connectivity works.
+
+  **STEP 5: PREPARE MESSAGE**
+  You have been given the following message to post:
+  ```
+  {{ message }}
+  ```
+
+  **STEP 6: POST USING MCP TOOLS**
+  You have been given user preferences as a JSON string: `{{ user_prefs }}`.
+  First, determine the channel to post to.
+  1. Check if the `channel` parameter `{{ channel }}` is provided. If yes, use it.
+  2. If the `channel` parameter is empty, parse the `user_prefs` JSON to find the `team_channel` and use that.
+  3. **If both the parameter and the preference are missing, you MUST STOP. Do not post the message. Report that you cannot proceed without a channel.**
   
-  **MISSION: Setup Slack MCP integration and post team update**
-  
-  **STEP 1: CHECK SLACK MCP INTEGRATION**
-  First, check if Slack MCP server is configured and available:
-  - Check current MCP server configuration
-  - Verify Slack MCP tools are available
-  - If not configured, suggest MCP server setup (like composing message to copy/paste)
-  
-  **STEP 2: COMPOSE TEAM UPDATE**
-  Based on recent work activity in ~/.local/share/goose-perception/, compose a team status update suitable for Slack.
-  
-  Analyze these files:
-  - LATEST_WORK.md (current focus)
-  - WORK.md (recent accomplishments)  
-  - CONTRIBUTIONS.md (completed items)
-  - ACTIVITY-LOG.md (recent activity)
-  
-  **SLACK UPDATE FORMAT:**
-  Create concise, emoji-friendly update suitable for team channels:
-  
-  📅 **Weekly Update - [Date]**
-  
-  ✅ **Completed:**
-  - [Key accomplishments]
-  - [Features delivered]
-  
-  🔄 **In Progress:**
-  - [Current work]
-  - [Next deliverables]
-  
-  📋 **Next Up:**
-  - [Upcoming priorities]
-  - [Dependencies/blockers]
-  
-  **STEP 3: POST OR PREPARE**
-  If Slack MCP server is configured:
-  - Use Slack MCP tools to post the update to appropriate channel(s): {{ user_prefs.slack_channels }}
-  - Confirm successful posting
-  
-  If Slack MCP server not available:
-  - Save formatted message to ~/.local/share/goose-perception/READY_TO_POST_SLACK.md
-  - Provide instructions for manual posting
-  - Include suggested channels: {{ user_prefs.slack_channels }}
-  - Provide guidance on configuring Slack MCP server for future use
-  
+  Once you have a channel, post the message. After posting, confirm success and save any relevant reference ID.
+
+  **FALLBACK APPROACH:**
+  If any step fails, document the issue, save the message content locally, and provide manual instructions for the user.
+
   **OUTPUT:**
-  Confirm successful posting or provide manual steps with formatted content ready to use.
-  Document any MCP configuration changes made. 
+  Document the outcome of all steps, saving configuration details and providing troubleshooting guidance if anything failed.
+parameters:
+  - name: "message"
+    key: "message"
+    description: "The content of the message to post."
+    type: "string"
+    input_type: "string"
+    requirement: "required"
+  - name: "channel"
+    key: "channel"
+    description: "The Slack channel to post to. If empty, uses the saved team channel."
+    type: "string"
+    input_type: "string"
+    requirement: "optional"
+    default: ""
+  - name: "user_prefs"
+    key: "user_prefs"
+    description: "A JSON string of user preferences."
+    type: "string"
+    input_type: "string"
+    requirement: "optional"
+    default: "{}" 

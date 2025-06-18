@@ -1,69 +1,72 @@
+id: "update_project_status"
+title: "Update Project Status"
+description: "Posts a project status update to a specified Slack channel."
+tags: ["slack", "project management"]
+required_prefs:
+  - team_channel
 version: 1.0.0
-title: Update Project Status
-author:
-  contact: mic
-description: Generate project status update for stakeholders
-instructions: |
-  analyze project progress and create status update for stakeholders
+source: "manual"
+owner: "system"
 extensions:
-- type: builtin
-  name: developer
-  display_name: Developer
+  - type: builtin
+    name: developer
+    display_name: Developer
+    timeout: 300
+    bundled: true
+execute:
   timeout: 120
-  bundled: true
-
 prompt: |
   CURRENT DATE: $(date)
+
+  **MISSION: Configure Slack MCP integration and post a project status update**
+
+  **STEP 1: ASSESS CURRENT MCP CONFIGURATION**
+  Check if Slack MCP server is already configured by looking for existing configurations and checking for Slack-related tools.
+
+  **STEP 2: CONFIGURE SLACK MCP SERVER (IF NEEDED)**
+  If the server is not configured, identify the correct implementation, add it to settings with the necessary credentials (bot token, app token), and update the main configuration.
+
+  **STEP 3: VERIFY MCP INTEGRATION**
+  Test the setup by reloading the configuration and verifying that Slack tools are available and that basic connectivity works.
+
+  **STEP 4: PREPARE STATUS UPDATE**
+  You have been given the following project status update to post:
+  ```
+  {{ status_update }}
+  ```
+
+  **STEP 5: POST USING MCP TOOLS**
+  You have been given user preferences as a JSON string: `{{ user_prefs }}`.
+  First, determine the channel to post to.
+  1. Check if the `channel` parameter `{{ channel }}` is provided. If yes, use it.
+  2. If the `channel` parameter is empty, parse the `user_prefs` JSON to find the `team_channel` and use that.
+  3. **If both the parameter and the preference are missing, you MUST STOP. Do not post the message. Report that you cannot proceed without a channel.**
   
-  Create a comprehensive project status update based on recent work patterns.
-  
-  Analyze work data to determine:
-  - Current project status
-  - Recent progress made
-  - Blockers or challenges
-  - Next milestones
-  - Timeline updates
-  
-  Generate:
-  
-  **PROJECT STATUS SUMMARY:**
-  - Overall health: [Green/Yellow/Red]
-  - Progress since last update: [% complete or key metrics]
-  - Current phase: [What stage we're in]
-  
-  **RECENT ACCOMPLISHMENTS:**
-  - Key deliverables completed
-  - Milestones reached
-  - Problems solved
-  
-  **CURRENT ACTIVITIES:**
-  - Active work streams
-  - Team focus areas
-  - In-progress items
-  
-  **UPCOMING PRIORITIES:**
-  - Next deliverables
-  - Scheduled milestones
-  - Key decisions needed
-  
-  **RISKS & BLOCKERS:**
-  - Current challenges
-  - Resource needs
-  - Dependencies
-  
-  **TIMELINE:**
-  - Updated delivery dates
-  - Key upcoming dates
-  - Critical path items
-  
-  Save executive summary to ~/.local/share/goose-perception/DRAFT_STATUS_SUMMARY.md
-  Save detailed status to ~/.local/share/goose-perception/DRAFT_DETAILED_STATUS.md
-  
-  # Email update logic
-  {% if user_prefs.send_email_updates %}
-  Also, send the project status update to the following email recipients: {{ user_prefs.email_recipients }}
-  {% else %}
-  Do not send email updates as per user preferences.
-  {% endif %}
-  
-  Save stakeholder update to ~/.local/share/goose-perception/DRAFT_STAKEHOLDER_UPDATE.md 
+  Once you have a channel, post the status update. After posting, confirm success and save any relevant reference ID.
+
+  **FALLBACK APPROACH:**
+  If MCP server setup or posting fails, document the issue, save the status update locally, and provide manual instructions for the user.
+
+  **OUTPUT:**
+  Document the outcome of the setup and posting steps, saving configuration details and providing troubleshooting guidance if anything failed.
+parameters:
+  - name: "status_update"
+    key: "status_update"
+    description: "The project status update to post."
+    type: "string"
+    input_type: "string"
+    requirement: "required"
+  - name: "channel"
+    key: "channel"
+    description: "The Slack channel to post to. If empty, uses the saved team channel."
+    type: "string"
+    input_type: "string"
+    requirement: "optional"
+    default: ""
+  - name: "user_prefs"
+    key: "user_prefs"
+    description: "A JSON string of user preferences."
+    type: "string"
+    input_type: "string"
+    requirement: "optional"
+    default: "{}" 
