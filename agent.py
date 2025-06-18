@@ -45,11 +45,14 @@ jinja_env.filters['to_json_string'] = to_json_string
 
 notify_cmd = "osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'"
 
+# Define the persistent path for user preferences
+PREFS_DIR = Path("~/.local/share/goose-perception").expanduser()
+PREFS_PATH = PREFS_DIR / "user_prefs.yaml"
+
 # Load user preferences
 user_prefs = {}
-prefs_path = Path("user_prefs.yaml")
-if prefs_path.exists():
-    with open(prefs_path, "r") as f:
+if PREFS_PATH.exists():
+    with open(PREFS_PATH, "r") as f:
         user_prefs = yaml.safe_load(f)
 
 def safe_read_file(file_path):
@@ -250,11 +253,10 @@ def process_conversation(transcript_path):
 
 def get_user_prefs():
     """Load user preferences from the YAML file."""
-    prefs_path = Path("user_prefs.yaml")
-    if not prefs_path.exists():
+    if not PREFS_PATH.exists():
         return {}
     try:
-        with open(prefs_path, "r") as f:
+        with open(PREFS_PATH, "r") as f:
             return yaml.safe_load(f) or {}
     except (yaml.YAMLError, IOError) as e:
         print(f"Error loading user preferences: {e}", file=sys.stderr)

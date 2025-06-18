@@ -7,14 +7,39 @@ import os
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
                             QPushButton, QHBoxLayout, QTextEdit, QMenu, QLineEdit)
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QSize, QPoint, QRect, QRectF, QThread, QPointF
+from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics, QMovie, QPainterPath
 import random
 import json
 from datetime import datetime
 import re
 import time
 import yaml
+import subprocess
+
+# Define the persistent path for user preferences
+PREFS_DIR = Path("~/.local/share/goose-perception").expanduser()
+PREFS_PATH = PREFS_DIR / "user_prefs.yaml"
+
+def get_user_prefs():
+    """Load user preferences from the YAML file."""
+    if not PREFS_PATH.exists():
+        return {}
+    try:
+        with open(PREFS_PATH, "r") as f:
+            return yaml.safe_load(f) or {}
+    except (yaml.YAMLError, IOError) as e:
+        print(f"Error loading user preferences: {e}", file=sys.stderr)
+        return {}
+
+def save_user_prefs(prefs):
+    """Save user preferences to the YAML file."""
+    try:
+        PREFS_DIR.mkdir(parents=True, exist_ok=True)
+        with open(PREFS_PATH, "w") as f:
+            yaml.dump(prefs, f, default_flow_style=False)
+    except IOError as e:
+        print(f"Error saving user preferences: {e}", file=sys.stderr)
 
 class AvatarCommunicator(QObject):
     """Thread-safe communicator for avatar system"""
@@ -23,6 +48,8 @@ class AvatarCommunicator(QObject):
     show_suggestion_signal = pyqtSignal(str, str)    # observation_type, message
     hide_message_signal = pyqtSignal()
     set_state_signal = pyqtSignal(str)               # state
+    # New signal for just-in-time preference requests
+    show_preference_prompt_signal = pyqtSignal(dict, dict)
 
     def __init__(self):
         super().__init__()
@@ -98,13 +125,14 @@ class GooseAvatar(QWidget):
         # Load avatar images
         self.load_avatar_images()
         self.init_ui()
-        self.is_onboarding = False
-        self.onboard_user_if_needed()
         
     def set_interactive_mode(self, interactive):
         """Toggle window flags to allow/disallow keyboard focus."""
         if interactive:
             print("Entering interactive mode for onboarding.")
+            # Stop the Spaces refresh timer to prevent focus stealing
+            if hasattr(self, 'spaces_timer'):
+                self.spaces_timer.stop()
             # Flags that allow focus but keep the window as a floating tool
             flags = (
                 Qt.WindowType.WindowStaysOnTopHint |
@@ -125,6 +153,9 @@ class GooseAvatar(QWidget):
             self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
             self.setWindowFlags(flags)
             self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            # Restart the Spaces refresh timer
+            if hasattr(self, 'spaces_timer'):
+                self.spaces_timer.start(1000)
 
         # Re-show the window for flags to apply
         self.show()
@@ -132,14 +163,20 @@ class GooseAvatar(QWidget):
             self.activateWindow() # Bring it to the front
             self.raise_()
 
+        # Start the idle checking loop
+        self.idle_timer.start(self.idle_check_interval)
+        
+        # For macOS Spaces support - ensure avatar appears on current Space
+        self.spaces_timer = QTimer()
+        self.spaces_timer.timeout.connect(self.refresh_avatar_for_spaces)
+        self.spaces_timer.start(1000)  # Refresh every 1 second for Space switching
+    
     def onboard_user_if_needed(self):
-        prefs_path = Path("user_prefs.yaml")
-        if prefs_path.exists():
-            with open(prefs_path, "r") as f:
-                self.user_prefs = yaml.safe_load(f)
+        self.user_prefs = get_user_prefs()
+        if self.user_prefs:
             self.is_onboarding = False
             return
-        self.user_prefs = {}
+        
         self.is_onboarding = True
         self.set_interactive_mode(True)
         self.onboarding_questions = [
@@ -164,12 +201,10 @@ class GooseAvatar(QWidget):
                 break
         if self.current_onboarding_index >= len(self.onboarding_questions):
             # Onboarding complete
-            prefs_path = Path("user_prefs.yaml")
-            with open(prefs_path, "w") as f:
-                yaml.safe_dump(self.user_prefs, f)
+            save_user_prefs(self.user_prefs)
             self.is_onboarding = False
             self.set_interactive_mode(False)
-            self.show_message("✅ Setup complete! You can edit your preferences in user_prefs.yaml anytime.", 5000, 'talking')
+            self.show_message("✅ Setup complete! Your preferences are saved.", 5000, 'talking')
             return
         q = self.onboarding_questions[self.current_onboarding_index]
         self.show_onboarding_bubble(q)
@@ -368,6 +403,7 @@ class GooseAvatar(QWidget):
             communicator.show_suggestion_signal.connect(self.show_observer_suggestion)
             communicator.hide_message_signal.connect(self.hide_message)
             communicator.set_state_signal.connect(self.set_avatar_state)
+            communicator.show_preference_prompt_signal.connect(self.ask_and_save_preference)
         
     def load_avatar_images(self):
         """Load avatar images from the avatar directory"""
@@ -493,7 +529,7 @@ class GooseAvatar(QWidget):
         self.spaces_timer.start(1000)  # Refresh every 1 second for Space switching
     
     def position_avatar(self):
-        """Position the avatar on screen"""
+        """Position the avatar window on the primary screen"""
         # Get the QApplication instance
         if not self.app:
             self.app = QApplication.instance()
@@ -975,74 +1011,80 @@ class GooseAvatar(QWidget):
         import threading
         action_thread = threading.Thread(
             target=self._run_action_recipe, 
-            args=(action_command,), 
-            daemon=True
+            args=(action_command, action_data) # Pass full action_data for retry
         )
         action_thread.start()
     
-    def _run_action_recipe(self, action_command):
-        """Run the action recipe in background"""
+    def _run_action_recipe(self, command, action_data_to_retry):
+        """Run the action recipe as a subprocess and handle output"""
         try:
-            import subprocess
-            from datetime import datetime
-            from pathlib import Path
+            # Construct the full command to run agent.py
+            agent_script_path = Path(__file__).parent.parent / "agent.py"
+            full_command = [sys.executable, str(agent_script_path), "run-action", command]
             
-            # Map action commands to recipe files
-            recipe_path = f"actions/{action_command}.yaml"
+            # Add parameters if they exist
+            params = action_data_to_retry.get('parameters')
+            if params:
+                full_command.append(json.dumps(params))
+
+            # Run the command
+            result = subprocess.run(
+                full_command,
+                capture_output=True,
+                text=True,
+                check=False  # Don't raise exception on non-zero exit
+            )
             
-            print(f"Running recipe: {recipe_path}")
+            stdout = result.stdout.strip()
+            stderr = result.stderr.strip()
             
-            # Log action start
-            log_path = Path.home() / ".local/share/goose-perception/actions_taken.txt"
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with open(log_path, "a") as f:
-                f.write(f"\n--- {timestamp} ---\n")
-                f.write(f"ACTION: {action_command}\n")
-                f.write(f"RECIPE: {recipe_path}\n")
-                f.write("STATUS: Starting...\n")
-            
-            # Run the goose recipe
-            result = subprocess.run([
-                "goose", "run", "--no-session", 
-                "--recipe", recipe_path
-            ], capture_output=True, text=True, timeout=180)
-            
-            # Log the result
-            with open(log_path, "a") as f:
-                f.write(f"RESULT: {'SUCCESS' if result.returncode == 0 else 'FAILED'}\n")
-                if result.stdout:
-                    f.write(f"STDOUT:\n{result.stdout}\n")
-                if result.stderr:
-                    f.write(f"STDERR:\n{result.stderr}\n")
-                f.write("--- END ---\n\n")
-            
-            if result.returncode == 0:
-                print(f"✅ Action {action_command} completed successfully")
-                # Show success feedback
-                self.show_message("✅ Action completed! Check the results.", 5000, 'pointing')
+            print(f"--- Action Output: {command} ---")
+            if stdout:
+                print(f"STDOUT:\n{stdout}")
+            if stderr:
+                print(f"STDERR:\n{stderr}")
+            print("--- End Action Output ---")
+
+            # Check if the action requires a preference
+            if stdout.startswith("NEEDS_PREF:"):
+                try:
+                    pref_data_str = stdout.replace("NEEDS_PREF:", "", 1)
+                    pref_data = json.loads(pref_data_str)
+                    # Use a signal to safely call the UI function from this thread
+                    self.communicator.show_preference_prompt_signal.emit(pref_data, action_data_to_retry)
+                except (json.JSONDecodeError, KeyError) as e:
+                    print(f"❌ Error parsing NEEDS_PREF data: {e}")
+                    # Use show_message for error feedback
+                    self.show_message(f"❌ Action failed: could not parse preference request.", 5000, 'idle')
+            elif result.returncode != 0:
+                # Use show_message for error feedback
+                self.show_message(f"❌ Action '{command}' failed. Check logs.", 5000, 'idle')
             else:
-                print(f"❌ Action {action_command} failed: {result.stderr}")
-                self.show_message("⚠️ Action had some issues. Check the logs.", 4000, 'idle')
-                
-        except subprocess.TimeoutExpired:
-            print(f"⏰ Action {action_command} timed out")
-            self.show_message("⏰ Action is taking longer than expected...", 4000, 'idle')
-            # Log timeout
-            with open(log_path, "a") as f:
-                f.write("RESULT: TIMEOUT\n")
-                f.write("--- END ---\n\n")
+                # On success, maybe show a confirmation
+                self.show_message("✅ Action completed!", 4000, 'idle')
+
+        except FileNotFoundError:
+            self.show_message(f"❌ Error: agent.py not found.", 5000, 'idle')
         except Exception as e:
-            print(f"Error running action {action_command}: {e}")
-            self.show_message("❌ Couldn't execute that action right now.", 3000, 'idle')
-            # Log error
-            try:
-                with open(log_path, "a") as f:
-                    f.write(f"RESULT: ERROR - {str(e)}\n")
-                    f.write("--- END ---\n\n")
-            except:
-                pass  # Don't fail if logging fails
+            error_message = f"An unexpected error occurred while running action '{command}'."
+            print(f"❌ {error_message}\n{e}")
+            self.show_message(f"❌ {error_message}", 5000, 'idle')
+
+    def _log_action_result(self, command, stdout, stderr):
+        """Log the result of an action to a file"""
+        log_dir = Path("logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"{command}.log"
+        with open(log_path, "a") as f:
+            f.write(f"--- {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+            f.write(f"Command: {command}\n")
+            f.write("--- Action Output ---\n")
+            f.write(stdout)
+            f.write("\n--- End Action Output ---\n\n")
+            if stderr:
+                f.write("--- Action Error ---\n")
+                f.write(stderr)
+                f.write("\n--- End Action Error ---\n\n")
     
     def hide_message(self):
         """Hide the current message"""
@@ -2122,13 +2164,37 @@ class GooseAvatar(QWidget):
             self.is_showing_message = False
     
     def on_message_hidden(self):
-        """Called when a message is hidden - process next message in queue"""
-        # Wait a bit before showing the next message for better UX
-        if self.message_queue:
-            print(f"⏳ Waiting {self.message_spacing_delay/1000}s before next message...")
-            self.queue_timer.start(self.message_spacing_delay)
-        else:
-            print("📭 Message queue is empty")
+        """Called after a message is hidden to process the next queue item."""
+        self.is_processing_queue = False
+        # Use a single shot timer to avoid recursive queue processing
+        self.queue_timer.start(100)
+
+    def ask_and_save_preference(self, pref_data, action_data_to_retry):
+        """
+        Shows a special input bubble to ask for a required preference,
+        then saves it and retries the original action.
+        """
+        self.action_to_retry = action_data_to_retry
+        key_to_save = pref_data['key']
+        question_to_ask = pref_data.get('question', f"I need a value for '{key_to_save}'. What is it?")
+
+        def on_submit(user_input):
+            print(f"Saving preference '{key_to_save}' = '{user_input}'")
+            
+            # Load existing prefs, update the specific key, and save back
+            current_prefs = get_user_prefs()
+            current_prefs[key_to_save] = user_input
+            save_user_prefs(current_prefs)
+
+            # Confirm to the user and then retry the action
+            self.show_message(f"✅ Got it! Retrying now...", 2000, 'talking')
+            QTimer.singleShot(2100, self.retry_last_action)
+        
+        self.show_input_bubble(question_to_ask, on_submit)
+        
+    def retry_last_action(self):
+        """Retries the action that was stored when a preference was requested."""
+        self.execute_action(self.action_to_retry)
 
 
 
