@@ -23,7 +23,9 @@ if you are struggling with a task, do your best, but append your troubles to ~/.
 
 BEFORE making any serious changes (ie pushing code, editing a doc) ensure you are reasonably confident that it is relevant and needed
 
+If you are making any communications on the users behalf, always consult ~/.local/share/goose-perception/INTERACTIONS.md to note their tone, style and where they would normally post if to groups or people.
 
+There is also an ~/.local/share/goose-perception/APP_PREFERENCES.md which may come in useful to know what sort of applications they use for certain purposes. What note taking app if not clear, what other tools are in use, even what agent. If they use an agent like claude, for example you could run `claude -p PROMPT` type commands to automate some technical tasks, as one example. 
 
 Some important tips and tricks if on macos (you don't have to use these all the time, but when needed): 
 

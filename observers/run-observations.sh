@@ -252,6 +252,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-what-working-on.yaml" "evening" ".working-on" "weekday-only"
   run_recipe_if_needed "recipe-optimize.yaml" "weekly" ".optimize"
   run_recipe_if_needed "recipe-meetings-actions.yaml" "morning" ".meetings-afternoon" "weekday-only"
+  run_recipe_if_needed "recipe-apps-preferences.yaml" "daily" ".apps-preferences" "weekday-only"
   run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening" "weekday-only"
   run_recipe_if_needed "recipe-start-fixing.yaml" "evening" ".fixing"
   run_recipe_if_needed "recipe-background-tasks.yaml" "15m" ".background-tasks"
