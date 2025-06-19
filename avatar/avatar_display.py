@@ -6,14 +6,89 @@ import sys
 import os
 from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
-                            QPushButton, QHBoxLayout, QTextEdit, QMenu)
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics
+                            QPushButton, QHBoxLayout, QTextEdit, QMenu, QLineEdit)
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QSize, QPoint, QRect, QRectF, QThread, QPointF
+from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics, QMovie, QPainterPath
 import random
 import json
 from datetime import datetime
 import re
 import time
+import yaml
+import subprocess
+
+# Define the persistent path for user preferences
+PREFS_DIR = Path("~/.local/share/goose-perception").expanduser()
+PREFS_PATH = PREFS_DIR / "user_prefs.yaml"
+
+def get_user_prefs():
+    """Load user preferences from the YAML file."""
+    if not PREFS_PATH.exists():
+        return {}
+    try:
+        with open(PREFS_PATH, "r") as f:
+            return yaml.safe_load(f) or {}
+    except (yaml.YAMLError, IOError) as e:
+        print(f"Error loading user preferences: {e}", file=sys.stderr)
+        return {}
+
+def save_user_prefs(prefs):
+    """Save user preferences to the YAML file."""
+    try:
+        PREFS_DIR.mkdir(parents=True, exist_ok=True)
+        with open(PREFS_PATH, "w") as f:
+            yaml.dump(prefs, f, default_flow_style=False)
+    except IOError as e:
+        print(f"Error saving user preferences: {e}", file=sys.stderr)
+
+class ChatBubble(QWidget):
+    """Custom widget for the chat bubble with a specific shape and layout."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent_avatar = parent
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.Tool 
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+
+        self.content_widget = None
+        self.fixed_width = 350
+
+    def set_content_widget(self, widget, fixed_width=350):
+        if self.content_widget:
+            self.layout.removeWidget(self.content_widget)
+            self.content_widget.deleteLater()
+        
+        self.content_widget = widget
+        self.layout.addWidget(self.content_widget)
+        self.fixed_width = fixed_width
+        self.adjust_size_and_position()
+
+    def adjust_size_and_position(self):
+        self.setFixedWidth(self.fixed_width)
+        self.adjustSize()
+
+        if self.parent_avatar:
+            self.parent_avatar.update_avatar_display()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        rect = self.rect().adjusted(0, 0, -1, -1)
+        
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(rect), 12, 12)
+        
+        painter.setBrush(QBrush(QColor(52, 73, 94, 230)))
+        painter.setPen(QPen(QColor(127, 140, 141, 180), 2))
+        painter.drawPath(path)
 
 class AvatarCommunicator(QObject):
     """Thread-safe communicator for avatar system"""
@@ -22,6 +97,8 @@ class AvatarCommunicator(QObject):
     show_suggestion_signal = pyqtSignal(str, str)    # observation_type, message
     hide_message_signal = pyqtSignal()
     set_state_signal = pyqtSignal(str)               # state
+    # New signal for just-in-time preference requests
+    show_preference_prompt_signal = pyqtSignal(dict, dict)
 
     def __init__(self):
         super().__init__()
@@ -98,6 +175,240 @@ class GooseAvatar(QWidget):
         self.load_avatar_images()
         self.init_ui()
         
+    def set_interactive_mode(self, interactive):
+        """Toggle window flags to allow/disallow keyboard focus."""
+        if interactive:
+            print("Entering interactive mode for onboarding.")
+            # Stop the Spaces refresh timer to prevent focus stealing
+            if hasattr(self, 'spaces_timer'):
+                self.spaces_timer.stop()
+            # Flags that allow focus but keep the window as a floating tool
+            flags = (
+                Qt.WindowType.WindowStaysOnTopHint |
+                Qt.WindowType.FramelessWindowHint |
+                Qt.WindowType.Tool  # Behaves as a floating tool window
+            )
+            self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, False)
+            self.setWindowFlags(flags)
+            self.setFocusPolicy(Qt.FocusPolicy.StrongFocus) # Allow the main window to get focus
+        else:
+            print("Exiting interactive mode.")
+            # Restore default non-interactive flags
+            flags = (
+                Qt.WindowType.WindowStaysOnTopHint |
+                Qt.WindowType.FramelessWindowHint |
+                Qt.WindowType.WindowDoesNotAcceptFocus
+            )
+            self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+            self.setWindowFlags(flags)
+            self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            # Restart the Spaces refresh timer
+            if hasattr(self, 'spaces_timer'):
+                self.spaces_timer.start(1000)
+
+        # Re-show the window for flags to apply
+        self.show()
+        if interactive:
+            self.activateWindow() # Bring it to the front
+            self.raise_()
+
+        # Start the idle checking loop
+        self.idle_timer.start(self.idle_check_interval)
+        
+        # For macOS Spaces support - ensure avatar appears on current Space
+        self.spaces_timer = QTimer()
+        self.spaces_timer.timeout.connect(self.refresh_avatar_for_spaces)
+        self.spaces_timer.start(1000)  # Refresh every 1 second for Space switching
+    
+    def onboard_user_if_needed(self):
+        self.user_prefs = get_user_prefs()
+        if self.user_prefs:
+            self.is_onboarding = False
+            return
+        
+        self.is_onboarding = True
+        self.set_interactive_mode(True)
+        self.onboarding_questions = [
+            {"key": "team_channel", "question": "What is your main team Slack channel for project or daily updates?", "type": "text", "required": True},
+            {"key": "announcement_channel", "question": "Which Slack channel should Goose use for broader announcements? (optional)", "type": "text", "required": False},
+            {"key": "send_email_updates", "question": "Should Goose send email updates? (yes/no)", "type": "yesno", "required": True},
+            {"key": "email_recipients", "question": "Who should receive email updates? (comma-separated)", "type": "text", "required": False, "condition": lambda prefs: prefs.get("send_email_updates", False)},
+            {"key": "notification_urgency", "question": "What types of events should trigger an immediate notification? (e.g., direct mentions, urgent blockers, leadership emails) (optional)", "type": "text", "required": False},
+            {"key": "reminders_enabled", "question": "Do you want reminders for unfinished tasks, PR reviews, or follow-ups? (yes/no)", "type": "yesno", "required": True},
+            {"key": "preferred_update_time", "question": "What time of day should Goose post updates or send emails? (optional)", "type": "text", "required": False}
+        ]
+        self.current_onboarding_index = 0
+        self.show_next_onboarding_question()
+
+    def show_next_onboarding_question(self):
+        # Skip conditional questions if needed
+        while self.current_onboarding_index < len(self.onboarding_questions):
+            q = self.onboarding_questions[self.current_onboarding_index]
+            if "condition" in q and not q["condition"](self.user_prefs):
+                self.current_onboarding_index += 1
+            else:
+                break
+        if self.current_onboarding_index >= len(self.onboarding_questions):
+            # Onboarding complete
+            save_user_prefs(self.user_prefs)
+            self.is_onboarding = False
+            self.set_interactive_mode(False)
+            self.show_message("✅ Setup complete! Your preferences are saved.", 5000, 'talking')
+            return
+        q = self.onboarding_questions[self.current_onboarding_index]
+        self.show_onboarding_bubble(q)
+
+    def show_onboarding_bubble(self, question_obj):
+        self.clear_bubble_content()
+        # Use the same layout and style as create_bubble_content
+        bubble_widget = QWidget()
+        bubble_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(52, 73, 94, 230);
+                border: 2px solid rgba(127, 140, 141, 180);
+                border-radius: 12px;
+            }
+        """)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(8)
+        # Question label (styled like actionable message)
+        question_label = QLabel(question_obj["question"])
+        question_label.setWordWrap(True)
+        font = QFont()
+        font.setPointSize(13)
+        font.setWeight(QFont.Weight.Medium)
+        question_label.setFont(font)
+        question_label.setFixedWidth(320)
+        question_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 13px;
+                font-weight: 500;
+                background: transparent;
+                padding: 8px;
+                border: none;
+            }
+        """)
+        layout.addWidget(question_label)
+        # Input field (extra row)
+        input_field = QLineEdit()
+        input_field.setFixedWidth(300)
+        input_field.setMinimumHeight(32)
+        input_field.setStyleSheet("""
+            QLineEdit {
+                background-color: white;
+                color: #222;
+                border: 1px solid #bbb;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 13px;
+            }
+        """)
+        layout.addWidget(input_field, alignment=Qt.AlignmentFlag.AlignHCenter)
+        # Buttons (styled like actionable suggestion buttons, but larger font)
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)
+        submit_button = QPushButton("Submit")
+        submit_button.setFixedWidth(120)
+        submit_button.setMinimumHeight(32)
+        submit_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(46, 204, 113, 200);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: rgba(39, 174, 96, 255);
+            }
+            QPushButton:pressed {
+                background-color: rgba(34, 153, 84, 255);
+            }
+        """)
+        button_layout.addWidget(submit_button)
+        if not question_obj.get("required", True):
+            skip_button = QPushButton("Skip")
+            skip_button.setFixedWidth(120)
+            skip_button.setMinimumHeight(32)
+            skip_button.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(149, 165, 166, 150);
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: rgba(127, 140, 141, 200);
+                }
+                QPushButton:pressed {
+                    background-color: rgba(95, 106, 106, 255);
+                }
+            """)
+            button_layout.addWidget(skip_button)
+            def on_skip():
+                self.user_prefs[question_obj["key"]] = ""
+                self.current_onboarding_index += 1
+                self.show_next_onboarding_question()
+            skip_button.clicked.connect(on_skip)
+        layout.addLayout(button_layout)
+        input_field.returnPressed.connect(submit_button.click)
+        input_field.setFocus()
+        if question_obj["type"] == "yesno":
+            input_field.setPlaceholderText("yes or no")
+        def on_submit():
+            answer = input_field.text().strip()
+            if question_obj["type"] == "yesno":
+                self.user_prefs[question_obj["key"]] = answer.lower() in ["yes", "y"]
+            else:
+                self.user_prefs[question_obj["key"]] = answer
+            self.current_onboarding_index += 1
+            self.show_next_onboarding_question()
+        submit_button.clicked.connect(on_submit)
+        bubble_widget.setLayout(layout)
+        bubble_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        input_field.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        input_field.setFocus()
+        self.clear_bubble_content()
+        self.bubble_layout.addWidget(bubble_widget)
+        # --- NEW: Adjust size and set container geometry like actionable suggestions ---
+        bubble_widget.adjustSize()
+        bubble_widget.updateGeometry()
+        bubble_size = bubble_widget.sizeHint()
+        container_width = 350
+        container_height = min(bubble_size.height() + 20, 420)
+        self.bubble_container.setGeometry(10, max(10, 200 - container_height + 20), container_width, container_height)
+        # --- END NEW ---
+        self.bubble_container.setFixedWidth(350)
+        self.bubble_container.setMinimumHeight(0)
+        self.bubble_container.setMaximumHeight(400)
+        self.bubble_container.show()
+        input_field.setFocus()
+        self.activateWindow()
+    
+    def ask_onboarding_question(self, question):
+        import subprocess
+        script = f'''
+        tell application "System Events"
+            activate
+            set userInput to text returned of (display dialog "{question}" default answer "" with title "Goose Onboarding" buttons {{"Cancel", "OK"}} default button "OK")
+            return userInput
+        end tell
+        '''
+        result = subprocess.run([
+            "osascript", "-e", script
+        ], capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return ""
+    
     def load_personalities(self):
         """Load personality definitions from personalities.json"""
         try:
@@ -141,6 +452,7 @@ class GooseAvatar(QWidget):
             communicator.show_suggestion_signal.connect(self.show_observer_suggestion)
             communicator.hide_message_signal.connect(self.hide_message)
             communicator.set_state_signal.connect(self.set_avatar_state)
+            communicator.show_preference_prompt_signal.connect(self.ask_and_save_preference)
         
     def load_avatar_images(self):
         """Load avatar images from the avatar directory"""
@@ -199,6 +511,7 @@ class GooseAvatar(QWidget):
             Qt.WindowType.WindowDoesNotAcceptFocus  # Prevent focus stealing - NO Tool flag!
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         
         # Make window appear on all macOS Spaces
         self.setup_spaces_behavior()
@@ -265,7 +578,7 @@ class GooseAvatar(QWidget):
         self.spaces_timer.start(1000)  # Refresh every 1 second for Space switching
     
     def position_avatar(self):
-        """Position the avatar on screen"""
+        """Position the avatar window on the primary screen"""
         # Get the QApplication instance
         if not self.app:
             self.app = QApplication.instance()
@@ -513,7 +826,12 @@ class GooseAvatar(QWidget):
             print(f"⚠️ Unknown avatar state: {state}")
     
     def show_message(self, message, duration=None, avatar_state='talking', action_data=None):
-        """Queue a message for display (thread-safe entry point)"""
+        # Suppress all messages except onboarding if onboarding is in progress
+        if getattr(self, 'is_onboarding', False):
+            # Only allow onboarding bubbles
+            if not (hasattr(self, 'onboarding_questions') and any(q["question"] in message for q in self.onboarding_questions)):
+                print("[Onboarding] Suppressing message:", message)
+                return
         # Check if this is an encoded actionable message (new base64 format)
         if message.startswith("ACTIONABLE_B64:"):
             try:
@@ -742,74 +1060,80 @@ class GooseAvatar(QWidget):
         import threading
         action_thread = threading.Thread(
             target=self._run_action_recipe, 
-            args=(action_command,), 
-            daemon=True
+            args=(action_command, action_data) # Pass full action_data for retry
         )
         action_thread.start()
     
-    def _run_action_recipe(self, action_command):
-        """Run the action recipe in background"""
+    def _run_action_recipe(self, command, action_data_to_retry):
+        """Run the action recipe as a subprocess and handle output"""
         try:
-            import subprocess
-            from datetime import datetime
-            from pathlib import Path
+            # Construct the full command to run agent.py
+            agent_script_path = Path(__file__).parent.parent / "agent.py"
+            full_command = [sys.executable, str(agent_script_path), "run-action", command]
             
-            # Map action commands to recipe files
-            recipe_path = f"actions/{action_command}.yaml"
+            # Add parameters if they exist
+            params = action_data_to_retry.get('parameters')
+            if params:
+                full_command.append(json.dumps(params))
+
+            # Run the command
+            result = subprocess.run(
+                full_command,
+                capture_output=True,
+                text=True,
+                check=False  # Don't raise exception on non-zero exit
+            )
             
-            print(f"Running recipe: {recipe_path}")
+            stdout = result.stdout.strip()
+            stderr = result.stderr.strip()
             
-            # Log action start
-            log_path = Path.home() / ".local/share/goose-perception/actions_taken.txt"
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with open(log_path, "a") as f:
-                f.write(f"\n--- {timestamp} ---\n")
-                f.write(f"ACTION: {action_command}\n")
-                f.write(f"RECIPE: {recipe_path}\n")
-                f.write("STATUS: Starting...\n")
-            
-            # Run the goose recipe
-            result = subprocess.run([
-                "goose", "run", "--no-session", 
-                "--recipe", recipe_path
-            ], capture_output=True, text=True, timeout=180)
-            
-            # Log the result
-            with open(log_path, "a") as f:
-                f.write(f"RESULT: {'SUCCESS' if result.returncode == 0 else 'FAILED'}\n")
-                if result.stdout:
-                    f.write(f"STDOUT:\n{result.stdout}\n")
-                if result.stderr:
-                    f.write(f"STDERR:\n{result.stderr}\n")
-                f.write("--- END ---\n\n")
-            
-            if result.returncode == 0:
-                print(f"✅ Action {action_command} completed successfully")
-                # Show success feedback
-                self.show_message("✅ Action completed! Check the results.", 5000, 'pointing')
+            print(f"--- Action Output: {command} ---")
+            if stdout:
+                print(f"STDOUT:\n{stdout}")
+            if stderr:
+                print(f"STDERR:\n{stderr}")
+            print("--- End Action Output ---")
+
+            # Check if the action requires a preference
+            if stdout.startswith("NEEDS_PREF:"):
+                try:
+                    pref_data_str = stdout.replace("NEEDS_PREF:", "", 1)
+                    pref_data = json.loads(pref_data_str)
+                    # Use a signal to safely call the UI function from this thread
+                    self.communicator.show_preference_prompt_signal.emit(pref_data, action_data_to_retry)
+                except (json.JSONDecodeError, KeyError) as e:
+                    print(f"❌ Error parsing NEEDS_PREF data: {e}")
+                    # Use show_message for error feedback
+                    self.show_message(f"❌ Action failed: could not parse preference request.", 5000, 'idle')
+            elif result.returncode != 0:
+                # Use show_message for error feedback
+                self.show_message(f"❌ Action '{command}' failed. Check logs.", 5000, 'idle')
             else:
-                print(f"❌ Action {action_command} failed: {result.stderr}")
-                self.show_message("⚠️ Action had some issues. Check the logs.", 4000, 'idle')
-                
-        except subprocess.TimeoutExpired:
-            print(f"⏰ Action {action_command} timed out")
-            self.show_message("⏰ Action is taking longer than expected...", 4000, 'idle')
-            # Log timeout
-            with open(log_path, "a") as f:
-                f.write("RESULT: TIMEOUT\n")
-                f.write("--- END ---\n\n")
+                # On success, maybe show a confirmation
+                self.show_message("✅ Action completed!", 4000, 'idle')
+
+        except FileNotFoundError:
+            self.show_message(f"❌ Error: agent.py not found.", 5000, 'idle')
         except Exception as e:
-            print(f"Error running action {action_command}: {e}")
-            self.show_message("❌ Couldn't execute that action right now.", 3000, 'idle')
-            # Log error
-            try:
-                with open(log_path, "a") as f:
-                    f.write(f"RESULT: ERROR - {str(e)}\n")
-                    f.write("--- END ---\n\n")
-            except:
-                pass  # Don't fail if logging fails
+            error_message = f"An unexpected error occurred while running action '{command}'."
+            print(f"❌ {error_message}\n{e}")
+            self.show_message(f"❌ {error_message}", 5000, 'idle')
+
+    def _log_action_result(self, command, stdout, stderr):
+        """Log the result of an action to a file"""
+        log_dir = Path("logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"{command}.log"
+        with open(log_path, "a") as f:
+            f.write(f"--- {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+            f.write(f"Command: {command}\n")
+            f.write("--- Action Output ---\n")
+            f.write(stdout)
+            f.write("\n--- End Action Output ---\n\n")
+            if stderr:
+                f.write("--- Action Error ---\n")
+                f.write(stderr)
+                f.write("\n--- End Action Error ---\n\n")
     
     def hide_message(self):
         """Hide the current message"""
@@ -1011,6 +1335,10 @@ class GooseAvatar(QWidget):
         self.show_action_menu()
     
     def show_action_menu(self):
+        # Suppress action menu if onboarding is in progress
+        if getattr(self, 'is_onboarding', False):
+            print("[Onboarding] Suppressing action menu during onboarding.")
+            return
         """Show an interactive action menu with helpful options"""
         # Get personality data for the greeting message
         personality_data = self.get_current_personality_data()
@@ -1885,13 +2213,153 @@ class GooseAvatar(QWidget):
             self.is_showing_message = False
     
     def on_message_hidden(self):
-        """Called when a message is hidden - process next message in queue"""
-        # Wait a bit before showing the next message for better UX
-        if self.message_queue:
-            print(f"⏳ Waiting {self.message_spacing_delay/1000}s before next message...")
+        """Callback for when a message bubble is hidden."""
+        # This is the central point to continue the queue
+        if self.is_processing_queue:
             self.queue_timer.start(self.message_spacing_delay)
-        else:
-            print("📭 Message queue is empty")
+
+    def show_input_bubble(self, question, on_submit_callback):
+        """Shows a chat bubble with a text input field and submit/cancel buttons."""
+        self.clear_bubble_content()
+        self.set_interactive_mode(True)
+
+        bubble_widget = QWidget()
+        bubble_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(52, 73, 94, 230);
+                border: 2px solid rgba(127, 140, 141, 180);
+                border-radius: 12px;
+            }
+        """)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(8)
+
+        # Question label
+        question_label = QLabel(question)
+        question_label.setWordWrap(True)
+        font = QFont()
+        font.setPointSize(13)
+        font.setWeight(QFont.Weight.Medium)
+        question_label.setFont(font)
+        question_label.setFixedWidth(320)
+        question_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 13px;
+                font-weight: 500;
+                background: transparent;
+                padding: 8px;
+                border: none;
+            }
+        """)
+        layout.addWidget(question_label)
+
+        # Input field
+        input_field = QLineEdit()
+        input_field.setFixedWidth(320)
+        input_field.setMinimumHeight(32)
+        input_field.setStyleSheet("""
+            QLineEdit {
+                background-color: #2c3e50;
+                color: white;
+                border: 1px solid #7f8c8d;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 13px;
+            }
+        """)
+        layout.addWidget(input_field)
+
+        # Button layout
+        button_layout = QHBoxLayout()
+        
+        def on_submit():
+            user_input = input_field.text().strip()
+            self.hide_message()
+            self.set_interactive_mode(False)
+            on_submit_callback(user_input)
+
+        def on_cancel():
+            self.hide_message()
+            self.set_interactive_mode(False)
+            on_submit_callback(None) # Pass None to indicate cancellation
+
+        submit_button = QPushButton("Submit")
+        submit_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 12px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #2ecc71; }
+        """)
+        submit_button.clicked.connect(on_submit)
+        
+        cancel_button = QPushButton("Cancel")
+        cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: #c0392b;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 12px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #e74c3c; }
+        """)
+        cancel_button.clicked.connect(on_cancel)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(submit_button)
+        layout.addLayout(button_layout)
+        
+        bubble_widget.setLayout(layout)
+
+        if not self.chat_bubble:
+            self.chat_bubble = ChatBubble(self)
+        
+        self.chat_bubble.set_content_widget(bubble_widget, fixed_width=350)
+        
+        # Position and show
+        self.update_avatar_display() # Ensure avatar is visible
+        self.chat_bubble.show()
+        self.is_showing_message = True
+        self.set_avatar_state('pointing')
+
+        # Auto-focus the input field
+        input_field.setFocus()
+
+    def ask_and_save_preference(self, pref_data, action_data_to_retry):
+        """Asks the user for a preference and saves it."""
+        print(f"Asking for preference: {pref_data}")
+        self.action_to_retry = action_data_to_retry
+        key_to_save = pref_data['key']
+        question_to_ask = pref_data.get('question', f"I need a value for '{key_to_save}'. What is it?")
+
+        def on_submit(user_input):
+            print(f"Saving preference '{key_to_save}' = '{user_input}'")
+            
+            # Load existing prefs, update the specific key, and save back
+            current_prefs = get_user_prefs()
+            current_prefs[key_to_save] = user_input
+            save_user_prefs(current_prefs)
+
+            # Confirm to the user and then retry the action
+            self.show_message(f"✅ Got it! Retrying now...", 2000, 'talking')
+            QTimer.singleShot(2100, self.retry_last_action)
+        
+        self.show_input_bubble(question_to_ask, on_submit)
+        
+    def retry_last_action(self):
+        """Retries the action that was stored when a preference was requested."""
+        self.execute_action(self.action_to_retry)
 
 
 

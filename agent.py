@@ -16,14 +16,44 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from jinja2 import Environment, BaseLoader
+import yaml
+import json
+import fire
 
 # Import avatar display system
-try:
-    from avatar import avatar_display
-except ImportError:
-    avatar_display = None
+from avatar.avatar_display import (show_message, show_suggestion, show_actionable_message, 
+                                 set_avatar_state, show_error_message, force_dismiss_stuck_message,
+                                 emergency_avatar_reset)
+
+# Get the absolute path of the script's directory
+SCRIPT_DIR = Path(__file__).parent.resolve()
+RECIPES_DIR = SCRIPT_DIR / "actions"
+OBSERVERS_DIR = SCRIPT_DIR / "observers"
+TEMPLATES_DIR = SCRIPT_DIR / "templates"
+
+# Create a simple Jinja2 environment
+jinja_env = Environment(loader=BaseLoader())
+
+# Custom filter to format content for JSON
+def to_json_string(value):
+    """Converts a Python object to a JSON string, escaping necessary characters."""
+    if not isinstance(value, str):
+        value = str(value)
+    return json.dumps(value)
+
+jinja_env.filters['to_json_string'] = to_json_string
 
 notify_cmd = "osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'"
+
+# Define the persistent path for user preferences
+PREFS_DIR = Path("~/.local/share/goose-perception").expanduser()
+PREFS_PATH = PREFS_DIR / "user_prefs.yaml"
+
+# Load user preferences
+user_prefs = {}
+if PREFS_PATH.exists():
+    with open(PREFS_PATH, "r") as f:
+        user_prefs = yaml.safe_load(f)
 
 def safe_read_file(file_path):
     """
@@ -85,7 +115,8 @@ def render_recipe_template(transcript, is_screen_capture=False):
         latest_work=latest_work,
         interactions=interactions,
         contributions=contributions,
-        transcription=transcript
+        transcription=transcript,
+        user_prefs=user_prefs  # Pass user preferences to the template
     )
     
     # Create a temporary file for the rendered template
@@ -220,45 +251,147 @@ def process_conversation(transcript_path):
         "background_process_started": True
     }
 
-def main():
-    parser = argparse.ArgumentParser(description="Process transcribed conversations and invoke Goose")
-    parser.add_argument("transcript", help="Path to the transcript file", nargs='?')
-    parser.add_argument("--test", action="store_true", help="Run a test with a sample message")
-    args = parser.parse_args()
+def get_user_prefs():
+    """Load user preferences from the YAML file."""
+    if not PREFS_PATH.exists():
+        return {}
+    try:
+        with open(PREFS_PATH, "r") as f:
+            return yaml.safe_load(f) or {}
+    except (yaml.YAMLError, IOError) as e:
+        print(f"Error loading user preferences: {e}", file=sys.stderr)
+        return {}
+
+def run_action(action_name: str, params: dict = None):
+    """
+    Run a specific action recipe, checking for required preferences first.
+    """
+    try:
+        if params is None:
+            params = {}
+
+        recipe_path = RECIPES_DIR / f"{action_name}.yaml"
+        if not recipe_path.exists():
+            print(f"Error: Action recipe not found at {recipe_path}", file=sys.stderr)
+            sys.exit(1)
+
+        with open(recipe_path, "r") as f:
+            recipe_data = yaml.safe_load(f)
+
+        # Check for required preferences
+        user_prefs = get_user_prefs()
+        required_prefs = recipe_data.get("required_prefs", [])
+        
+        for pref_key in required_prefs:
+            if pref_key not in user_prefs or not user_prefs[pref_key]:
+                # Signal to the UI that a preference is needed.
+                # Since the new format only has a key, we'll generate a generic question.
+                pref_details = {
+                    "key": pref_key,
+                    "question": f"I need a value for '{pref_key.replace('_', ' ')}'. What should it be?",
+                    "type": "text"
+                }
+                print(f"NEEDS_PREF:{json.dumps(pref_details)}")
+                sys.exit(0)  # Exit cleanly, UI will handle it
+
+        # Add user preferences to the parameters for the recipe to use
+        params['user_prefs'] = json.dumps(user_prefs)
+
+        # If all prefs are present, run the recipe
+        print(f"Running action: {action_name}")
+        
+        # Prepare for running the recipe with `goose run`
+        full_recipe_path = recipe_path.resolve()
+        
+        command = [
+            "goose", "run", "--no-session",
+            "--recipe", str(full_recipe_path)
+        ]
+        # Goose requires KEY=VALUE for its --params argument, which can be repeated.
+        if params:
+            for key, value in params.items():
+                # Format as KEY="VALUE" to handle spaces and special characters safely
+                command.extend(["--params", f'{key}="{value}"'])
+        
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        
+        print("--- Action Standard Output ---")
+        print(result.stdout)
+        print("--- End Action Standard Output ---")
+        
+        if result.stderr:
+            print("--- Action Standard Error ---", file=sys.stderr)
+            print(result.stderr, file=sys.stderr)
+            print("--- End Action Standard Error ---", file=sys.stderr)
+
+    except subprocess.CalledProcessError as e:
+        print(f"Action '{action_name}' failed.", file=sys.stderr)
+        print(f"STDOUT: {e.stdout}", file=sys.stderr)
+        print(f"STDERR: {e.stderr}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"An unexpected error occurred in run_action: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def run_observer(observer_name: str, last_run_seconds: int):
+    """
+    Run an observer recipe and process its output to generate suggestions.
+    """
+    try:
+        recipe_path = OBSERVERS_DIR / f"{observer_name}.yaml"
+        if not recipe_path.exists():
+            print(f"Error: Observer recipe not found at {recipe_path}", file=sys.stderr)
+            sys.exit(1)
+            
+        print(f"Running observer: {observer_name}")
+
+        # Placeholder for running the observer recipe and getting its output
+        # In a real scenario, this would involve `goose run` and capturing stdout
+        # Let's simulate some output for demonstration
+        simulated_output = "This is a simulated observation."
+        
+        # The real implementation would be something like:
+        # result = subprocess.run(['goose', 'run', '--recipe', str(recipe_path)], capture_output=True, text=True)
+        # if result.returncode == 0:
+        #     process_and_display_observation(result.stdout, observer_name)
+        
+        process_and_display_observation(simulated_output, observer_name)
+
+    except Exception as e:
+        print(f"An error occurred in run_observer: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def process_and_display_observation(observation_text, observer_name):
+    """
+    Processes the raw output from an observer, formats it into an
+    actionable suggestion, and displays it via the avatar.
+    """
+    if not observation_text or observation_text.strip() == "Nothing to report.":
+        print(f"Observer '{observer_name}' had nothing to report.")
+        return
+
+    # This is a simplified example. A real implementation would involve
+    # more sophisticated logic to decide the action_command and message.
+    action_data = {
+        'action_type': 'task',
+        'action_command': 'update_project_status', # Example action
+        'observation_type': observer_name
+    }
     
-    if args.test:
-        # Create a temporary transcript file with a test message
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
-            temp_file.write("Can you write hello.txt with a joke in it please")
-            temp_transcript = temp_file.name
-        
-        print(f"Created test transcript file: {temp_transcript}")
-        
-        # Process the test conversation
-        process_conversation(temp_transcript)
-        
-        # Wait a bit to see some output
-        print("Test mode: Waiting for a few seconds to see output...")
-        import time
-        for i in range(10):
-            time.sleep(1)
-            print(f"Waiting... ({i+1}/10 seconds)")
-        
-        # Clean up the temporary file
-        try:
-            os.unlink(temp_transcript)
-            print(f"Cleaned up test transcript file")
-        except:
-            pass
+    message = f"I noticed: {observation_text[:100]}... Want me to help with that?"
     
-    elif args.transcript:
-        # Normal operation with provided file
-        process_conversation(args.transcript)
-    
-    else:
-        parser.print_help()
-        print("\nTip: Run with --test to try a test message")
+    show_actionable_message(message, action_data)
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        fire.Fire({
+            "run-action": run_action,
+            "run-observer": run_observer,
+        })
+
+    except Exception as e:
+        print(f"An error occurred: {e}", file=sys.stderr)
+        sys.exit(1)

@@ -3,6 +3,8 @@ title: Setup Slack MCP Server and Post Update
 author:
   contact: mic
 description: Configure Slack MCP server and post team update
+required_prefs:
+  - team_channel
 instructions: |
   configure Slack MCP server integration and post team status update
 extensions:
@@ -65,7 +67,7 @@ prompt: |
   
   **STEP 5: POST USING MCP TOOLS**
   Use Slack MCP server to post:
-  - Select appropriate channel (#engineering, #team-updates, etc.)
+  - Select the appropriate channel. Use the user's preferred channel: {{ user_prefs.team_channel }}
   - Post the formatted update using Slack MCP tools
   - Confirm successful posting
   - Save confirmation/message ID for reference

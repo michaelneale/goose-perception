@@ -26,6 +26,9 @@ from fuzzywuzzy import fuzz
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.tag import pos_tag
+import yaml
+from pathlib import Path
+from avatar.avatar_display import run_app as run_avatar_system
 
 # Ensure required NLTK data is downloaded
 try:
@@ -959,6 +962,25 @@ def analyze_audio(audio_data):
     }
 
 def main():
+    # Initialize the avatar system in the main thread
+    print("Initializing avatar system...")
+    avatar_thread = threading.Thread(target=run_avatar_system, daemon=True)
+    avatar_thread.start()
+    
+    # Wait a moment for the avatar to initialize before proceeding
+    time.sleep(2)
+    
+    # Only load user_prefs.yaml if it exists; do not prompt for onboarding here
+    prefs_path = Path("~/.local/share/goose-perception/user_prefs.yaml").expanduser()
+    if prefs_path.exists():
+        with open(prefs_path, 'r') as f:
+            user_prefs = yaml.safe_load(f)
+    else:
+        user_prefs = {}
+
+    # Initial check for observers to run on startup
+    print("Running initial observer checks on startup...")
+
     parser = argparse.ArgumentParser(description="Listen to audio and transcribe using Whisper")
     parser.add_argument("--language", type=str, default=None, help="Language code (optional, e.g., 'en', 'es', 'fr')")
     parser.add_argument("--device", type=int, default=None, help="Audio input device index")
