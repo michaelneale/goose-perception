@@ -283,7 +283,7 @@ def run_action(action_name: str, params: dict = None):
         required_prefs = recipe_data.get("required_prefs", [])
         
         for pref_key in required_prefs:
-            if pref_key not in user_prefs:
+            if pref_key not in user_prefs or not user_prefs[pref_key]:
                 # Signal to the UI that a preference is needed.
                 # Since the new format only has a key, we'll generate a generic question.
                 pref_details = {
