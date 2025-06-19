@@ -278,6 +278,18 @@ def run_action(action_name: str, params: dict = None):
         with open(recipe_path, "r") as f:
             recipe_data = yaml.safe_load(f)
 
+        # Check for required parameters defined in the recipe
+        required_params = [
+            p['name'] for p in recipe_data.get('parameters', []) 
+            if p.get('requirement') == 'required'
+        ]
+        
+        missing_params = [p for p in required_params if p not in params]
+        
+        if missing_params:
+            print(f"Error: Missing required parameters for action '{action_name}': {', '.join(missing_params)}", file=sys.stderr)
+            sys.exit(1)
+
         # Check for required preferences
         user_prefs = get_user_prefs()
         required_prefs = recipe_data.get("required_prefs", [])
