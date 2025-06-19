@@ -41,6 +41,55 @@ def save_user_prefs(prefs):
     except IOError as e:
         print(f"Error saving user preferences: {e}", file=sys.stderr)
 
+class ChatBubble(QWidget):
+    """Custom widget for the chat bubble with a specific shape and layout."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent_avatar = parent
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.Tool 
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+
+        self.content_widget = None
+        self.fixed_width = 350
+
+    def set_content_widget(self, widget, fixed_width=350):
+        if self.content_widget:
+            self.layout.removeWidget(self.content_widget)
+            self.content_widget.deleteLater()
+        
+        self.content_widget = widget
+        self.layout.addWidget(self.content_widget)
+        self.fixed_width = fixed_width
+        self.adjust_size_and_position()
+
+    def adjust_size_and_position(self):
+        self.setFixedWidth(self.fixed_width)
+        self.adjustSize()
+
+        if self.parent_avatar:
+            self.parent_avatar.update_avatar_display()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        rect = self.rect().adjusted(0, 0, -1, -1)
+        
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(rect), 12, 12)
+        
+        painter.setBrush(QBrush(QColor(52, 73, 94, 230)))
+        painter.setPen(QPen(QColor(127, 140, 141, 180), 2))
+        painter.drawPath(path)
+
 class AvatarCommunicator(QObject):
     """Thread-safe communicator for avatar system"""
     # Signals for thread-safe communication
@@ -2164,16 +2213,132 @@ class GooseAvatar(QWidget):
             self.is_showing_message = False
     
     def on_message_hidden(self):
-        """Called after a message is hidden to process the next queue item."""
-        self.is_processing_queue = False
-        # Use a single shot timer to avoid recursive queue processing
-        self.queue_timer.start(100)
+        """Callback for when a message bubble is hidden."""
+        # This is the central point to continue the queue
+        if self.is_processing_queue:
+            self.queue_timer.start(self.message_spacing_delay)
+
+    def show_input_bubble(self, question, on_submit_callback):
+        """Shows a chat bubble with a text input field and submit/cancel buttons."""
+        self.clear_bubble_content()
+        self.set_interactive_mode(True)
+
+        bubble_widget = QWidget()
+        bubble_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(52, 73, 94, 230);
+                border: 2px solid rgba(127, 140, 141, 180);
+                border-radius: 12px;
+            }
+        """)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(8)
+
+        # Question label
+        question_label = QLabel(question)
+        question_label.setWordWrap(True)
+        font = QFont()
+        font.setPointSize(13)
+        font.setWeight(QFont.Weight.Medium)
+        question_label.setFont(font)
+        question_label.setFixedWidth(320)
+        question_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 13px;
+                font-weight: 500;
+                background: transparent;
+                padding: 8px;
+                border: none;
+            }
+        """)
+        layout.addWidget(question_label)
+
+        # Input field
+        input_field = QLineEdit()
+        input_field.setFixedWidth(320)
+        input_field.setMinimumHeight(32)
+        input_field.setStyleSheet("""
+            QLineEdit {
+                background-color: #2c3e50;
+                color: white;
+                border: 1px solid #7f8c8d;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 13px;
+            }
+        """)
+        layout.addWidget(input_field)
+
+        # Button layout
+        button_layout = QHBoxLayout()
+        
+        def on_submit():
+            user_input = input_field.text().strip()
+            self.hide_message()
+            self.set_interactive_mode(False)
+            on_submit_callback(user_input)
+
+        def on_cancel():
+            self.hide_message()
+            self.set_interactive_mode(False)
+            on_submit_callback(None) # Pass None to indicate cancellation
+
+        submit_button = QPushButton("Submit")
+        submit_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 12px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #2ecc71; }
+        """)
+        submit_button.clicked.connect(on_submit)
+        
+        cancel_button = QPushButton("Cancel")
+        cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: #c0392b;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 12px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #e74c3c; }
+        """)
+        cancel_button.clicked.connect(on_cancel)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(submit_button)
+        layout.addLayout(button_layout)
+        
+        bubble_widget.setLayout(layout)
+
+        if not self.chat_bubble:
+            self.chat_bubble = ChatBubble(self)
+        
+        self.chat_bubble.set_content_widget(bubble_widget, fixed_width=350)
+        
+        # Position and show
+        self.update_avatar_display() # Ensure avatar is visible
+        self.chat_bubble.show()
+        self.is_showing_message = True
+        self.set_avatar_state('pointing')
+
+        # Auto-focus the input field
+        input_field.setFocus()
 
     def ask_and_save_preference(self, pref_data, action_data_to_retry):
-        """
-        Shows a special input bubble to ask for a required preference,
-        then saves it and retries the original action.
-        """
+        """Asks the user for a preference and saves it."""
+        print(f"Asking for preference: {pref_data}")
         self.action_to_retry = action_data_to_retry
         key_to_save = pref_data['key']
         question_to_ask = pref_data.get('question', f"I need a value for '{key_to_save}'. What is it?")
