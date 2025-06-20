@@ -18,8 +18,8 @@ import yaml
 import subprocess
 
 # Define the persistent path for user preferences
-PREFS_DIR = Path("~/.local/share/goose-perception").expanduser()
-PREFS_PATH = PREFS_DIR / "user_prefs.yaml"
+PERCEPTION_DIR = Path("~/.local/share/goose-perception").expanduser()
+PREFS_PATH = PERCEPTION_DIR / "user_prefs.yaml"
 
 def get_user_prefs():
     """Load user preferences from the YAML file."""
@@ -35,7 +35,7 @@ def get_user_prefs():
 def save_user_prefs(prefs):
     """Save user preferences to the YAML file."""
     try:
-        PREFS_DIR.mkdir(parents=True, exist_ok=True)
+        PERCEPTION_DIR.mkdir(parents=True, exist_ok=True)
         with open(PREFS_PATH, "w") as f:
             yaml.dump(prefs, f, default_flow_style=False)
     except IOError as e:
@@ -457,7 +457,7 @@ class GooseAvatar(QWidget):
     def load_avatar_images(self):
         """Load avatar images from the avatar directory"""
         self.avatar_images = {}
-        avatar_dir = Path("avatar")
+        avatar_dir = Path(__file__).parent
         
         try:
             # Define avatar states and their corresponding files
@@ -1071,10 +1071,17 @@ class GooseAvatar(QWidget):
             agent_script_path = Path(__file__).parent.parent / "agent.py"
             full_command = [sys.executable, str(agent_script_path), "run-action", command]
             
-            # Add parameters if they exist
+            # Add parameters if they exist – they must be sent via the --params flag
             params = action_data_to_retry.get('parameters')
             if params:
-                full_command.append(json.dumps(params))
+                # Ensure we pass a JSON string representation
+                try:
+                    params_json = json.dumps(params)
+                except TypeError:
+                    # If params is already a JSON‐serialisable string, fall back
+                    params_json = str(params)
+
+                full_command.extend(["--params", params_json])
 
             # Run the command
             result = subprocess.run(
@@ -1121,7 +1128,7 @@ class GooseAvatar(QWidget):
 
     def _log_action_result(self, command, stdout, stderr):
         """Log the result of an action to a file"""
-        log_dir = Path("logs")
+        log_dir = PERCEPTION_DIR / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / f"{command}.log"
         with open(log_path, "a") as f:
@@ -1747,7 +1754,7 @@ class GooseAvatar(QWidget):
                     pass  # Keep observers_running as False
             
             # Check perception files
-            perception_dir = Path.home() / ".local/share/goose-perception"
+            perception_dir = PERCEPTION_DIR
             work_file = perception_dir / "WORK.md"
             latest_work_file = perception_dir / "LATEST_WORK.md"
             
@@ -1796,7 +1803,7 @@ class GooseAvatar(QWidget):
             from pathlib import Path
             import os
             
-            perception_dir = Path.home() / ".local/share/goose-perception"
+            perception_dir = PERCEPTION_DIR
             latest_work_file = perception_dir / "LATEST_WORK.md"
             work_file = perception_dir / "WORK.md"
             
@@ -1846,7 +1853,7 @@ class GooseAvatar(QWidget):
     def show_idle_suggestion(self):
         """Show a random idle suggestion from the JSON file, avoiding recent repeats and skipping time-specific language."""
         import re
-        suggestions_path = Path.home() / ".local/share/goose-perception/AVATAR_SUGGESTIONS.json"
+        suggestions_path = PERCEPTION_DIR / "AVATAR_SUGGESTIONS.json"
         suggestions = []
         try:
             if suggestions_path.exists():
@@ -2032,7 +2039,7 @@ class GooseAvatar(QWidget):
     def get_personality_settings_path(self):
         """Get the path for the personality settings file"""
         from pathlib import Path
-        perception_dir = Path.home() / ".local/share/goose-perception"
+        perception_dir = PERCEPTION_DIR
         perception_dir.mkdir(parents=True, exist_ok=True)
         return perception_dir / "PERSONALITY_SETTINGS.json"
     

@@ -360,7 +360,7 @@ class ObserverAvatarBridge:
             
             # Validate that action commands exist
             from pathlib import Path
-            actions_dir = Path("actions")
+            actions_dir = Path(__file__).parent.parent / "actions"
             available_actions = set()
             if actions_dir.exists():
                 available_actions = {f.stem for f in actions_dir.glob("*.yaml")}
@@ -399,11 +399,12 @@ class ObserverAvatarBridge:
     def _show_actionable_suggestion(self, suggestion):
         """Show an actionable suggestion with action buttons"""
         try:
-            # Create action data for the suggestion
+            # Pass through any additional parameters specified in the suggestion
             action_data = {
-                'action_type': suggestion['action_type'],
-                'action_command': suggestion['action_command'],
-                'observation_type': suggestion['observation_type']
+                'action_type': suggestion.get('action_type'),
+                'action_command': suggestion.get('action_command'),
+                'observation_type': suggestion.get('observation_type'),
+                'parameters': suggestion.get('parameters', {})
             }
             
             # Use the thread-safe function instead of direct avatar_instance call
