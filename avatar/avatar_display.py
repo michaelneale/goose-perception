@@ -18,8 +18,8 @@ import yaml
 import subprocess
 
 # Define the persistent path for user preferences
-PREFS_DIR = Path("~/.local/share/goose-perception").expanduser()
-PREFS_PATH = PREFS_DIR / "user_prefs.yaml"
+PERCEPTION_DIR = Path("~/.local/share/goose-perception").expanduser()
+PREFS_PATH = PERCEPTION_DIR / "user_prefs.yaml"
 
 def get_user_prefs():
     """Load user preferences from the YAML file."""
@@ -35,7 +35,7 @@ def get_user_prefs():
 def save_user_prefs(prefs):
     """Save user preferences to the YAML file."""
     try:
-        PREFS_DIR.mkdir(parents=True, exist_ok=True)
+        PERCEPTION_DIR.mkdir(parents=True, exist_ok=True)
         with open(PREFS_PATH, "w") as f:
             yaml.dump(prefs, f, default_flow_style=False)
     except IOError as e:
@@ -120,6 +120,7 @@ class GooseAvatar(QWidget):
         self.chat_bubble = None
         self.is_showing_message = False
         self.communicator = None
+        self.is_paused = False  # Track pause state
         
         # Message queue system - replaces simple message_queue list
         self.message_queue = []  # Queue of messages to display
@@ -457,14 +458,15 @@ class GooseAvatar(QWidget):
     def load_avatar_images(self):
         """Load avatar images from the avatar directory"""
         self.avatar_images = {}
-        avatar_dir = Path("avatar")
+        avatar_dir = Path(__file__).parent
         
         try:
             # Define avatar states and their corresponding files
             avatar_files = {
                 'idle': 'first.png',      # Default idle state
                 'talking': 'second.png',  # When showing messages
-                'pointing': 'third.png'   # For suggestions/pointing out things
+                'pointing': 'third.png',   # For suggestions/pointing out things
+                'sleeping': 'sleep.png'   # When paused
             }
             
             # Load each avatar state image
@@ -818,6 +820,10 @@ class GooseAvatar(QWidget):
     
     def set_avatar_state(self, state):
         """Set the avatar state and update display"""
+        # If paused, only allow sleeping state
+        if self.is_paused and state != 'sleeping':
+            return
+            
         if state in self.avatar_images or state == 'placeholder':
             self.current_state = state
             self.update_avatar_display()
@@ -825,7 +831,26 @@ class GooseAvatar(QWidget):
         else:
             print(f"⚠️ Unknown avatar state: {state}")
     
-    def show_message(self, message, duration=None, avatar_state='talking', action_data=None):
+    def show_message(self, message, duration=5000, state='talking', action_data=None):
+        """Show a message in the chat bubble"""
+        # Don't show new messages if paused (except for pause/unpause confirmations)
+        if self.is_paused and "Messages paused" not in message and "Ready to chat" not in message:
+            return
+            
+        # If paused, force sleeping state for any allowed messages
+        if self.is_paused:
+            state = 'sleeping'
+            
+        # Process message queue
+        if self.is_processing_queue:
+            self.message_queue.append((message, duration, state, action_data))
+            return
+            
+        # If there's a current message, queue this one
+        if self.is_showing_message:
+            self.message_queue.append((message, duration, state, action_data))
+            return
+        
         # Suppress all messages except onboarding if onboarding is in progress
         if getattr(self, 'is_onboarding', False):
             # Only allow onboarding bubbles
@@ -881,7 +906,7 @@ class GooseAvatar(QWidget):
         priority = 'high' if action_data else 'normal'
         
         # Queue the message instead of showing immediately
-        self.queue_message_for_display(message, duration, avatar_state, action_data, priority)
+        self.queue_message_for_display(message, duration, state, action_data, priority)
     
     def clear_bubble_content(self):
         """Clear existing bubble content from layout"""
@@ -1071,10 +1096,17 @@ class GooseAvatar(QWidget):
             agent_script_path = Path(__file__).parent.parent / "agent.py"
             full_command = [sys.executable, str(agent_script_path), "run-action", command]
             
-            # Add parameters if they exist
+            # Add parameters if they exist – they must be sent via the --params flag
             params = action_data_to_retry.get('parameters')
             if params:
-                full_command.append(json.dumps(params))
+                # Ensure we pass a JSON string representation
+                try:
+                    params_json = json.dumps(params)
+                except TypeError:
+                    # If params is already a JSON‐serialisable string, fall back
+                    params_json = str(params)
+
+                full_command.extend(["--params", params_json])
 
             # Run the command
             result = subprocess.run(
@@ -1121,7 +1153,7 @@ class GooseAvatar(QWidget):
 
     def _log_action_result(self, command, stdout, stderr):
         """Log the result of an action to a file"""
-        log_dir = Path("logs")
+        log_dir = PERCEPTION_DIR / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / f"{command}.log"
         with open(log_path, "a") as f:
@@ -1436,10 +1468,10 @@ class GooseAvatar(QWidget):
                     'action': 'status'
                 },
                 {
-                    'id': 'change_personality',
-                    'label': '🎭 Change Personality',
-                    'description': 'Switch avatar personality',
-                    'action': 'personality'
+                    'id': 'pause_avatar',
+                    'label': '⏸️ Pause Avatar' if not self.is_paused else '▶️ Resume Avatar',
+                    'description': 'Toggle avatar pause state',
+                    'action': 'pause'
                 },
                 {
                     'id': 'recent_work',
@@ -1575,7 +1607,7 @@ class GooseAvatar(QWidget):
         elif action['action'] == 'status':
             bg_color = "rgba(155, 89, 182, 200)"  # Purple
             hover_color = "rgba(142, 68, 173, 255)"
-        elif action['action'] == 'personality':
+        elif action['action'] == 'pause':
             bg_color = "rgba(230, 126, 34, 200)"  # Orange
             hover_color = "rgba(211, 84, 0, 255)"
         else:
@@ -1622,8 +1654,8 @@ class GooseAvatar(QWidget):
             self.show_text_prompt()
         elif action_type == 'status':
             self.show_system_status()
-        elif action_type == 'personality':
-            self.show_personality_menu_from_action()
+        elif action_type == 'pause':
+            self.pause_avatar()
         elif action_type == 'recent_work':
             self.show_recent_work()
         else:
@@ -1700,95 +1732,75 @@ class GooseAvatar(QWidget):
             self.show_message("❌ Couldn't show text input dialog", 3000, 'idle')
     
     def show_system_status(self):
-        """Show current system status"""
+        """Show system status information"""
         try:
-            from pathlib import Path
-            import subprocess
-            import os
+            import psutil
             
-            # Get basic system info using fallback methods
-            cpu_info = "N/A"
-            memory_info = "N/A"
-            observers_running = False
+            # Get CPU info
+            cpu_percent = psutil.cpu_percent(interval=1)
+            cpu_info = f"{cpu_percent}%"
             
-            # Try to get system info with psutil (optional)
-            try:
-                import psutil
-                cpu_percent = psutil.cpu_percent(interval=0.1)  # Shorter interval to avoid blocking
-                memory = psutil.virtual_memory()
-                cpu_info = f"{cpu_percent:.1f}%"
-                memory_info = f"{memory.percent:.1f}%"
-                
-                # Check if observers are running (safer approach)
-                try:
-                    observers_running = any("run-observations.sh" in str(p.info.get('cmdline', [])) 
-                                          for p in psutil.process_iter(['cmdline']) 
-                                          if p.info.get('cmdline'))
-                except (psutil.AccessDenied, psutil.NoSuchProcess, AttributeError):
-                    # Fallback: check for observer PID file
-                    observers_running = os.path.exists('/tmp/goose-perception-observer-pid')
-                    
-            except ImportError:
-                print("⚠️ psutil not available, using basic system info")
-                # Fallback: check for observer PID file
-                observers_running = os.path.exists('/tmp/goose-perception-observer-pid')
-            except Exception as e:
-                print(f"⚠️ psutil error: {e}, using fallbacks")
-                # Fallback: check for observer PID file  
-                observers_running = os.path.exists('/tmp/goose-perception-observer-pid')
+            # Get memory info
+            memory = psutil.virtual_memory()
+            memory_info = f"{memory.percent}%"
             
-            # Alternative method: check for running processes using pgrep
-            if not observers_running:
-                try:
-                    result = subprocess.run(['pgrep', '-f', 'run-observations.sh'], 
-                                          capture_output=True, text=True, timeout=2)
-                    observers_running = result.returncode == 0
-                except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
-                    pass  # Keep observers_running as False
-            
-            # Check perception files
-            perception_dir = Path.home() / ".local/share/goose-perception"
-            work_file = perception_dir / "WORK.md"
-            latest_work_file = perception_dir / "LATEST_WORK.md"
-            
-            # Get current time
-            from datetime import datetime
-            current_time = datetime.now().strftime("%H:%M:%S")
-            
-            status_info = f"""🖥️ **System Status** ({current_time})
-            
-💻 CPU: {cpu_info} | Memory: {memory_info}
-🔄 Observers: {'✅ Running' if observers_running else '❌ Not Running'}
-📝 Work Log: {'✅ Active' if work_file.exists() else '❌ Missing'}
-⚡ Latest Work: {'✅ Active' if latest_work_file.exists() else '❌ Missing'}
-
-🎭 Personality: {self.current_personality.title()}
-📊 Queue: {len(self.message_queue)} messages
-🏠 Perception Dir: {'✅ Found' if perception_dir.exists() else '❌ Missing'}"""
-            
-            self.show_message(status_info, 12000, 'pointing')
+            status_text = f"💻 CPU: {cpu_info} | Memory: {memory_info}"
+            self.show_message(status_text, 5000, 'idle')
             
         except Exception as e:
             print(f"Error getting system status: {e}")
-            # Provide a minimal status even if everything fails
-            try:
-                minimal_status = f"""🖥️ **Basic Status**
-                
-🎭 Personality: {self.current_personality.title()}
-📊 Queue: {len(self.message_queue)} messages
-🕒 Time: {datetime.now().strftime("%H:%M:%S")}
+            self.show_message("⚠️ Could not get system status", 3000, 'idle')
 
-⚠️ Full system info unavailable"""
-                
-                self.show_message(minimal_status, 8000, 'pointing')
-            except Exception as inner_e:
-                print(f"Error showing minimal status: {inner_e}")
-                self.show_message("⚠️ System status temporarily unavailable", 4000, 'idle')
+    def pause_avatar(self):
+        """Toggle the avatar pause state"""
+        if not self.is_paused:
+            # Pause the avatar's messages
+            self.is_paused = True
+            
+            # Stop idle timer (prevents suggestions)
+            self.idle_timer.stop()
+            
+            # Clear any current message
+            if self.is_showing_message:
+                self.hide_message()
+            
+            # Set avatar to sleeping state
+            self.set_avatar_state('sleeping')
+            
+            # Show confirmation message
+            self.show_message("🤫 Messages paused. Click Resume when you want me chatting again!", 3000, 'sleeping')
+        else:
+            # Resume the avatar's messages
+            self.is_paused = False
+            
+            # Restart idle timer
+            self.idle_timer.start(self.idle_check_interval)
+            
+            # Set avatar back to idle state
+            self.set_avatar_state('idle')
+            
+            # Show welcome back message
+            self.show_message("👋 Ready to chat again!", 5000, 'talking')
     
-    def show_personality_menu_from_action(self):
-        """Show personality menu (triggered from action menu)"""
-        self.show_message("🎭 Right-click the avatar to change personality!", 4000, 'pointing')
-        # The actual personality menu is shown via right-click, not left-click
+    def resume_avatar(self):
+        """Resume the avatar after pause period"""
+        # Restart timers
+        self.idle_timer.start(self.idle_check_interval)
+        if hasattr(self, 'spaces_timer'):
+            self.spaces_timer.start(1000)
+        
+        # Show the avatar
+        self.show()
+        
+        # Show welcome back message
+        self.show_message("👋 I'm back! What did I miss?", 5000, 'talking')
+        
+        # Clean up
+        if hasattr(self, 'resume_timer'):
+            self.resume_timer.stop()
+            delattr(self, 'resume_timer')
+        if hasattr(self, 'pause_end_time'):
+            delattr(self, 'pause_end_time')
     
     def show_recent_work(self):
         """Show information about recent work"""
@@ -1796,7 +1808,7 @@ class GooseAvatar(QWidget):
             from pathlib import Path
             import os
             
-            perception_dir = Path.home() / ".local/share/goose-perception"
+            perception_dir = PERCEPTION_DIR
             latest_work_file = perception_dir / "LATEST_WORK.md"
             work_file = perception_dir / "WORK.md"
             
@@ -1846,7 +1858,7 @@ class GooseAvatar(QWidget):
     def show_idle_suggestion(self):
         """Show a random idle suggestion from the JSON file, avoiding recent repeats and skipping time-specific language."""
         import re
-        suggestions_path = Path.home() / ".local/share/goose-perception/AVATAR_SUGGESTIONS.json"
+        suggestions_path = PERCEPTION_DIR / "AVATAR_SUGGESTIONS.json"
         suggestions = []
         try:
             if suggestions_path.exists():
@@ -2032,7 +2044,7 @@ class GooseAvatar(QWidget):
     def get_personality_settings_path(self):
         """Get the path for the personality settings file"""
         from pathlib import Path
-        perception_dir = Path.home() / ".local/share/goose-perception"
+        perception_dir = PERCEPTION_DIR
         perception_dir.mkdir(parents=True, exist_ok=True)
         return perception_dir / "PERSONALITY_SETTINGS.json"
     
