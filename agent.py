@@ -18,7 +18,6 @@ from pathlib import Path
 from jinja2 import Environment, BaseLoader
 import yaml
 import json
-import fire
 
 # Import avatar display system
 from avatar.avatar_display import (show_message, show_suggestion, show_actionable_message, 
@@ -397,13 +396,35 @@ def process_and_display_observation(observation_text, observer_name):
     show_actionable_message(message, action_data)
 
 
-if __name__ == "__main__":
+def main():
+    parser = argparse.ArgumentParser(description="Goose Perception Agent")
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+
+    # run-action command
+    action_parser = subparsers.add_parser('run-action', help='Run a specific action')
+    action_parser.add_argument('action_name', help='Name of the action to run')
+    action_parser.add_argument('--params', type=json.loads, help='JSON string of parameters', default={})
+
+    # run-observer command
+    observer_parser = subparsers.add_parser('run-observer', help='Run an observer')
+    observer_parser.add_argument('observer_name', help='Name of the observer to run')
+    observer_parser.add_argument('--last_run_seconds', type=int, default=0, help='Seconds since last run')
+
+    args = parser.parse_args()
+
     try:
-        fire.Fire({
-            "run-action": run_action,
-            "run-observer": run_observer,
-        })
+        if args.command == 'run-action':
+            run_action(args.action_name, args.params)
+        elif args.command == 'run-observer':
+            run_observer(args.observer_name, args.last_run_seconds)
+        else:
+            parser.print_help()
+            sys.exit(1)
 
     except Exception as e:
         print(f"An error occurred: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
