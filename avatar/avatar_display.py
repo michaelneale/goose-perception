@@ -843,12 +843,12 @@ class GooseAvatar(QWidget):
             
         # Process message queue
         if self.is_processing_queue:
-            self.message_queue.append((message, duration, state, action_data))
+            self.queue_message_for_display(message, duration, state, action_data)
             return
             
         # If there's a current message, queue this one
         if self.is_showing_message:
-            self.message_queue.append((message, duration, state, action_data))
+            self.queue_message_for_display(message, duration, state, action_data)
             return
         
         # Suppress all messages except onboarding if onboarding is in progress
