@@ -1,6 +1,6 @@
-# Hybrid Interface System 🍎🪟
+# Interface Modes System 🍎🪟
 
-The Goose Perception project now supports multiple interface modes to suit different user preferences and workflows.
+The Goose Perception project now supports two interface modes to suit different user preferences and workflows.
 
 ## Interface Modes
 
@@ -16,23 +16,13 @@ The Goose Perception project now supports multiple interface modes to suit diffe
 
 ### 2. 🍎 Menu Bar Mode (Minimal)
 
-- **Description**: Goose lives in your Mac menu bar as a small icon
+- **Description**: Goose lives in your Mac menu bar as a small icon with popup window
 - **Features**:
   - Unobtrusive menu bar presence
   - System notifications for messages
   - Right-click context menu for quick actions
-  - Popup window for complex interactions
-- **Best for**: Users who prefer minimal visual impact
-
-### 3. 📱 Hybrid Mode (Best of Both)
-
-- **Description**: Both floating avatar AND menu bar icon
-- **Features**:
-  - All floating avatar features
-  - Plus menu bar convenience
-  - Messages appear on both interfaces
-  - User can choose which to interact with
-- **Best for**: Power users who want maximum flexibility
+  - Popup window for complex interactions and chat
+- **Best for**: Users who prefer minimal visual impact and native Mac experience
 
 ## Configuration
 
@@ -46,7 +36,6 @@ How would you like to interact with Goose?
 Options:
 - floating: Traditional floating avatar (default)
 - menubar: Menu bar icon with popup window
-- hybrid: Both floating avatar and menu bar
 ```
 
 ### After Setup
@@ -68,7 +57,7 @@ This will show your current configuration and allow you to switch modes.
 - **🖥️ System Status**: Show system information
 - **💬 Open Chat Window**: Launch the interaction popup
 - **⚙️ Preferences**: View current settings
-- **🔄 Switch to Floating Avatar**: Toggle interface modes
+- **🪟 Switch to Floating Avatar**: Switch to floating avatar mode
 - **❌ Quit**: Exit the application
 
 ### Popup Window
@@ -90,17 +79,17 @@ This will show your current configuration and allow you to switch modes.
 
 ```
 Main Application
-├── Floating Avatar (if enabled)
-│   ├── QWidget with chat bubbles
-│   ├── Positioning system
-│   └── Personality system
-├── Menu Bar Avatar (if enabled)
-│   ├── QSystemTrayIcon
-│   ├── Context menu
-│   └── Popup window (QMainWindow)
-└── Shared Message System
-    ├── Routes to active interfaces
-    └── Handles actionable content
+├── Interface Mode Selection
+│   ├── Floating Avatar Mode
+│   │   ├── QWidget with chat bubbles
+│   │   ├── Positioning system
+│   │   └── Personality system
+│   └── Menu Bar Mode
+│       ├── QSystemTrayIcon
+│       ├── Context menu
+│       └── Popup window (QMainWindow)
+└── Message Routing System
+    └── Routes messages to active interface
 ```
 
 ### File Structure
@@ -112,27 +101,27 @@ Main Application
 
 ## Usage Examples
 
-### Hybrid Mode Workflow
+### Floating Avatar Workflow
 
-1. **Quick status check**: Click menu bar icon
-2. **Complex interaction**: Use floating avatar chat bubbles
-3. **Background notifications**: Receive via menu bar notifications
-4. **Voice commands**: Available through both interfaces
+1. **Always visible**: Avatar stays on screen for constant access
+2. **Chat bubbles**: Rich interactions with actionable suggestions
+3. **Drag and position**: Place avatar wherever convenient
+4. **Visual personality**: Different expressions and states
 
-### Menu Bar Only Workflow
+### Menu Bar Workflow
 
-1. **Daily monitoring**: Passive menu bar presence
-2. **Quick actions**: Right-click context menu
-3. **Detailed work**: Double-click to open popup window
-4. **Notifications**: System notifications for important updates
+1. **Minimal presence**: Unobtrusive menu bar icon
+2. **Quick actions**: Right-click context menu for common tasks
+3. **Popup window**: Double-click for detailed interactions and chat
+4. **System notifications**: Native macOS notifications for updates
 
 ## Benefits
 
 ### Reduced Visual Clutter
 
-- Menu bar mode eliminates floating windows
-- Users can choose their preferred level of visual presence
-- Hybrid mode allows situational choice
+- Menu bar mode eliminates floating windows entirely
+- Clear choice between minimal vs full presence
+- No visual distractions when using menu bar mode
 
 ### Native macOS Experience
 
@@ -155,12 +144,12 @@ Main Application
 3. Restart Goose
 4. Look for the goose icon in your menu bar
 
-### From Menu Bar to Hybrid
+### From Menu Bar to Floating
 
-1. Run `python configure_interface.py`
-2. Choose option 3 (Hybrid)
+1. Use the menu bar context menu option "🪟 Switch to Floating Avatar"
+2. Or run `python configure_interface.py` and choose option 1
 3. Restart Goose
-4. Enjoy both interfaces!
+4. The floating avatar will appear on your screen
 
 ## Troubleshooting
 
@@ -192,4 +181,4 @@ Main Application
 
 ## Feedback
 
-The hybrid interface system is designed to make Goose more accessible and less intrusive while maintaining all its powerful features. Try different modes and see what works best for your workflow!
+The interface mode system is designed to make Goose more accessible and less intrusive while maintaining all its powerful features. Choose the mode that works best for your workflow - minimal menu bar for productivity or full floating avatar for the complete AI companion experience!

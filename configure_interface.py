@@ -42,19 +42,14 @@ def show_current_config():
     print("=" * 45)
     
     interface_mode = prefs.get('interface_mode', 'floating')
-    floating_mode = prefs.get('floating_avatar_mode', True)
     menu_bar_mode = prefs.get('menu_bar_mode', False)
     
     print(f"Interface Mode: {interface_mode}")
-    print(f"Floating Avatar: {'✅ Enabled' if floating_mode else '❌ Disabled'}")
-    print(f"Menu Bar: {'✅ Enabled' if menu_bar_mode else '❌ Disabled'}")
     
-    if floating_mode and menu_bar_mode:
-        print("\n📱 Hybrid Mode: You have both floating avatar and menu bar")
-    elif menu_bar_mode:
-        print("\n🍎 Menu Bar Mode: Goose lives in your menu bar")
+    if menu_bar_mode:
+        print("🍎 Menu Bar Mode: Goose lives in your menu bar with popup window")
     else:
-        print("\n🪟 Floating Mode: Traditional floating avatar")
+        print("🪟 Floating Mode: Traditional floating avatar")
     
     print()
 
@@ -65,13 +60,12 @@ def configure_interface():
     print("\nChoose your preferred interface mode:")
     print("1. Floating Avatar (traditional)")
     print("2. Menu Bar Icon (minimal)")
-    print("3. Hybrid (both floating + menu bar)")
-    print("4. Show current configuration")
-    print("5. Exit")
+    print("3. Show current configuration")
+    print("4. Exit")
     
     while True:
         try:
-            choice = input("\nEnter your choice (1-5): ").strip()
+            choice = input("\nEnter your choice (1-4): ").strip()
             
             if choice == "1":
                 set_floating_mode()
@@ -80,16 +74,13 @@ def configure_interface():
                 set_menu_bar_mode()
                 break
             elif choice == "3":
-                set_hybrid_mode()
-                break
-            elif choice == "4":
                 show_current_config()
                 continue
-            elif choice == "5":
+            elif choice == "4":
                 print("👋 Goodbye!")
                 sys.exit(0)
             else:
-                print("❌ Invalid choice. Please enter 1, 2, 3, 4, or 5.")
+                print("❌ Invalid choice. Please enter 1, 2, 3, or 4.")
         except KeyboardInterrupt:
             print("\n👋 Goodbye!")
             sys.exit(0)
@@ -122,18 +113,7 @@ def set_menu_bar_mode():
     print("Right-click the icon to access features.")
     print("Please restart Goose for changes to take effect.")
 
-def set_hybrid_mode():
-    """Set hybrid mode."""
-    prefs = load_user_prefs()
-    prefs['interface_mode'] = 'hybrid'
-    prefs['floating_avatar_mode'] = True
-    prefs['menu_bar_mode'] = True
-    save_user_prefs(prefs)
-    
-    print("\n📱 Hybrid Mode enabled!")
-    print("You'll have both the floating avatar and menu bar icon.")
-    print("Use whichever interface you prefer in the moment.")
-    print("Please restart Goose for changes to take effect.")
+
 
 def main():
     """Main function."""

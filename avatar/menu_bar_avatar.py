@@ -165,8 +165,8 @@ class MenuBarAvatar(QObject):
         settings_action.triggered.connect(self.show_preferences)
         self.menu.addAction(settings_action)
         
-        # Toggle modes
-        toggle_action = QAction("🔄 Switch to Floating Avatar")
+        # Toggle modes  
+        toggle_action = QAction("🪟 Switch to Floating Avatar")
         toggle_action.triggered.connect(self.toggle_to_floating_mode)
         self.menu.addAction(toggle_action)
         
@@ -269,10 +269,10 @@ class MenuBarAvatar(QObject):
             self.popup_window.show_preferences()
     
     def toggle_to_floating_mode(self):
-        """Toggle back to floating avatar mode"""
+        """Switch to floating avatar mode"""
         user_prefs = get_user_prefs()
+        user_prefs['interface_mode'] = 'floating'
         user_prefs['menu_bar_mode'] = False
-        user_prefs['floating_avatar_mode'] = True
         save_user_prefs(user_prefs)
         
         self.show_notification("Goose", "Switching to floating avatar mode...")
@@ -280,9 +280,8 @@ class MenuBarAvatar(QObject):
         # Disable menu bar mode
         self.disable_menu_bar_mode()
         
-        # Signal to enable floating avatar (this would be handled by the main system)
-        # For now, just show a message
-        self.show_notification("Goose", "Please restart the application to switch modes")
+        # Show restart message
+        self.show_notification("Goose", "Please restart Goose to switch to floating avatar mode")
     
     def quit_application(self):
         """Quit the application"""
