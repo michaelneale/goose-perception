@@ -94,6 +94,8 @@ class MenuBarAvatar(QObject):
         except Exception as e:
             pass
     
+
+    
     def create_system_tray(self):
         """Create the system tray icon and menu"""
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -137,8 +139,8 @@ class MenuBarAvatar(QObject):
         # Store action references to prevent garbage collection (important for macOS)
         self.menu_actions = []
         
-        # Status section (keep this as a reference point)
-        self.status_action = QAction("Status: Ready")
+        # Status section (keep this as a reference point) - with embedded icon
+        self.status_action = QAction("● Status: Ready")
         # Don't disable the status action as it might cause menu rendering issues on macOS
         self.status_action.triggered.connect(self.show_popup_window)
         self.menu.addAction(self.status_action)
@@ -148,23 +150,26 @@ class MenuBarAvatar(QObject):
         sep1 = self.menu.addSeparator()
         self.menu_actions.append(sep1)
         
-        # Simplified actions without emojis (macOS sometimes has issues with emojis in menus)
-        run_report_action = QAction("Run Report")
+        # Run Report - with embedded icon
+        run_report_action = QAction("📊 Run Report")
         run_report_action.triggered.connect(self.run_optimize_report)
         self.menu.addAction(run_report_action)
         self.menu_actions.append(run_report_action)
         
-        listen_action = QAction("Activate Listen Mode")
+        # Listen Mode - with embedded icon
+        listen_action = QAction("🎤 Activate Listen Mode")
         listen_action.triggered.connect(self.activate_listen_mode)
         self.menu.addAction(listen_action)
         self.menu_actions.append(listen_action)
         
-        work_action = QAction("Show Recent Work")
+        # Recent Work - with embedded icon
+        work_action = QAction("📝 Show Recent Work")
         work_action.triggered.connect(self.show_recent_work)
         self.menu.addAction(work_action)
         self.menu_actions.append(work_action)
         
-        status_action = QAction("System Status")
+        # System Status - with embedded icon
+        status_action = QAction("⚙️ System Status")
         status_action.triggered.connect(self.show_system_status)
         self.menu.addAction(status_action)
         self.menu_actions.append(status_action)
@@ -173,8 +178,8 @@ class MenuBarAvatar(QObject):
         sep2 = self.menu.addSeparator()
         self.menu_actions.append(sep2)
         
-        # Interaction window
-        popup_action = QAction("Open Chat Window")
+        # Chat Window - with embedded icon
+        popup_action = QAction("💬 Open Chat Window")
         popup_action.triggered.connect(self.show_popup_window)
         self.menu.addAction(popup_action)
         self.menu_actions.append(popup_action)
@@ -183,14 +188,14 @@ class MenuBarAvatar(QObject):
         sep3 = self.menu.addSeparator()
         self.menu_actions.append(sep3)
         
-        # Settings
-        settings_action = QAction("Preferences")
+        # Preferences - with embedded icon
+        settings_action = QAction("⚙️ Preferences")
         settings_action.triggered.connect(self.show_preferences)
         self.menu.addAction(settings_action)
         self.menu_actions.append(settings_action)
         
-        # Toggle modes  
-        toggle_action = QAction("Switch to Floating Avatar")
+        # Toggle Avatar Mode - with embedded icon
+        toggle_action = QAction("↔️ Switch to Floating Avatar")
         toggle_action.triggered.connect(self.toggle_to_floating_mode)
         self.menu.addAction(toggle_action)
         self.menu_actions.append(toggle_action)
@@ -199,8 +204,8 @@ class MenuBarAvatar(QObject):
         sep4 = self.menu.addSeparator()
         self.menu_actions.append(sep4)
         
-        # Exit
-        quit_action = QAction("Quit")
+        # Quit - with embedded icon
+        quit_action = QAction("✕ Quit")
         quit_action.triggered.connect(self.quit_application)
         self.menu.addAction(quit_action)
         self.menu_actions.append(quit_action)
@@ -384,6 +389,10 @@ class MenuBarAvatar(QObject):
         """Refresh the context menu in case it got lost"""
         if self.tray_icon and self.menu:
             self.tray_icon.setContextMenu(self.menu)
+            # Force menu update
+            self.menu.update()
+    
+
     
     def debug_menu_status(self):
         """Debug method to check menu status"""
