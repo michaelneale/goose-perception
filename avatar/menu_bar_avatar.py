@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout,
                             QPushButton, QHBoxLayout, QTextEdit, QMenu, QLineEdit, 
                             QSystemTrayIcon, QMainWindow)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QSize, QPoint, QRect, QRectF, QThread, QPointF
-from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics, QMovie, QPainterPath
+from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics, QMovie, QPainterPath, QCursor
 import random
 import json
 from datetime import datetime
@@ -53,8 +53,9 @@ class MenuBarAvatar(QObject):
             return
             
         self.is_enabled = True
-        self.create_system_tray()
-        print("🍎 Menu bar avatar enabled")
+        success = self.create_system_tray()
+        if not success:
+            self.is_enabled = False
     
     def disable_menu_bar_mode(self):
         """Disable the menu bar avatar"""
@@ -68,7 +69,6 @@ class MenuBarAvatar(QObject):
         if self.popup_window:
             self.popup_window.close()
             self.popup_window = None
-        print("🍎 Menu bar avatar disabled")
     
     def load_avatar_images(self):
         """Load avatar images from the avatar directory"""
@@ -91,16 +91,12 @@ class MenuBarAvatar(QObject):
                     scaled_pixmap = pixmap.scaled(22, 22, Qt.AspectRatioMode.KeepAspectRatio, 
                                                  Qt.TransformationMode.SmoothTransformation)
                     self.avatar_images[state] = scaled_pixmap
-                    print(f"✅ Loaded menu bar {state} avatar: {filename}")
-                else:
-                    print(f"❌ Menu bar avatar image not found: {image_path}")
         except Exception as e:
-            print(f"Error loading menu bar avatar images: {e}")
+            pass
     
     def create_system_tray(self):
         """Create the system tray icon and menu"""
         if not QSystemTrayIcon.isSystemTrayAvailable():
-            print("❌ System tray is not available")
             return False
         
         # Create system tray icon
@@ -116,67 +112,109 @@ class MenuBarAvatar(QObject):
                 icon = QIcon(str(goose_icon_path))
                 self.tray_icon.setIcon(icon)
         
-        # Create context menu
-        self.create_context_menu()
-        
-        # Connect signals
+        # Connect signals BEFORE showing the tray icon
         self.tray_icon.activated.connect(self.on_tray_icon_activated)
         self.tray_icon.messageClicked.connect(self.on_notification_clicked)
         
-        # Show the tray icon
+        # Show the tray icon first
         self.tray_icon.show()
+        
+        # Create context menu AFTER tray icon is shown (macOS requirement)
+        # Use QTimer to ensure it's created in the next event loop iteration
+        QTimer.singleShot(100, self.create_context_menu)
         
         return True
     
     def create_context_menu(self):
         """Create the context menu for the system tray icon"""
+        # Ensure we have a parent for the menu
+        if not self.tray_icon:
+            return
+        
+        # Create menu with proper parent (important for macOS)
         self.menu = QMenu()
         
-        # Status section
-        self.status_action = QAction("Status: Ready")
-        self.status_action.setEnabled(False)
-        self.menu.addAction(self.status_action)
-        self.menu.addSeparator()
+        # Store action references to prevent garbage collection (important for macOS)
+        self.menu_actions = []
         
-        # Quick actions
-        listen_action = QAction("🎙️ Activate Listen Mode")
+        # Status section (keep this as a reference point)
+        self.status_action = QAction("Status: Ready")
+        # Don't disable the status action as it might cause menu rendering issues on macOS
+        self.status_action.triggered.connect(self.show_popup_window)
+        self.menu.addAction(self.status_action)
+        self.menu_actions.append(self.status_action)
+        
+        # Add separator
+        sep1 = self.menu.addSeparator()
+        self.menu_actions.append(sep1)
+        
+        # Simplified actions without emojis (macOS sometimes has issues with emojis in menus)
+        run_report_action = QAction("Run Report")
+        run_report_action.triggered.connect(self.run_optimize_report)
+        self.menu.addAction(run_report_action)
+        self.menu_actions.append(run_report_action)
+        
+        listen_action = QAction("Activate Listen Mode")
         listen_action.triggered.connect(self.activate_listen_mode)
         self.menu.addAction(listen_action)
+        self.menu_actions.append(listen_action)
         
-        work_action = QAction("📋 Show Recent Work")
+        work_action = QAction("Show Recent Work")
         work_action.triggered.connect(self.show_recent_work)
         self.menu.addAction(work_action)
+        self.menu_actions.append(work_action)
         
-        status_action = QAction("🖥️ System Status")
+        status_action = QAction("System Status")
         status_action.triggered.connect(self.show_system_status)
         self.menu.addAction(status_action)
+        self.menu_actions.append(status_action)
         
-        self.menu.addSeparator()
+        # Add separator
+        sep2 = self.menu.addSeparator()
+        self.menu_actions.append(sep2)
         
         # Interaction window
-        popup_action = QAction("💬 Open Chat Window")
+        popup_action = QAction("Open Chat Window")
         popup_action.triggered.connect(self.show_popup_window)
         self.menu.addAction(popup_action)
+        self.menu_actions.append(popup_action)
         
-        self.menu.addSeparator()
+        # Add separator
+        sep3 = self.menu.addSeparator()
+        self.menu_actions.append(sep3)
         
         # Settings
-        settings_action = QAction("⚙️ Preferences")
+        settings_action = QAction("Preferences")
         settings_action.triggered.connect(self.show_preferences)
         self.menu.addAction(settings_action)
+        self.menu_actions.append(settings_action)
         
         # Toggle modes  
-        toggle_action = QAction("🪟 Switch to Floating Avatar")
+        toggle_action = QAction("Switch to Floating Avatar")
         toggle_action.triggered.connect(self.toggle_to_floating_mode)
         self.menu.addAction(toggle_action)
+        self.menu_actions.append(toggle_action)
         
-        self.menu.addSeparator()
+        # Add separator
+        sep4 = self.menu.addSeparator()
+        self.menu_actions.append(sep4)
         
         # Exit
-        quit_action = QAction("❌ Quit")
+        quit_action = QAction("Quit")
         quit_action.triggered.connect(self.quit_application)
         self.menu.addAction(quit_action)
+        self.menu_actions.append(quit_action)
         
+        # Make sure all actions are visible
+        for action in self.menu_actions:
+            if not action.isSeparator():
+                action.setVisible(True)
+                action.setEnabled(True)
+        
+        # Force the menu to update its layout (important for macOS)
+        self.menu.update()
+        
+        # Set the context menu on the tray icon
         self.tray_icon.setContextMenu(self.menu)
     
     def on_tray_icon_activated(self, reason):
@@ -187,6 +225,18 @@ class MenuBarAvatar(QObject):
             # Single click - show brief status or latest message
             if self.current_message:
                 self.show_notification("Goose", self.current_message)
+            else:
+                self.show_notification("Goose", "Ready to help!")
+        elif reason == QSystemTrayIcon.ActivationReason.Context:
+            # Right-click - this should show the context menu automatically
+            if self.menu:
+                # Force refresh the context menu to ensure it's properly set
+                self.refresh_context_menu()
+            else:
+                # Try to recreate the menu
+                self.create_context_menu()
+        elif reason == QSystemTrayIcon.ActivationReason.MiddleClick:
+            self.show_popup_window()
     
     def show_popup_window(self):
         """Show the popup interaction window"""
@@ -207,8 +257,11 @@ class MenuBarAvatar(QObject):
         
         self.current_message = message
         
-        # Update status in menu
-        self.status_action.setText(f"Status: {message[:50]}...")
+        # Update status in menu - only update text, don't change structure
+        if hasattr(self, 'status_action') and self.status_action:
+            # Truncate long messages for menu display
+            truncated_message = message[:50] + "..." if len(message) > 50 else message
+            self.status_action.setText(f"Status: {truncated_message}")
         
         # Update tray icon to reflect state
         if avatar_state in self.avatar_images:
@@ -240,6 +293,35 @@ class MenuBarAvatar(QObject):
             self.tray_icon.setIcon(QIcon(self.avatar_images[state]))
     
     # Menu action handlers
+    def run_optimize_report(self):
+        """Run the optimize recipe (same as Cmd+Shift+R hotkey)"""
+        self.show_notification("Goose", "Starting optimization analysis...")
+        
+        import threading
+        import subprocess
+        import os
+        
+        def run_optimize():
+            try:
+                observers_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'observers')
+                env = os.environ.copy()
+                env['GOOSE_CONTEXT_STRATEGY'] = 'truncate'
+                
+                result = subprocess.run([
+                    'goose', 'run', '--no-session', '--recipe', 'recipe-optimize.yaml'
+                ], capture_output=True, text=True, cwd=observers_dir, env=env)
+                
+                if result.returncode == 0:
+                    self.show_notification("Goose", "Optimization analysis complete! Check for HTML report.")
+                else:
+                    self.show_notification("Goose", f"Optimization analysis had issues (code {result.returncode}). Check the logs.")
+            except FileNotFoundError as e:
+                self.show_notification("Goose", "Goose command not found. Make sure Goose is installed and in your PATH.")
+            except Exception as e:
+                self.show_notification("Goose", f"Error running optimization: {e}")
+        
+        threading.Thread(target=run_optimize, daemon=True).start()
+
     def activate_listen_mode(self):
         """Activate listen mode"""
         try:
@@ -287,6 +369,32 @@ class MenuBarAvatar(QObject):
         """Quit the application"""
         QApplication.quit()
 
+    def show_context_menu(self, position=None):
+        """Manually show the context menu"""
+        if not self.menu:
+            return
+        
+        if not position:
+            # Show at current cursor position
+            position = QCursor.pos()
+        
+        self.menu.popup(position)
+    
+    def refresh_context_menu(self):
+        """Refresh the context menu in case it got lost"""
+        if self.tray_icon and self.menu:
+            self.tray_icon.setContextMenu(self.menu)
+    
+    def debug_menu_status(self):
+        """Debug method to check menu status"""
+        if not self.menu:
+            return False
+        
+        if self.tray_icon:
+            context_menu = self.tray_icon.contextMenu()
+            return context_menu is not None
+        return False
+
 
 class MenuBarPopupWindow(QMainWindow):
     """Popup window for complex interactions when using menu bar avatar"""
@@ -297,7 +405,7 @@ class MenuBarPopupWindow(QMainWindow):
         self.current_action_data = None
         
         self.setWindowTitle("Goose")
-        self.setFixedSize(450, 600)
+        self.setFixedSize(380, 370)
         
         # Set window properties
         self.setWindowFlags(
@@ -309,9 +417,14 @@ class MenuBarPopupWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         
-        # Create layout
+        # Create layout with tighter spacing
         self.layout = QVBoxLayout()
+        self.layout.setSpacing(8)  # Reduce spacing between elements
+        self.layout.setContentsMargins(15, 15, 15, 15)  # Reduce margins
         self.central_widget.setLayout(self.layout)
+        
+        # Detect dark mode
+        self.is_dark_mode = self.detect_dark_mode()
         
         # Create UI elements
         self.create_ui()
@@ -319,29 +432,88 @@ class MenuBarPopupWindow(QMainWindow):
         # Position window near menu bar
         self.position_window()
     
+    def detect_dark_mode(self):
+        """Detect if the system is in dark mode"""
+        try:
+            app = QApplication.instance()
+            if app:
+                palette = app.palette()
+                # Check if window background is darker than text color
+                bg_color = palette.color(palette.ColorRole.Window)
+                text_color = palette.color(palette.ColorRole.WindowText)
+                return bg_color.lightness() < text_color.lightness()
+        except Exception:
+            pass
+        return False
+    
+    def get_styles(self):
+        """Get appropriate styles based on theme"""
+        if self.is_dark_mode:
+            return {
+                'title_color': '#ecf0f1',
+                'message_bg': '#34495e',
+                'message_text': '#ecf0f1',
+                'message_border': '#5d6d7e',
+                'input_bg': '#2c3e50',
+                'input_text': '#ecf0f1',
+                'input_border': '#3498db',
+                'status_color': '#bdc3c7',
+                'window_bg': '#2c3e50',
+                'button_bg': '#3498db',
+                'button_hover': '#2980b9',
+                'close_button_bg': '#7f8c8d',
+                'close_button_hover': '#6c7b7d'
+            }
+        else:
+            return {
+                'title_color': '#2c3e50',
+                'message_bg': '#f8f9fa',
+                'message_text': '#2c3e50',
+                'message_border': '#bdc3c7',
+                'input_bg': '#ffffff',
+                'input_text': '#2c3e50',
+                'input_border': '#3498db',
+                'status_color': '#7f8c8d',
+                'window_bg': '#ffffff',
+                'button_bg': '#3498db',
+                'button_hover': '#2980b9',
+                'close_button_bg': '#95a5a6',
+                'close_button_hover': '#7f8c8d'
+            }
+    
     def create_ui(self):
         """Create the UI for the popup window"""
-        # Header with avatar
-        header_layout = QHBoxLayout()
+        styles = self.get_styles()
         
-        # Avatar icon
+        # Set window background
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background-color: {styles['window_bg']};
+            }}
+        """)
+        
+        # Header with avatar - make more compact
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(10)
+        
+        # Avatar icon - smaller size
         avatar_label = QLabel()
         if 'idle' in self.menu_bar_avatar.avatar_images:
-            # Scale up for window display
+            # Smaller avatar for compact window
             pixmap = self.menu_bar_avatar.avatar_images['idle'].scaled(
-                64, 64, Qt.AspectRatioMode.KeepAspectRatio, 
+                48, 48, Qt.AspectRatioMode.KeepAspectRatio, 
                 Qt.TransformationMode.SmoothTransformation)
             avatar_label.setPixmap(pixmap)
         
         # Title
         title_label = QLabel("Goose Assistant")
-        title_label.setStyleSheet("""
-            QLabel {
-                font-size: 18px;
+        title_label.setStyleSheet(f"""
+            QLabel {{
+                font-size: 16px;
                 font-weight: bold;
-                color: #2c3e50;
-                padding: 10px;
-            }
+                color: {styles['title_color']};
+                padding: 5px;
+            }}
         """)
         
         header_layout.addWidget(avatar_label)
@@ -350,41 +522,147 @@ class MenuBarPopupWindow(QMainWindow):
         
         self.layout.addLayout(header_layout)
         
-        # Message area
+        # Message area - smaller and themed
         self.message_area = QTextEdit()
         self.message_area.setReadOnly(True)
-        self.message_area.setMaximumHeight(200)
-        self.message_area.setStyleSheet("""
-            QTextEdit {
-                border: 1px solid #bdc3c7;
+        self.message_area.setMaximumHeight(150)  # Smaller height
+        self.message_area.setStyleSheet(f"""
+            QTextEdit {{
+                border: 1px solid {styles['message_border']};
                 border-radius: 8px;
-                padding: 10px;
-                background-color: #f8f9fa;
-                font-size: 13px;
-            }
+                padding: 8px;
+                background-color: {styles['message_bg']};
+                color: {styles['message_text']};
+                font-size: 12px;
+            }}
         """)
         self.message_area.setPlainText("Ready to help! Use the menu bar icon or interact here.")
         
         self.layout.addWidget(self.message_area)
         
-        # Input area
+        # Input area - themed
         self.input_area = QLineEdit()
         self.input_area.setPlaceholderText("Type a message or command...")
-        self.input_area.setStyleSheet("""
-            QLineEdit {
-                border: 2px solid #3498db;
+        self.input_area.setStyleSheet(f"""
+            QLineEdit {{
+                border: 2px solid {styles['input_border']};
                 border-radius: 8px;
-                padding: 10px;
-                font-size: 13px;
-            }
+                padding: 8px;
+                font-size: 12px;
+                background-color: {styles['input_bg']};
+                color: {styles['input_text']};
+            }}
+            QLineEdit::placeholder {{
+                color: {styles['status_color']};
+            }}
         """)
         self.input_area.returnPressed.connect(self.handle_input)
         
         self.layout.addWidget(self.input_area)
         
-        # Action buttons area (hidden by default)
+        # Quick Actions section
+        quick_actions_label = QLabel("Quick Actions")
+        quick_actions_label.setStyleSheet(f"""
+            QLabel {{
+                color: {styles['title_color']};
+                font-size: 12px;
+                font-weight: bold;
+                padding: 8px 4px 4px 4px;
+            }}
+        """)
+        self.layout.addWidget(quick_actions_label)
+        
+        # Quick action buttons (always visible)
+        quick_buttons_layout = QHBoxLayout()
+        quick_buttons_layout.setSpacing(6)
+        
+        # Run Report button
+        run_report_btn = QPushButton("📊 Report")
+        run_report_btn.clicked.connect(self.menu_bar_avatar.run_optimize_report)
+        run_report_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #3498db;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 8px;
+                font-size: 10px;
+                font-weight: bold;
+                min-width: 60px;
+            }}
+            QPushButton:hover {{
+                background-color: #2980b9;
+            }}
+        """)
+        
+        # Listen button
+        listen_btn = QPushButton("🎤 Listen")
+        listen_btn.clicked.connect(self.menu_bar_avatar.activate_listen_mode)
+        listen_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #e74c3c;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 8px;
+                font-size: 10px;
+                font-weight: bold;
+                min-width: 60px;
+            }}
+            QPushButton:hover {{
+                background-color: #c0392b;
+            }}
+        """)
+        
+        # Recent Work button
+        work_btn = QPushButton("📝 Work")
+        work_btn.clicked.connect(self.show_recent_work)
+        work_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #f39c12;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 8px;
+                font-size: 10px;
+                font-weight: bold;
+                min-width: 60px;
+            }}
+            QPushButton:hover {{
+                background-color: #e67e22;
+            }}
+        """)
+        
+        # Status button
+        status_btn = QPushButton("📋 Status")
+        status_btn.clicked.connect(self.show_system_status)
+        status_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #9b59b6;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 8px;
+                font-size: 10px;
+                font-weight: bold;
+                min-width: 60px;
+            }}
+            QPushButton:hover {{
+                background-color: #8e44ad;
+            }}
+        """)
+        
+        quick_buttons_layout.addWidget(run_report_btn)
+        quick_buttons_layout.addWidget(listen_btn)
+        quick_buttons_layout.addWidget(work_btn)
+        quick_buttons_layout.addWidget(status_btn)
+        
+        self.layout.addLayout(quick_buttons_layout)
+        
+        # Action buttons area (hidden by default, for actionable messages)
         self.action_buttons_widget = QWidget()
         self.action_buttons_layout = QVBoxLayout()
+        self.action_buttons_layout.setSpacing(4)  # Tighter spacing
         self.action_buttons_widget.setLayout(self.action_buttons_layout)
         self.action_buttons_widget.hide()
         
@@ -392,36 +670,37 @@ class MenuBarPopupWindow(QMainWindow):
         
         # Status area
         self.status_label = QLabel("Status: Ready")
-        self.status_label.setStyleSheet("""
-            QLabel {
-                color: #7f8c8d;
-                font-size: 11px;
-                padding: 5px;
-            }
+        self.status_label.setStyleSheet(f"""
+            QLabel {{
+                color: {styles['status_color']};
+                font-size: 10px;
+                padding: 3px;
+            }}
         """)
         
         self.layout.addWidget(self.status_label)
         
-        # Spacer
-        self.layout.addStretch()
+        # Less spacer for compact design
+        self.layout.addStretch(1)
         
         # Bottom buttons
         bottom_layout = QHBoxLayout()
         
         close_button = QPushButton("Close")
         close_button.clicked.connect(self.close)
-        close_button.setStyleSheet("""
-            QPushButton {
-                background-color: #95a5a6;
+        close_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {styles['close_button_bg']};
                 color: white;
                 border: none;
                 border-radius: 6px;
-                padding: 8px 16px;
+                padding: 6px 12px;
                 font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #7f8c8d;
-            }
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background-color: {styles['close_button_hover']};
+            }}
         """)
         
         bottom_layout.addStretch()
@@ -454,21 +733,23 @@ class MenuBarPopupWindow(QMainWindow):
         
         # Create action buttons
         if isinstance(action_data, dict) and 'actions' in action_data:
+            styles = self.get_styles()
             for action in action_data['actions']:
                 button = QPushButton(action.get('name', 'Action'))
-                button.setStyleSheet("""
-                    QPushButton {
-                        background-color: #3498db;
+                button.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {styles['button_bg']};
                         color: white;
                         border: none;
                         border-radius: 6px;
-                        padding: 10px;
+                        padding: 8px;
                         margin: 2px;
                         font-weight: bold;
-                    }
-                    QPushButton:hover {
-                        background-color: #2980b9;
-                    }
+                        font-size: 11px;
+                    }}
+                    QPushButton:hover {{
+                        background-color: {styles['button_hover']};
+                    }}
                 """)
                 button.clicked.connect(lambda checked, a=action: self.execute_action(a))
                 self.action_buttons_layout.addWidget(button)
@@ -600,4 +881,15 @@ def set_avatar_state_menu_bar(state):
     """Set avatar state for menu bar"""
     menu_bar = get_menu_bar_avatar()
     if menu_bar.is_enabled:
-        menu_bar.set_avatar_state(state) 
+        menu_bar.set_avatar_state(state)
+
+def debug_menu_bar_avatar():
+    """Debug function to check menu bar avatar status"""
+    menu_bar = get_menu_bar_avatar()
+    menu_bar.debug_menu_status()
+
+def refresh_menu_bar_avatar():
+    """Refresh the menu bar avatar menu"""
+    menu_bar = get_menu_bar_avatar()
+    if menu_bar.is_enabled:
+        menu_bar.refresh_context_menu() 
