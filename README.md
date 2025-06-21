@@ -6,24 +6,30 @@
 
 What if you didn't have to learn how to use an agent, if it didn't wait for you to chat with it? That is this project. 
 
+<img src="map.png" alt="Goose Logo" width="600"/>
+
 * What if goose noticed you missed a meeting and that you didn’t actually miss much? It could politely decline (or if you did miss something important, you will be politely interrupted with what actions you need to take)
 * Say you made an offhand comment out loud while talking with a colleague but forget to follow it up (that can be automated for you)
 * Leave a note to prepare some research (wherever you keep notes today) - and it will happen
-* Maybe ou get an important message from a trusted colleague about a regression while you are busy doing something else - let goose take action for you in the background, submit a fix
+* Maybe you get an important message from a trusted colleague about a regression while you are busy doing something else - let goose take action for you in the background, submit a fix
 * Perhaps you forget to update some document or spreadsheet that you need to. 
 * You don’t want to check your unread messages in the morning, can't an agent know what you are working on and interrupt you if it affects you otherwise schedule time to do it? (after all, it should know everything about you)
 * You could update the team when something interesting happens without having to think about it 
 * Goose can watch how you work, who you talk to to, how your day works, what apps you like to use, and can preemptively automate tasks for you. It can learn your preferences, communication styles, hear what you talk about, offer to take on tedious tasks or prepare. 
 * This can be done with "recipes" you can control
-* Goose can also fix its own issues, enhance its own automation as time goes on, the more you use it. 
+* Goose can also fix its own issues, enhance its own automation as time goes on, the more you use it.
+* You might have an upcoming presentation and haven't had time to think about it, goose will prepare it for you
 
-Goose perception runs on your desktop and learns from how you work, without any interaction on your part, you just go about your day.
-This is the most personal way to build up a background assistant that can take actions on your behalf, with out your using another tool. Just keep going, and goose will help you out. 
+Goose perception runs on your desktop and learns from how you work, without any interaction on your part, you just go about your day. It makes use of a plethora of MCPs and agent capabilities to achieve this, along with local models, voice processing and classifiers.
+This is the most personal way to build up a background assistant that can take actions on your behalf, with out you needing to learn another tool (it will even use agents that you use if it sees them). Just keep going, and goose will help you out. 
 
-<img src="map.png" alt="Goose Logo" width="500"/>
+## Quick start 
 
 Run this via `just run` and let it observe how you work (watch and listen), in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
 Always watching, and listening and perceiving and then acting. If this is all to much `just simple` will run just the recipesd (no voice or other enhancements)
+
+
+## 🎭 Avatar Personality System
 
 > **Goose perception has a fun or creepy avatar that will lurk on your screen** - See [AVATAR_SYSTEM.md](AVATAR_SYSTEM.md) for details about the floating avatar system that provides visual feedback and suggestions.
 
@@ -36,7 +42,6 @@ The avatar provides different types of suggestions based on your activity:
 
 and may offer to do things for you.
 
-## 🎭 Avatar Personality System
 
 The avatar brings life to Goose Perception with **8 distinct personalities** - not just different work styles, but genuinely unique characters with their own traits, quirks, and ways of seeing the world. Each personality fundamentally changes how the avatar interacts with you.
 
@@ -154,7 +159,7 @@ It will communicate with you via notifications (if it must), voice, or presentin
 
 
 
-## Usage
+## Usage day to day
 
 Once running - just go about your day, you don't need to do anything, it will do something. 
 
@@ -187,7 +192,6 @@ You will see things appear in your calendar (if you have the gcal integration en
 <img src="avatar/chill.png" alt="time to take break" width="400" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
 It may even tell you (congratulate?) it is time to take a break based on recent activity (like this!)
   
-
 
 > [!TIP]
 > you can leave notes for goose to work on in your notes app, and it will act on them, and report back to them etc.
