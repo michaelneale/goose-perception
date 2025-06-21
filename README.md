@@ -3,15 +3,27 @@
 > [!NOTE]
 > This is experimental and very much a work in progress and showcase of async goose and recipes, use at own risk
 
-<img src="avatar/goose.png" alt="Goose Logo" width="150" align="right"/>
 
-Ideally agents wouldn't have an interface that you have to learn or use, and shouldn't be chat or make you work any specific way. This project aims to address that.
+What if you didn't have to learn how to use an agent, if it didn't wait for you to chat with it? That is this project. 
+
+* What if goose noticed you missed a meeting and that you didn’t actually miss much? It could politely decline (or if you did miss something important, you will be politely interrupted with what actions you need to take)
+* Say you made an offhand comment out loud while talking with a colleague but forget to follow it up (that can be automated for you)
+* Leave a note to prepare some research (wherever you keep notes today) - and it will happen
+* Maybe ou get an important message from a trusted colleague about a regression while you are busy doing something else - let goose take action for you in the background, submit a fix
+* Perhaps you forget to update some document or spreadsheet that you need to. 
+* You don’t want to check your unread messages in the morning, can't an agent know what you are working on and interrupt you if it affects you otherwise schedule time to do it? (after all, it should know everything about you)
+* You could update the team when something interesting happens without having to think about it 
+* Goose can watch how you work, who you talk to to, how your day works, what apps you like to use, and can preemptively automate tasks for you. It can learn your preferences, communication styles, hear what you talk about, offer to take on tedious tasks or prepare. 
+* This can be done with "recipes" you can control
+* Goose can also fix its own issues, enhance its own automation as time goes on, the more you use it. 
 
 Goose perception runs on your desktop and learns from how you work, without any interaction on your part, you just go about your day.
 This is the most personal way to build up a background assistant that can take actions on your behalf, with out your using another tool. Just keep going, and goose will help you out. 
 
+<img src="map.png" alt="Goose Logo" width="500"/>
+
 Run this via `just run` and let it observe how you work (watch and listen), in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
-It can check your messages and emails and schedule while you are busy, it can pick up problems and try to solve them before you notice the messages. You can leave notes for things to work on while you are solving other things. Always watching, and listening and perceiving and then acting. If this is all to much `just simple` will run just the recipesd (no voice or other enhancements)
+Always watching, and listening and perceiving and then acting. If this is all to much `just simple` will run just the recipesd (no voice or other enhancements)
 
 > **Goose perception has a fun or creepy avatar that will lurk on your screen** - See [AVATAR_SYSTEM.md](AVATAR_SYSTEM.md) for details about the floating avatar system that provides visual feedback and suggestions.
 
@@ -226,11 +238,14 @@ Screen shots are taken periodically but cleaned out, goose is used to summarised
 
 ### Local models and personal data
 
+... This area is heavily under development ...
+
 Goose will use whatever default models are configured for it, so they can be local models, but if they are remote ones then screenshots will be sent as will information that other recipes gather. 
 For running all locally, this is possibly by via goose config, but also possibly with screen analysis with ollama models which are fine tuned for screen analysis 
-(I wasn't able to run any multimodal models on my local machine, meaning that the goose agent loop won't work with the local models if images are needed on my machine, but with a more powerful one a totally local flow would be possible). 
 There are models such as `llava:3b` (ideally 13b or up) which can read screen content for summarization, but need to be used in concert with other models (think of it as mode like fancy OCR!)
 This is an emerging space so keep an eye out
+
+Voice information is kept local as are transcriptions, image processing is done by goose and the images removed after use.
 
 
 ## How It Works
@@ -249,6 +264,8 @@ This keeps a rolling log of activity and up to date latest one.
 other recipes will examine your communications history and contributions, and form a picture and some metrics of what you have been doing recently and with whom. 
 They will then proactively go to work (checkout `observers` dir).
 
+# Actions
+The actions directory contain many action "recipes" that will take action when directed or when decided (in the background) are warranted.
 
 
 # Voice commands
@@ -319,7 +336,7 @@ The system uses an enhanced ML-based classifier to determine if speech is addres
                                                                  ▼
 ┌────────────────────┐                             ┌─────────────────────────┐
 │                    │                             │                         │
-│  Passive Listening │◀────────── No ─────────────┤ Contains "goose"?       │
+│  Passive Listening │◀────────── No ─────────────┤ Contains "goose"?        │
 │                    │                             │ (Fuzzy Match)           │
 └────────────────────┘                             └─────────────┬───────────┘
                                                                  │
@@ -328,7 +345,7 @@ The system uses an enhanced ML-based classifier to determine if speech is addres
                                                                  ▼
 ┌────────────────────┐                             ┌─────────────────────────┐
 │                    │                             │                         │
-│  Passive Listening │◀────────── No ─────────────┤  Addressed to Goose?    │
+│  Passive Listening │◀────────── No ─────────────┤  Addressed to Goose?     │ 
 │                    │                             │  (Classifier Check)     │
 └────────────────────┘                             └─────────────┬───────────┘
                                                                  │
@@ -337,7 +354,7 @@ The system uses an enhanced ML-based classifier to determine if speech is addres
                                                                  ▼
 ┌────────────────────┐                             ┌─────────────────────────┐
 │                    │                             │                         │
-│  Switch to Active  │─────────────────────────────▶  Active Listening      │
+│  Switch to Active  │─────────────────────────────▶  Active Listening       │
 │  Mode              │                             │  (Main Model)           │
 └────────────────────┘                             └─────────────┬───────────┘
                                                                  │
@@ -435,12 +452,8 @@ During active listening, the system prioritizes capturing the complete conversat
 ### Agent Integration
 
 The system directly integrates with Goose through the `agent.py` module:
-
 - When a conversation is complete, `perception.py` directly calls `agent.process_conversation()`
 - The agent reads the transcript and prepares it for Goose with appropriate instructions
-- Goose is invoked with the command: `goose run --name voice -t "The user has spoken the following..."`
-- The Goose process runs in a separate thread to avoid blocking the main application
-- All Goose interactions happen in the `~/Documents/voice` directory
 
 #### Concurrency Model
 
@@ -475,30 +488,6 @@ The system supports continuous conversations without requiring silence between c
 - This allows for chained commands without waiting for silence
 - Example: "Hey Goose, what's the weather? Hey Goose, set a timer for 5 minutes."
 
-## Configuration Options
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `--context-seconds` | Seconds of speech to keep before wake word | 30 |
-| `--silence-seconds` | Seconds of silence to end active listening | 3 |
-| `--recordings-dir` | Directory to save audio and transcripts | "recordings" |
-| `--model` | Whisper model size | "base" |
-| `--language` | Language code (optional) | None (auto-detect) |
-| `--device` | Audio input device number | None (default) |
-| `--use-lightweight-model` | Use lightweight model for wake word detection | True |
-| `--no-lightweight-model` | Don't use lightweight model for wake word detection | False |
-| `--fuzzy-threshold` | Fuzzy matching threshold for wake word (0-100) | 80 |
-| `--classifier-threshold` | Confidence threshold for classifier (0-1) | 0.6 |
-
-### Note on Chunk Size
-
-The system processes audio in 5-second chunks, which represents a balance between:
-- **Responsiveness**: Short enough to detect wake words quickly
-- **Transcription quality**: Long enough for Whisper to have sufficient context
-- **Natural speech**: Aligns with typical spoken phrase length
-- **Processing efficiency**: Optimizes CPU and memory usage
-
-Shorter chunks would improve responsiveness but reduce transcription quality, while longer chunks would improve transcription but increase latency.
 
 ### Background Transcription
 
@@ -509,6 +498,3 @@ The system uses a background thread for transcription:
 - **Reliable Wake Word Detection**: The system processes each chunk fully before moving to the next
 - **Focused Attention**: Once activated, the system captures the entire conversation without interruption
 
-This design ensures that the system properly captures complete conversations while maintaining a simple and reliable architecture.
-
-Press Ctrl+C to stop the application.
