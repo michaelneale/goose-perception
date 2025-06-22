@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout,
                             QSystemTrayIcon, QMainWindow)
 from PyQt6.QtCore import Qt, QTimer, QObject
 from PyQt6.QtGui import QPixmap, QIcon, QAction, QCursor
+import subprocess
 
 
 # Import from existing avatar system
@@ -221,11 +222,13 @@ class MenuBarAvatar(QObject):
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show_popup_window()
         elif reason == QSystemTrayIcon.ActivationReason.Trigger:
-            # Single click - show brief status or latest message
-            if self.current_message:
-                self.show_notification("Goose", self.current_message)
-            else:
-                self.show_notification("Goose", "Ready to help!")
+            # Single click - only handle pending actions, don't show notifications
+            if hasattr(self, 'current_action_data') and self.current_action_data:
+                # If there's pending action data, show the popup for interaction
+                self.show_popup_window()
+                if self.popup_window:
+                    self.popup_window.show_actionable_message(self.current_message or "Action available", self.current_action_data)
+            # Don't show notifications for regular single clicks - just let the menu work normally
         elif reason == QSystemTrayIcon.ActivationReason.Context:
             # Right-click - this should show the context menu automatically
             if self.menu:
@@ -266,8 +269,18 @@ class MenuBarAvatar(QObject):
         if avatar_state in self.avatar_images:
             self.tray_icon.setIcon(QIcon(self.avatar_images[avatar_state]))
         
-        # Show notification
-        self.show_notification("Goose", message, duration or 5000)
+        # Choose sound based on context and action_data
+        if action_data:
+            sound_name = "Submarine"  # More attention-grabbing sound for actionable messages
+        elif "error" in message.lower() or "failed" in message.lower():
+            sound_name = "Basso"  # Error sound
+        elif "complete" in message.lower() or "success" in message.lower():
+            sound_name = "Glass"  # Success sound
+        else:
+            sound_name = "Glass"  # Default sound
+        
+        # Show notification with appropriate sound
+        self.show_notification("Goose", message, duration or 5000, action_data, sound_name)
         
         # If there's action data, show the popup for interaction
         if action_data:
@@ -275,12 +288,76 @@ class MenuBarAvatar(QObject):
             if self.popup_window:
                 self.popup_window.show_actionable_message(message, action_data)
     
-    def show_notification(self, title, message, duration=5000):
-        """Show a system notification"""
-        if self.tray_icon:
-            self.tray_icon.showMessage(title, message, 
-                                     QSystemTrayIcon.MessageIcon.Information, 
-                                     duration)
+    def show_notification(self, title, message, duration=5000, action_data=None, sound_name="Glass"):
+        """Show a system notification using macOS native notifications via osascript"""
+        if not self.tray_icon:
+            return
+            
+        try:
+            # Escape special characters for AppleScript
+            escaped_title = title.replace('"', '\\"').replace("'", "\\'")
+            escaped_message = message.replace('"', '\\"').replace("'", "\\'")
+            
+            # Build the notification command
+            if action_data:
+                # For actionable notifications, we'll try to use advanced notification features
+                # First attempt: Try to show a rich notification with action buttons
+                action_type = action_data.get('action_type', 'action')
+                action_command = action_data.get('action_command', 'unknown')
+                
+                # Advanced notification with custom buttons (requires user notification center app)
+                # This will show "✅ Do it!" and "Skip" as actual buttons if supported
+                script = f'''
+                try
+                    set theAlert to display notification "{escaped_message}" with title "{escaped_title}" subtitle "🔔 Tap notification or menu to interact" sound name "{sound_name}"
+                on error
+                    display notification "{escaped_message}" with title "{escaped_title}" subtitle "🔔 Click menu bar icon to interact" sound name "{sound_name}"
+                end try
+                '''
+                
+                # Store the action data for when the user interacts via menu bar
+                self.current_action_data = action_data
+                
+                print(f"🔔 Showing actionable notification: {title} - {message}")
+                print(f"🎯 Action available: {action_type} ({action_command})")
+            else:
+                # Regular notification
+                script = f'''
+                display notification "{escaped_message}" with title "{escaped_title}" sound name "{sound_name}"
+                '''
+                self.current_action_data = None
+                print(f"🔔 Showing notification: {title} - {message}")
+            
+            # Execute the osascript command
+            result = subprocess.run([
+                "osascript", "-e", script
+            ], capture_output=True, text=True, check=False)
+            
+            if result.returncode != 0 and result.stderr:
+                print(f"⚠️ osascript warning: {result.stderr.strip()}")
+            
+            # Also show in Qt tray as fallback (without sound to avoid duplication)
+            if self.tray_icon:
+                # For actionable messages, add indicators in the Qt fallback
+                qt_message = message
+                if action_data:
+                    qt_message = f"🔔 {message} (Click menu bar for actions)"
+                
+                self.tray_icon.showMessage(title, qt_message, 
+                                         QSystemTrayIcon.MessageIcon.Information, 
+                                         duration)
+                                         
+        except Exception as e:
+            print(f"⚠️ Error showing osascript notification: {e}")
+            # Fallback to Qt notification
+            if self.tray_icon:
+                fallback_message = message
+                if action_data:
+                    fallback_message = f"🔔 {message} (Click menu bar for actions)"
+                
+                self.tray_icon.showMessage(title, fallback_message, 
+                                         QSystemTrayIcon.MessageIcon.Information, 
+                                         duration)
     
     def on_notification_clicked(self):
         """Handle notification click"""
@@ -294,7 +371,7 @@ class MenuBarAvatar(QObject):
     # Menu action handlers
     def run_optimize_report(self):
         """Run the optimize recipe (same as Cmd+Shift+R hotkey)"""
-        self.show_notification("Goose", "Starting optimization analysis...")
+        self.show_notification("Goose", "Starting optimization analysis...", sound_name="Submarine")
         
         import threading
         import subprocess
@@ -311,13 +388,13 @@ class MenuBarAvatar(QObject):
                 ], capture_output=True, text=True, cwd=observers_dir, env=env)
                 
                 if result.returncode == 0:
-                    self.show_notification("Goose", "Optimization analysis complete! Check for HTML report.")
+                    self.show_notification("Goose", "Optimization analysis complete! Check for HTML report.", sound_name="Glass")
                 else:
-                    self.show_notification("Goose", f"Optimization analysis had issues (code {result.returncode}). Check the logs.")
+                    self.show_notification("Goose", f"Optimization analysis had issues (code {result.returncode}). Check the logs.", sound_name="Basso")
             except FileNotFoundError as e:
-                self.show_notification("Goose", "Goose command not found. Make sure Goose is installed and in your PATH.")
+                self.show_notification("Goose", "Goose command not found. Make sure Goose is installed and in your PATH.", sound_name="Basso")
             except Exception as e:
-                self.show_notification("Goose", f"Error running optimization: {e}")
+                self.show_notification("Goose", f"Error running optimization: {e}", sound_name="Basso")
         
         threading.Thread(target=run_optimize, daemon=True).start()
 
@@ -327,9 +404,10 @@ class MenuBarAvatar(QObject):
             # Import and call the existing listen mode functionality
             from ..perception import activate_listen_mode
             activate_listen_mode()
-            self.show_notification("Goose", "Listen mode activated")
+            self.show_notification("Goose", "Listen mode activated", sound_name="Glass")
         except Exception as e:
             print(f"Error activating listen mode: {e}")
+            self.show_notification("Goose", f"Error activating listen mode: {e}", sound_name="Basso")
     
     def show_recent_work(self):
         """Show recent work"""
@@ -356,13 +434,13 @@ class MenuBarAvatar(QObject):
         user_prefs['menu_bar_mode'] = False
         save_user_prefs(user_prefs)
         
-        self.show_notification("Goose", "Switching to floating avatar mode...")
+        self.show_notification("Goose", "Switching to floating avatar mode...", sound_name="Glass")
         
         # Disable menu bar mode
         self.disable_menu_bar_mode()
         
         # Show restart message
-        self.show_notification("Goose", "Please restart Goose to switch to floating avatar mode")
+        self.show_notification("Goose", "Please restart Goose to switch to floating avatar mode", sound_name="Glass")
     
     def quit_application(self):
         """Quit the application"""
@@ -895,4 +973,43 @@ def refresh_menu_bar_avatar():
     """Refresh the menu bar avatar menu"""
     menu_bar = get_menu_bar_avatar()
     if menu_bar.is_enabled:
-        menu_bar.refresh_context_menu() 
+        menu_bar.refresh_context_menu()
+
+def test_menu_bar_notification(message="Test notification", actionable=False):
+    """Test function to show a notification via menu bar avatar"""
+    menu_bar = get_menu_bar_avatar()
+    if menu_bar.is_enabled:
+        if actionable:
+            # Test actionable notification
+            test_action_data = {
+                'action_command': 'test-action',
+                'action_type': 'test',
+                'actions': [
+                    {'name': '✅ Do it!', 'action_command': 'echo "Test action executed"'},
+                    {'name': '⏸️ Skip', 'action_command': 'echo "Action skipped"'}
+                ]
+            }
+            menu_bar.show_message(f"🎯 {message}", action_data=test_action_data)
+        else:
+            # Test regular notification
+            menu_bar.show_notification("Goose Test", message, sound_name="Glass")
+        print(f"🔔 Test notification sent: {message}")
+    else:
+        print("❌ Menu bar avatar not enabled")
+
+def show_menu_bar_notification(title, message, sound_name="Glass", actionable=False):
+    """Show a notification via the menu bar avatar system"""
+    menu_bar = get_menu_bar_avatar()
+    if menu_bar.is_enabled:
+        if actionable:
+            # Create basic action data structure
+            action_data = {
+                'action_command': 'notification-action',
+                'action_type': 'notification',
+                'message': message
+            }
+            menu_bar.show_message(message, action_data=action_data)
+        else:
+            menu_bar.show_notification(title, message, sound_name=sound_name)
+    else:
+        print(f"Menu bar not available - would show: {title}: {message}") 
