@@ -82,8 +82,8 @@ class MenuBarAvatar(QObject):
                 image_path = avatar_dir / filename
                 if image_path.exists():
                     pixmap = QPixmap(str(image_path))
-                    # Scale to menu bar size
-                    scaled_pixmap = pixmap.scaled(22, 22, Qt.AspectRatioMode.KeepAspectRatio, 
+                    # Scale to menu bar size - increased from 22x22 to 32x32 for better visibility
+                    scaled_pixmap = pixmap.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, 
                                                  Qt.TransformationMode.SmoothTransformation)
                     self.avatar_images[state] = scaled_pixmap
         except Exception as e:
