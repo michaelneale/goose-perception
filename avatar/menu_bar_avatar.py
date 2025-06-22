@@ -8,15 +8,9 @@ from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, 
                             QPushButton, QHBoxLayout, QTextEdit, QMenu, QLineEdit, 
                             QSystemTrayIcon, QMainWindow)
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QSize, QPoint, QRect, QRectF, QThread, QPointF
-from PyQt6.QtGui import QPixmap, QColor, QPainter, QPen, QBrush, QFont, QTransform, QIcon, QAction, QFontMetrics, QMovie, QPainterPath, QCursor
-import random
-import json
-from datetime import datetime
-import re
-import time
-import yaml
-import subprocess
+from PyQt6.QtCore import Qt, QTimer, QObject
+from PyQt6.QtGui import QPixmap, QIcon, QAction, QCursor
+
 
 # Import from existing avatar system
 from .avatar_display import get_user_prefs, save_user_prefs, AvatarCommunicator

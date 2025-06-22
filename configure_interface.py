@@ -42,11 +42,10 @@ def show_current_config():
     print("=" * 45)
     
     interface_mode = prefs.get('interface_mode', 'floating')
-    menu_bar_mode = prefs.get('menu_bar_mode', False)
     
     print(f"Interface Mode: {interface_mode}")
     
-    if menu_bar_mode:
+    if interface_mode == 'menubar':
         print("🍎 Menu Bar Mode: Goose lives in your menu bar with popup window")
     else:
         print("🪟 Floating Mode: Traditional floating avatar")
@@ -92,8 +91,6 @@ def set_floating_mode():
     """Set floating avatar mode."""
     prefs = load_user_prefs()
     prefs['interface_mode'] = 'floating'
-    prefs['floating_avatar_mode'] = True
-    prefs['menu_bar_mode'] = False
     save_user_prefs(prefs)
     
     print("\n🪟 Floating Avatar Mode enabled!")
@@ -104,16 +101,12 @@ def set_menu_bar_mode():
     """Set menu bar mode."""
     prefs = load_user_prefs()
     prefs['interface_mode'] = 'menubar'
-    prefs['floating_avatar_mode'] = False
-    prefs['menu_bar_mode'] = True
     save_user_prefs(prefs)
     
     print("\n🍎 Menu Bar Mode enabled!")
     print("Goose will appear as an icon in your Mac menu bar.")
     print("Right-click the icon to access features.")
     print("Please restart Goose for changes to take effect.")
-
-
 
 def main():
     """Main function."""

@@ -254,12 +254,7 @@ class GooseAvatar(QWidget):
             # Onboarding complete - process interface mode selection
             interface_mode = self.user_prefs.get('interface_mode', 'floating').lower()
             
-            if interface_mode == 'menubar':
-                self.user_prefs['menu_bar_mode'] = True
-                self.user_prefs['floating_avatar_mode'] = False
-            else:  # floating (default)
-                self.user_prefs['menu_bar_mode'] = False
-                self.user_prefs['floating_avatar_mode'] = True
+            # Interface mode is already set, no need for redundant flags
             
             save_user_prefs(self.user_prefs)
             self.is_onboarding = False
@@ -2421,9 +2416,9 @@ def start_avatar_system():
     
     # Check user preferences for interface mode
     user_prefs = get_user_prefs()
-    menu_bar_mode = user_prefs.get('menu_bar_mode', False)
+    interface_mode = user_prefs.get('interface_mode', 'floating')
     
-    if menu_bar_mode:
+    if interface_mode == 'menubar':
         # Menu bar mode - no floating avatar
         try:
             from .menu_bar_avatar import get_menu_bar_avatar
@@ -2476,9 +2471,9 @@ def show_message(message, duration=None, avatar_state='talking', action_data=Non
     
     # Check user preferences for interface mode
     user_prefs = get_user_prefs()
-    menu_bar_mode = user_prefs.get('menu_bar_mode', False)
+    interface_mode = user_prefs.get('interface_mode', 'floating')
     
-    if menu_bar_mode:
+    if interface_mode == 'menubar':
         # Menu bar mode
         try:
             from .menu_bar_avatar import show_message_menu_bar
@@ -2520,9 +2515,9 @@ def set_avatar_state(state):
     
     # Check user preferences for interface mode
     user_prefs = get_user_prefs()
-    menu_bar_mode = user_prefs.get('menu_bar_mode', False)
+    interface_mode = user_prefs.get('interface_mode', 'floating')
     
-    if menu_bar_mode:
+    if interface_mode == 'menubar':
         # Menu bar mode
         try:
             from .menu_bar_avatar import set_avatar_state_menu_bar
