@@ -22,21 +22,6 @@ The system automatically chooses appropriate sounds based on context:
 - **Submarine**: Actionable messages, important updates, work in progress
 - **Basso**: Error messages, failures
 
-### Smart Fallback System
-
-- Primary: Native osascript notifications with sound
-- Fallback: Qt system tray notifications (if osascript fails)
-- Enhanced Qt messages for actionable notifications
-
-### Actionable Notifications
-
-For notifications with action data:
-
-- Shows native notification with "Tap to interact" subtitle
-- Stores action data for menu bar interaction
-- Enhanced Qt fallback with "(Click menu bar for actions)" indicator
-- Single-click menu bar icon opens interaction popup
-
 ## Implementation Details
 
 ### Core Functions
@@ -167,47 +152,6 @@ All menu bar actions now use appropriate sounds:
 4. **Popup window opens** with action buttons
 5. **User interacts** with "✅ Do it!" or "Skip" buttons
 
-## Benefits Over Qt Notifications
-
-### Native Experience
-
-- Appears in macOS notification center
-- Follows system notification preferences
-- Consistent with other Mac apps
-- Better accessibility support
-
-### Enhanced Functionality
-
-- Rich sound support
-- Better visual styling
-- Notification history
-- System-level do not disturb integration
-
-### Better User Engagement
-
-- More noticeable than Qt system tray popups
-- Clear actionable message indicators
-- Seamless menu bar integration
-
-## Sound Reference
-
-### Available macOS Notification Sounds
-
-- **Glass**: Default, success, regular notifications
-- **Submarine**: Important, actionable, work in progress
-- **Basso**: Errors, failures
-- **Blow**: Alternative attention sound
-- **Bottle**: Alternative notification sound
-- **Frog**: Alternative notification sound
-- **Funk**: Alternative notification sound
-- **Hero**: Alternative success sound
-- **Morse**: Alternative attention sound
-- **Ping**: Alternative notification sound
-- **Pop**: Alternative notification sound
-- **Purr**: Alternative gentle sound
-- **Sosumi**: Alternative notification sound
-- **Tink**: Alternative gentle sound
-
 ## Troubleshooting
 
 ### Notifications Not Appearing
@@ -216,26 +160,18 @@ All menu bar actions now use appropriate sounds:
 2. Verify `osascript` command works: `osascript -e 'display notification "test"'`
 3. Check System Preferences → Notifications & Focus → Do Not Disturb
 
-### No Sound
+### Recent macOS Updates (especially Sonoma/Sequoia)
 
-1. Check system volume settings
-2. Verify notification sound settings in System Preferences
-3. Test with different sound names
+There have been reports, particularly with recent macOS versions (like macOS Sonoma and the upcoming Sequoia), where notification behavior from osascript in Terminal has become inconsistent for some users. Sometimes running the display notification command once in Script Editor (Applications/Utilities/Script Editor.app) will "prime" the system and then it will start working from Terminal.
 
-### Actionable Messages Not Working
+Here's how to do it:
 
-1. Ensure menu bar mode is enabled
-2. Check that popup window opens on menu bar click
-3. Verify action data structure is correct
+1. Open Script Editor.app (you can find it in Applications/Utilities).
+2. Paste a simple notification command:
+```
+display notification "Test from Script Editor" with title "Script Editor Test"
+```
+3. Click the "Run" button (the play icon) in Script Editor.
+4. If it prompts you for permission to send notifications for "Script Editor," grant it.
+5. See if this notification appears.
 
-## Future Enhancements
-
-- **Rich Notifications**: Support for images and complex layouts
-- **Custom Sounds**: Add Goose-specific notification sounds
-- **Notification Grouping**: Group related notifications
-- **User Preferences**: Configurable notification settings
-- **Notification Actions**: True macOS notification action buttons (requires advanced setup)
-
----
-
-_This enhancement provides a more native macOS experience while maintaining full compatibility with the existing avatar system._
