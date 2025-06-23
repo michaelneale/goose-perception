@@ -162,12 +162,16 @@ def run_goose_in_background(transcript):
         
         if is_screen_capture:
             log_activity("Starting to process screen capture request")
-            if avatar_display:
-                avatar_display.show_message("🖥️ I'm analyzing your screen... Let me think about this.")
+            try:
+                show_message("🖥️ I'm analyzing your screen... Let me think about this.")
+            except Exception as e:
+                print(f"Error showing avatar message: {e}")
         else:
             log_activity("Starting to process voice request")
-            if avatar_display:
-                avatar_display.show_message("🎙️ I heard you! Working on your request now...")
+            try:
+                show_message("🎙️ I heard you! Working on your request now...")
+            except Exception as e:
+                print(f"Error showing avatar message: {e}")
         
         # Copy the transcript to /tmp/current_transcription.txt
         with open('/tmp/current_transcription.txt', 'w') as f:
@@ -185,12 +189,16 @@ def run_goose_in_background(transcript):
         # Log completion
         if is_screen_capture:
             log_activity("Completed processing screen capture request")
-            if avatar_display:
-                avatar_display.show_message("✅ Done analyzing your screen! Check the results.")
+            try:
+                show_message("✅ Done analyzing your screen! Check the results.")
+            except Exception as e:
+                print(f"Error showing avatar message: {e}")
         else:
             log_activity("Completed processing voice request")
-            if avatar_display:
-                avatar_display.show_message("✅ Finished processing your voice command!")
+            try:
+                show_message("✅ Finished processing your voice command!")
+            except Exception as e:
+                print(f"Error showing avatar message: {e}")
                 
         
     except Exception as e:
