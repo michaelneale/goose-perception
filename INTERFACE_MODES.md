@@ -115,7 +115,6 @@ Main Application (PyQt6)
 
 ```yaml
 interface_mode: "floating" | "menubar"  # Main interface mode setting
-menu_bar_mode: true | false             # Legacy boolean flag
 ```
 
 ## Usage Examples
