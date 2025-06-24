@@ -33,6 +33,8 @@ prompt: |
   it isn't exhaustive, but the idea is to be helpful so things noted in the PROJECTS.md file can be referred to later if needed and not forgetten.
 
   you should edit the PROJECTS.md file to be current, it shouldn't get too large, limit old entries in it.
+  you can append to it and keep some limited log of when a project was being worked on. 
+  Do not stick to just one project, and always be sure it really is current.
 
   IMPORTANT if you use glean, consider that it may return old irrelevant content and project information, so be sure to cross check it with other sources. 
   If you aren't sure it is current, then make sure it isn't mentioned in PROJECTS.md as glean has a habit of returning too much old data.

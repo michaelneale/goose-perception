@@ -15,7 +15,9 @@ extensions:
   bundled: true
 prompt: |
   please look in /tmp/screenshots for screenshots of work activity which have veen taken every 20 seconds over the past 20 minutes at least.
-  If there are ones more than 30 minutes old, remove them as they are not relevant and only focus on the newest ones
+  only consider the most recently 20 minutes worth at most (biased towards newest files)
+  it is important you note the timestamp of the file
+  your aim is to form a picture of what they are working on, and pay attention to changes and note them down
   The user is working on various projects so you are to summarize work going on as best you can, you can try to guess the project names being worked on from the context as more is revealed.
   if any screens are for chat or email pay attention to the people being communicated with and topics
   note what documents or files, directories, docs etc  they are working on 
@@ -33,11 +35,12 @@ prompt: |
 
   Please also look at windows that are open titles to consider things.
 
-  Look at ~/.local/share/goose-perception/WORK.md last paragraph or so if there is one to get an idea of how to classify/improve, and write a fresh summary and add to that file. 
-  
-  Include time in summary and cover any changes since last. 
-  Save the updated summary to ~/.local/share/goose-perception/WORK.md and also save just the update to LATEST_WORK.md in same dir.
-  IMPORTANT: clean up /tmp/screenshots after you are done so they do not accumulate, you can delete them all once you have processed them.
+  ~/.local/share/goose-perception/WORK.md is a record of work done, you should be appending to it. If it is over 2000 lines, truncate the older (earlier) lines. 
 
-  Finally - append to ~/.local/share/goose-perception/screen_activities.txt a summary of what apps you see, what a sentence on what they are doing in each one (not details, just describe the activity observed), one app per line, timestamped
+  Look at ~/.local/share/goose-perception/WORK.md last paragraph or so if there is one to get an idea of how to classify/improve, and write a fresh summary and add to that file. 
+
   
+  Include time in summary and and also make it clear what changes are being made since last time. 
+  The LATEST_WORK.md should also have a summary of what sequence of apps or screens they went between (very brief) 
+
+  Append the updated summary to ~/.local/share/goose-perception/WORK.md (don't over write) and also save (over write) just the update to LATEST_WORK.md in same dir.

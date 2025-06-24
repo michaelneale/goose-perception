@@ -169,6 +169,9 @@ Once running - just go about your day, you don't need to do anything, it will do
 ### Voice Activation
 You can ask goose to do something by talking - just mention "goose", it will detect that you are talking to it (vs about it).
 
+### Emotion Detection
+Goose automatically detects your emotional state every 5 minutes using your webcam, logging emotions like happy, content, neutral, tired, or surprised to help understand your work patterns.
+
 ### Hotkey Activation  
 - **`Cmd+Shift+G`**: Capture your screen and give Goose an instruction about what to do with it
 - **`Cmd+Shift+R`**: Run optimization analysis and generate HTML5 reports
@@ -231,6 +234,9 @@ just run              # Run the application
 just train-classifier # run the classifier (won't usually need to)
 just status           # to check what is running
 just logs             # to follow along with background things going on
+just test             # run all automated tests
+just test-avatar      # run interactive avatar test (opens GUI)
+just test-emotion     # test emotion detection immediately (bypass 5-minute timer)
 just kill             # kill switch
 ```
 

@@ -242,6 +242,55 @@ status:
     ps aux | grep "run-observations.sh" | grep -v grep || echo "  None found"
     echo
 
+# Run tests
+test:
+    #!/usr/bin/env bash
+    echo "🧪 Running Goose Perception Tests..."
+    echo
+    
+    # Test wake word classifier
+    echo "1. Testing wake word classifier..."
+    ./.use-hermit python wake-classifier/classifier.py "how are you"
+    echo
+    
+    # Test emotion detection
+    echo "2. Testing emotion detection..."
+    ./.use-hermit python -c "
+    try:
+        from emotion_detector import run_emotion_detection_cycle
+        print('✅ Emotion detection module imports successfully')
+        run_emotion_detection_cycle()
+        print('✅ Emotion detection cycle completed')
+    except Exception as e:
+        print(f'❌ Emotion detection test failed: {e}')
+    "
+    echo
+    
+    # Test menu notifications
+    echo "3. Testing menu notifications..."
+    ./.use-hermit python test_menu_notifications.py
+    echo
+    
+    # Test avatar system (non-interactive)
+    echo "4. Testing avatar system (import test)..."
+    ./.use-hermit python -c "
+    try:
+        from avatar import avatar_display
+        print('✅ Avatar system imports successfully')
+    except Exception as e:
+        print(f'❌ Avatar system test failed: {e}')
+    "
+    echo
+    
+    echo "✅ All tests completed!"
+
+# Run interactive avatar test
+test-avatar:
+    #!/usr/bin/env bash
+    echo "🎭 Running interactive avatar test..."
+    echo "This will open a GUI window - close it when done."
+    ./.use-hermit python avatar/test_avatar.py
+
 update: 
     git checkout main
     git pull origin main    

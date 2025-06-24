@@ -127,6 +127,12 @@ run_recipe_if_needed() {
       touch "$marker_file"
       [ -n "$output_file" ] && touch "$full_output_path"
       log_activity "Completed $recipe_to_run"
+      
+      # Clear /tmp/screenshots after recipe-work.yaml completes successfully
+      if [[ "$(basename "$recipe_to_run")" == "recipe-work.yaml" ]]; then
+        echo "$(date): Clearing /tmp/screenshots after recipe-work.yaml completion..."
+        rm -f /tmp/screenshots/*        
+      fi
     } || log_activity "Failed $recipe_to_run"
     return 0
   fi
@@ -178,6 +184,13 @@ run_recipe_if_needed() {
       # Touch the output file to update its timestamp even if the recipe didn't modify it
       [ -n "$output_file" ] && touch "$full_output_path"
       log_activity "Completed $recipe_to_run"
+      
+      # Clear /tmp/screenshots after recipe-work.yaml completes successfully
+      if [[ "$(basename "$recipe_to_run")" == "recipe-work.yaml" ]]; then
+        echo "$(date): Clearing /tmp/screenshots after recipe-work.yaml completion..."
+        rm -f /tmp/screenshots/*
+        log_activity "Cleared /tmp/screenshots after recipe-work.yaml"
+      fi
     } || log_activity "Failed $recipe_to_run"
   else
     echo "$(date): Skipping $recipe, ran recently (frequency: $frequency)."
@@ -242,6 +255,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
 
   
+  run_recipe_if_needed "recipe-garbage-collect.yaml" "weekly" ".garbage-collect" "weekday-only"
   run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md" "weekday-only"
   run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
   run_recipe_if_needed "recipe-interactions.yaml" "hourly" "INTERACTIONS.md"
