@@ -55,6 +55,7 @@ prompt: |
       checking your changes work by running the recipe
       looking at how parts of the receipe may be able to be extracted into ~/.local/share/goose-perception/scripts/RECIPE_NAME.sh. The recipe can then specify (in english) that it can try to invoke that script. 
       considering adaptations that may be more relevant to the user 
+      ensuring all recipes include required fields (title, description) based on recipe_spec.md
 
     Once done - appen a short note to ACTIVITY-LOG.md about what you did, and why, and what you hope to achieve
 
