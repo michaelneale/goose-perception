@@ -230,6 +230,7 @@ class GooseAvatar(QWidget):
         self.is_onboarding = True
         self.set_interactive_mode(True)
         self.onboarding_questions = [
+            {"key": "interface_mode", "question": "How would you like to interact with Goose?\n\nOptions:\n- floating: Traditional floating avatar (default)\n- menubar: Menu bar icon with popup window", "type": "text", "required": True},
             {"key": "team_channel", "question": "What is your main team Slack channel for project or daily updates?", "type": "text", "required": True},
             {"key": "announcement_channel", "question": "Which Slack channel should Goose use for broader announcements? (optional)", "type": "text", "required": False},
             {"key": "send_email_updates", "question": "Should Goose send email updates? (yes/no)", "type": "yesno", "required": True},
@@ -250,11 +251,19 @@ class GooseAvatar(QWidget):
             else:
                 break
         if self.current_onboarding_index >= len(self.onboarding_questions):
-            # Onboarding complete
+            # Onboarding complete - process interface mode selection
+            interface_mode = self.user_prefs.get('interface_mode', 'floating').lower()
+            
+            # Interface mode is already set, no need for redundant flags
+            
             save_user_prefs(self.user_prefs)
             self.is_onboarding = False
             self.set_interactive_mode(False)
-            self.show_message("✅ Setup complete! Your preferences are saved.", 5000, 'talking')
+            
+            if interface_mode == 'menubar':
+                self.show_message("✅ Setup complete! Switching to menu bar mode. Please restart the application.", 8000, 'talking')
+            else:
+                self.show_message("✅ Setup complete! Your preferences are saved.", 5000, 'talking')
             return
         q = self.onboarding_questions[self.current_onboarding_index]
         self.show_onboarding_bubble(q)
@@ -2405,12 +2414,34 @@ def start_avatar_system():
     # Create the thread-safe communicator
     avatar_communicator = AvatarCommunicator()
     
-    # Create avatar instance
-    avatar_instance = GooseAvatar()
-    avatar_instance.app = app_instance
-    avatar_instance.connect_communicator(avatar_communicator)
-    avatar_instance.position_avatar()
-    avatar_instance.show_avatar()  # Avatar will now stay visible always
+    # Check user preferences for interface mode
+    user_prefs = get_user_prefs()
+    interface_mode = user_prefs.get('interface_mode', 'floating')
+    
+    if interface_mode == 'menubar':
+        # Menu bar mode - no floating avatar
+        try:
+            from .menu_bar_avatar import get_menu_bar_avatar
+            menu_bar_avatar = get_menu_bar_avatar()
+            menu_bar_avatar.enable_menu_bar_mode()
+            print("🍎 Menu bar avatar started")
+        except ImportError as e:
+            print(f"⚠️ Could not load menu bar avatar: {e}")
+            print("⚠️ Falling back to floating avatar")
+            # Fallback to floating avatar if menu bar fails
+            avatar_instance = GooseAvatar()
+            avatar_instance.app = app_instance
+            avatar_instance.connect_communicator(avatar_communicator)
+            avatar_instance.position_avatar()
+            avatar_instance.show_avatar()
+    else:
+        # Floating avatar mode (default)
+        avatar_instance = GooseAvatar()
+        avatar_instance.app = app_instance
+        avatar_instance.connect_communicator(avatar_communicator)
+        avatar_instance.position_avatar()
+        avatar_instance.show_avatar()
+        print("🤖 Floating avatar started")
     
     print("🤖 Goose Avatar system started... Always watching and ready to help!")
     
@@ -2437,12 +2468,25 @@ def show_suggestion(observation_type, message):
 def show_message(message, duration=None, avatar_state='talking', action_data=None):
     """Thread-safe function to show a general message via the avatar system"""
     global avatar_communicator
-    if avatar_communicator:
-        # Always use the thread-safe communicator instead of direct calls
-        duration = duration or 20000  # Default 20 seconds
-        avatar_communicator.show_message_signal.emit(message, duration, avatar_state)
+    
+    # Check user preferences for interface mode
+    user_prefs = get_user_prefs()
+    interface_mode = user_prefs.get('interface_mode', 'floating')
+    
+    if interface_mode == 'menubar':
+        # Menu bar mode
+        try:
+            from .menu_bar_avatar import show_message_menu_bar
+            show_message_menu_bar(message, duration, avatar_state, action_data)
+        except ImportError:
+            print(f"Menu bar avatar not available. Message: {message}")
     else:
-        print(f"Avatar not initialized. Message: {message}")
+        # Floating avatar mode
+        if avatar_communicator:
+            duration = duration or 20000  # Default 20 seconds
+            avatar_communicator.show_message_signal.emit(message, duration, avatar_state)
+        else:
+            print(f"Avatar not initialized. Message: {message}")
 
 def show_actionable_message(message, action_data, duration=None, avatar_state='pointing'):
     """Thread-safe function to show an actionable message with buttons"""
@@ -2468,10 +2512,24 @@ def show_actionable_message(message, action_data, duration=None, avatar_state='p
 def set_avatar_state(state):
     """Thread-safe function to set avatar state"""
     global avatar_communicator
-    if avatar_communicator:
-        avatar_communicator.set_state_signal.emit(state)
+    
+    # Check user preferences for interface mode
+    user_prefs = get_user_prefs()
+    interface_mode = user_prefs.get('interface_mode', 'floating')
+    
+    if interface_mode == 'menubar':
+        # Menu bar mode
+        try:
+            from .menu_bar_avatar import set_avatar_state_menu_bar
+            set_avatar_state_menu_bar(state)
+        except ImportError:
+            print(f"Menu bar avatar not available. State: {state}")
     else:
-        print(f"Avatar not initialized. State: {state}")
+        # Floating avatar mode
+        if avatar_communicator:
+            avatar_communicator.set_state_signal.emit(state)
+        else:
+            print(f"Avatar not initialized. State: {state}")
 
 def show_error_message(error_msg, context=""):
     """Show an error message through the avatar"""
