@@ -75,9 +75,11 @@ run_recipe_if_needed() {
   
   if [ -f "$adapted_recipe_path" ]; then
     echo "$(date): Found adapted recipe: $adapted_recipe_path"
-    # Naive validation for required fields
-    if grep -q "title:" "$adapted_recipe_path" && grep -q "description:" "$adapted_recipe_path"; then
+    # Validate the adapted recipe. If valid, use it.
+    if goose recipe validate "$adapted_recipe_path" > /dev/null 2>&1; then
       recipe_to_run="$adapted_recipe_path"
+    else
+      echo "$(date): Adapted recipe $adapted_recipe_path is invalid. Sticking with original recipe"
     fi
   fi
   
