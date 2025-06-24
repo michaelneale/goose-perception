@@ -56,6 +56,14 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-c
 # Import the wake classifier
 from classifier import GooseWakeClassifier
 
+# Import emotion detection
+try:
+    from emotion_detector import run_emotion_detection_cycle, cleanup_emotion_detector
+    EMOTION_DETECTION_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Emotion detection not available: {e}")
+    EMOTION_DETECTION_AVAILABLE = False
+
 # Initialize the Whisper models
 def load_models():
     print(f"Loading Whisper models...")
@@ -406,6 +414,13 @@ def cleanup_resources():
         print("Audio system reset.")
     except Exception as e:
         print(f"Error during audio system reset: {e}")
+    
+    # Clean up emotion detection resources
+    if EMOTION_DETECTION_AVAILABLE:
+        try:
+            cleanup_emotion_detector()
+        except Exception as e:
+            print(f"Error during emotion detector cleanup: {e}")
         
 def audio_callback(indata, frames, time_info, status):
     """This is called for each audio block."""
@@ -1092,7 +1107,10 @@ def main():
         
         print("\nListening... Press Ctrl+C to stop.")
         print("🔥 Hotkey: Cmd+Shift+G for screen capture")
-        print("🎙️ Voice: Say 'goose' to activate voice commands\n")
+        print("🎙️ Voice: Say 'goose' to activate voice commands")
+        if EMOTION_DETECTION_AVAILABLE:
+            print("🎭 Emotion: Facial emotion detection every 5 minutes")
+        print()
         log_activity("Listening for wake word")
         
         # Process audio chunks
@@ -1102,6 +1120,13 @@ def main():
                 avatar_display.process_qt_events()
             except:
                 pass
+            
+            # Run emotion detection cycle if available (every 5 minutes)
+            if EMOTION_DETECTION_AVAILABLE:
+                try:
+                    run_emotion_detection_cycle()
+                except Exception as e:
+                    print(f"⚠️ Error during emotion detection: {e}")
             
             # Collect audio for BUFFER_DURATION seconds
             audio_data = []

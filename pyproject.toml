@@ -25,6 +25,8 @@ dependencies = [
     "pathlib>=1.0.1",
     "psutil>=5.9.0",
     "pyyaml>=6.0",
+    "insightface>=0.7.3",
+    "opencv-python>=4.8.0",
 ]
 
 [build-system]

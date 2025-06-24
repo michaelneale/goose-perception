@@ -69,8 +69,6 @@ prompt: |
     If the user has made a note to NOT run an automated action, remove the file from automated-actions/ sub directory.
     If the file in the automated-actions/ sub directory is over a month old, remove it.    
     
-    Also note in ACTIONS-LOG.md what you have done
-
 
 
   

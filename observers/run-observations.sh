@@ -242,6 +242,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
 
   
+  run_recipe_if_needed "recipe-garbage-collect.yaml" "weekly" ".garbage-collect" "weekday-only"
   run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md" "weekday-only"
   run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
   run_recipe_if_needed "recipe-interactions.yaml" "hourly" "INTERACTIONS.md"
