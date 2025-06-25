@@ -95,7 +95,6 @@ def set_floating_mode():
     
     print("\n🪟 Floating Avatar Mode enabled!")
     print("The traditional floating avatar will appear on your screen.")
-    print("Please restart Goose for changes to take effect.")
 
 def set_menu_bar_mode():
     """Set menu bar mode."""
@@ -106,7 +105,6 @@ def set_menu_bar_mode():
     print("\n🍎 Menu Bar Mode enabled!")
     print("Goose will appear as an icon in your Mac menu bar.")
     print("Right-click the icon to access features.")
-    print("Please restart Goose for changes to take effect.")
 
 def main():
     """Main function."""

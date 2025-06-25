@@ -133,6 +133,8 @@ class GooseAvatar(QWidget):
         # Dragging state
         self.drag_start_pos = None
         self.is_dragging = False
+        self.drag_position = None
+        self.is_stopped = True
         
         # Idle behavior settings - more thoughtful and less aggressive
         self.idle_check_interval = 45000  # Check every 45 seconds (was 15)
@@ -524,6 +526,11 @@ class GooseAvatar(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         
+        # Initialize timers
+        self.animation_timer = QTimer(self)
+        self.refresh_timer = QTimer(self)
+        self.message_timer = None # Will be created on demand
+
         # Make window appear on all macOS Spaces
         self.setup_spaces_behavior()
         
@@ -842,6 +849,10 @@ class GooseAvatar(QWidget):
     
     def show_message(self, message, duration=5000, state='talking', action_data=None):
         """Show a message in the chat bubble"""
+        # Do not attempt to show messages once the avatar has been stopped
+        if getattr(self, 'is_stopped', False):
+            return
+        
         # Don't show new messages if paused (except for pause/unpause confirmations)
         if self.is_paused and "Messages paused" not in message and "Ready to chat" not in message:
             return
@@ -1483,10 +1494,10 @@ class GooseAvatar(QWidget):
                     'action': 'pause'
                 },
                 {
-                    'id': 'recent_work',
-                    'label': '📝 Recent Work',
-                    'description': 'Show what you\'ve been working on',
-                    'action': 'recent_work'
+                    'id': 'switch_to_menubar',
+                    'label': '🍎 Switch to Menu Bar',
+                    'description': 'Switch to minimal menu bar mode',
+                    'action': 'switch_to_menubar'
                 }
             ]
         }
@@ -1665,8 +1676,8 @@ class GooseAvatar(QWidget):
             self.show_system_status()
         elif action_type == 'pause':
             self.pause_avatar()
-        elif action_type == 'recent_work':
-            self.show_recent_work()
+        elif action_type == 'switch_to_menubar':
+            self.switch_to_menubar_mode()
         else:
             self.show_message(f"🚧 {action['label']} is not implemented yet", 3000, 'idle')
     
@@ -2382,12 +2393,135 @@ class GooseAvatar(QWidget):
         """Retries the action that was stored when a preference was requested."""
         self.execute_action(self.action_to_retry)
 
+    def switch_to_menubar_mode(self):
+        """Switch to menu bar mode dynamically"""
+        print("🪿 Switching to Menu Bar mode...")
+        
+        # Save preference
+        user_prefs = get_user_prefs()
+        user_prefs['interface_mode'] = 'menubar'
+        save_user_prefs(user_prefs)
+        
+        self.show_message("✅ Switching to menu bar mode...", 2000, 'talking')
+        
+        # Use a timer to allow the message to show before switching
+        QTimer.singleShot(2000, self._perform_switch_to_menubar)
+
+    def _perform_switch_to_menubar(self):
+        """Helper to finalize the switch to menubar mode"""
+        # Enable menu bar mode
+        from .menu_bar_avatar import get_menu_bar_avatar
+        menu_bar_avatar = get_menu_bar_avatar()
+        if not menu_bar_avatar.is_enabled:
+            menu_bar_avatar.enable_menu_bar_mode()
+        
+        # Stop and hide floating avatar
+        self.stop_avatar()
+        
+        print("🍎 Menu bar mode activated.")
+
+    def start_avatar(self):
+        """Start the avatar's timers and show it"""
+        self.is_stopped = False
+        if not self.is_paused:
+            self.animation_timer.start(50)
+            self.refresh_timer.start(5000)
+            # Stop idle timer (prevents suggestions)
+            self.idle_timer.start(self.idle_check_interval)
+        self.show()
+
+    def stop_avatar(self):
+        """Stop the avatar's timers and hide the window"""
+        self.is_stopped = True
+        # Stop primary timers
+        self.animation_timer.stop()
+        self.refresh_timer.stop()
+        # Stop idle timer (prevents suggestions)
+        self.idle_timer.stop()
+        # Stop any message-specific timers
+        if self.message_timer and self.message_timer.isActive():
+            self.message_timer.stop()
+        # Stop auxiliary timers that may trigger queued actions after shutdown
+        for timer_attr in [
+            'hide_timer',
+            'auto_dismiss_timer',
+            'emergency_timer',
+            'queue_timer',
+            'spaces_timer',
+        ]:
+            timer = getattr(self, timer_attr, None)
+            if timer:
+                try:
+                    timer.stop()
+                except Exception:
+                    pass
+        # Clear any pending messages and reset flags
+        self.message_queue = []
+        self.is_processing_queue = False
+        self.is_showing_message = False
+        self.destroy()
+
+    def update_animation(self):
+        """Update avatar's animation frame"""
+        if self.is_paused or self.is_dragging or self.is_stopped:
+            return
+        
+        # If a message is shown, don't animate to idle state
+        if self.bubble_container.isVisible() and self.current_state == 'idle':
+            return
+        
+        # Update avatar image based on current state
+        self.avatar_pixmap = self.avatar_images[self.current_state]
+        self.avatar_label.setPixmap(self.avatar_pixmap)
+        
+        # Update current frame
+        self.current_frame = (self.current_frame + 1) % len(self.states[self.current_state]['frames'])
+
+    def refresh_avatar_state(self):
+        """Periodically refresh avatar state and check for position changes"""
+        if self.is_stopped:
+            return
+
+        if self.is_paused or self.is_dragging or self.personality_menu_open:
+            return
+        
+        # Check if screen resolution changed, and reposition if needed
+        screen_rect = self.screen().availableGeometry()
+        if screen_rect != self.screen().availableGeometry():
+            self.position_on_screen(self.screen())
+        
+        # Update avatar position based on current state
+        self.avatar_x, self.avatar_y = self.avatar_container.pos().x(), self.avatar_container.pos().y()
+        
+        # Update relative position
+        self.update_relative_position()
+        
+        # Update main layout margins
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.setLayout(self.main_layout)
 
 
 # Global instances
 avatar_instance = None
 app_instance = None
 avatar_communicator = None
+
+def get_app_instance():
+    """Get the global QApplication instance"""
+    return app_instance
+
+def get_avatar_communicator():
+    """Get the global AvatarCommunicator instance"""
+    global avatar_communicator
+    if avatar_communicator is None:
+        avatar_communicator = AvatarCommunicator()
+    return avatar_communicator
+
+def set_avatar_instance(instance):
+    """Set the global GooseAvatar instance"""
+    global avatar_instance
+    avatar_instance = instance
 
 def start_avatar_system():
     """Start the avatar system - Initialize Qt properly for main thread"""
@@ -2429,18 +2563,20 @@ def start_avatar_system():
             print(f"⚠️ Could not load menu bar avatar: {e}")
             print("⚠️ Falling back to floating avatar")
             # Fallback to floating avatar if menu bar fails
+            if avatar_instance is None:
+                avatar_instance = GooseAvatar()
+                avatar_instance.app = app_instance
+                avatar_instance.connect_communicator(avatar_communicator)
+            avatar_instance.position_avatar()
+            avatar_instance.start_avatar()
+    else:
+        # Floating avatar mode (default)
+        if avatar_instance is None:
             avatar_instance = GooseAvatar()
             avatar_instance.app = app_instance
             avatar_instance.connect_communicator(avatar_communicator)
-            avatar_instance.position_avatar()
-            avatar_instance.show_avatar()
-    else:
-        # Floating avatar mode (default)
-        avatar_instance = GooseAvatar()
-        avatar_instance.app = app_instance
-        avatar_instance.connect_communicator(avatar_communicator)
         avatar_instance.position_avatar()
-        avatar_instance.show_avatar()
+        avatar_instance.start_avatar()
         print("🤖 Floating avatar started")
     
     print("🤖 Goose Avatar system started... Always watching and ready to help!")
