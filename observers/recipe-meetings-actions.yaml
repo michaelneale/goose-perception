@@ -87,8 +87,10 @@ prompt: |
     - check for any messages which imply their presense was missed
     - nofify them with a html5 page report that they missed the meeting and maybe should offer apologies, or show items to follow up and actions to take
     - if important, you can re-schedule the meeting for some of the people at a time that suggestions
-    TIP: you will know they weren't in the meeting if you don't see notes that they were in a meeting in WORK.md or LATEST_WORK.md or if there was nothing heard in spoken.txt (and perhaps they were not at their computer at the time)
+    TIP: you will know they weren't in the meeting if you don't see notes that they were in a meeting in WORK.md or LATEST_WORK.md or if there was nothing heard in spoken.txt (and perhaps they were not at their computer at the time, you can look at emotions.log file for a timestamp that says there was a face)
     - too keep track of meeting attendance using the memory extension to look for any patterns or issues, it may be that they are not needed
     - if they repeatedly miss a meeting and there is no follow up, and it is a meeting with many people, consider declining their invitation to future ones with a note 
-    - always report back what actions you took if automated  
+    - always report back what actions you took if automated 
+    - if there is nothing in spoken.txt or no information about their participation, assume they were not in the meeting. 
+      You should note and report their non attendance and see if there are follow up items. They may need a reminder to send apologiies or reschedule
   
