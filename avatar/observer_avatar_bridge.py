@@ -536,10 +536,29 @@ class ObserverAvatarBridge:
             print(f"Error processing {filename} change: {e}")
     
     def get_personality_parameters(self):
-        """Get personality parameters for recipes - thread-safe version with extra logging and robust fallback"""
+        """Get personality parameters for recipes with emotion-aware adaptation"""
         try:
             from pathlib import Path
             import json
+            import sys
+            import os
+            
+            # Add the parent directory to sys.path to import emotion_context
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.append(parent_dir)
+            
+            try:
+                from emotion_context import get_emotion_context
+                emotion_ctx = get_emotion_context()
+                emotion_context = emotion_ctx.get_current_emotion_context()
+                modifiers = emotion_context.get('personality_modifiers', {})
+                print(f"[EMOTION] Current emotion context: {emotion_context['recent_emotion']} (energy: {emotion_context['energy_level']}, stress: {emotion_context['stress_level']})")
+            except Exception as e:
+                print(f"[EMOTION] Could not load emotion context: {e}")
+                emotion_context = {}
+                modifiers = {}
+            
             settings_path = Path.home() / ".local/share/goose-perception/PERSONALITY_SETTINGS.json"
             if settings_path.exists():
                 try:
@@ -554,19 +573,22 @@ class ObserverAvatarBridge:
                             personality_data = personalities_data.get("personalities", {}).get(saved_personality, {})
                             if personality_data:
                                 print(f"[PERSONALITY] Using personality data: {personality_data.get('name', saved_personality.title())}")
-                                return {
+                                base_params = {
                                     'personality_name': personality_data.get('name', saved_personality.title()),
                                     'personality_style': personality_data.get('suggestion_style', ''),
                                     'personality_tone': personality_data.get('tone', ''),
                                     'personality_priorities': ', '.join(personality_data.get('priorities', [])),
                                     'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
                                 }
+                                # Apply emotion-aware modifications
+                                return self._apply_emotion_modifiers(base_params, emotion_context, modifiers)
                             else:
                                 print(f"[PERSONALITY] No data found for personality: {saved_personality}, falling back to default.")
                 except Exception as e:
                     print(f"[PERSONALITY] Error reading personality settings: {e}")
             else:
                 print("[PERSONALITY] Settings file not found, using default personality.")
+            
             # Fallback to professional if available, else comedian
             fallback_personality = "professional"
             personalities_path = Path(__file__).parent / "personalities.json"
@@ -576,21 +598,25 @@ class ObserverAvatarBridge:
                     if fallback_personality in personalities_data.get("personalities", {}):
                         print(f"[PERSONALITY] Fallback to: {fallback_personality}")
                         personality_data = personalities_data["personalities"][fallback_personality]
-                        return {
+                        base_params = {
                             'personality_name': personality_data.get('name', fallback_personality.title()),
                             'personality_style': personality_data.get('suggestion_style', ''),
                             'personality_tone': personality_data.get('tone', ''),
                             'personality_priorities': ', '.join(personality_data.get('priorities', [])),
                             'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
                         }
+                        return self._apply_emotion_modifiers(base_params, emotion_context, modifiers)
+            
             print("[PERSONALITY] Fallback to comedian personality.")
-            return {
+            base_params = {
                 'personality_name': 'Comedian',
                 'personality_style': 'Everything is an opportunity for humor. Makes jokes about coding, work situations, and daily activities. Keeps things light and funny.',
                 'personality_tone': 'humorous, witty, entertaining, lighthearted',
                 'personality_priorities': 'humor, entertainment, making people laugh, finding the funny side',
                 'personality_phrases': 'Why did the developer, Speaking of comedy, Here\'s a joke for you, Plot twist comedy, Funny thing about'
             }
+            return self._apply_emotion_modifiers(base_params, emotion_context, modifiers)
+            
         except Exception as e:
             print(f"[PERSONALITY] Error getting personality parameters: {e}")
             return {
@@ -600,6 +626,107 @@ class ObserverAvatarBridge:
                 'personality_priorities': 'humor, entertainment, making people laugh',
                 'personality_phrases': 'Why did the developer, Speaking of comedy, Here\'s a joke for you'
             }
+    
+    def _apply_emotion_modifiers(self, base_params, emotion_context, modifiers):
+        """Apply emotion-based modifications to personality parameters"""
+        try:
+            if not emotion_context or not modifiers:
+                # Add emotion context info even if no modifications
+                base_params['emotion_context'] = "No emotion data available - using default personality"
+                return base_params
+            
+            recent_emotion = emotion_context.get('recent_emotion', 'neutral')
+            energy_level = emotion_context.get('energy_level', 'medium')
+            stress_level = emotion_context.get('stress_level', 'low')
+            
+            # Get modifier values
+            energy_boost = modifiers.get('energy_boost', 0.0)
+            supportiveness_boost = modifiers.get('supportiveness_boost', 0.0)
+            humor_adjustment = modifiers.get('humor_adjustment', 0.0)
+            focus_intensity = modifiers.get('focus_intensity', 0.0)
+            
+            # Apply modifications to tone
+            modified_tone = base_params['personality_tone']
+            tone_additions = []
+            
+            if energy_boost > 0.5:
+                tone_additions.append("energetic")
+                tone_additions.append("enthusiastic")
+            elif energy_boost < -0.5:
+                tone_additions.append("gentle")
+                tone_additions.append("calm")
+            
+            if supportiveness_boost > 0.5:
+                tone_additions.append("supportive")
+                tone_additions.append("encouraging")
+                tone_additions.append("understanding")
+            
+            if humor_adjustment < -0.3:
+                tone_additions.append("focused")
+                tone_additions.append("serious")
+            elif humor_adjustment > 0.3:
+                tone_additions.append("playful")
+                tone_additions.append("witty")
+            
+            if focus_intensity > 0.5:
+                tone_additions.append("direct")
+                tone_additions.append("practical")
+            
+            if tone_additions:
+                modified_tone = f"{modified_tone}, {', '.join(tone_additions)}"
+            
+            # Apply modifications to style
+            modified_style = base_params['personality_style']
+            
+            if recent_emotion in ['sad', 'tired'] and supportiveness_boost > 0.3:
+                modified_style += " Adapts to provide extra encouragement and gentle support when you seem tired or down."
+            elif recent_emotion == 'happy' and energy_boost > 0.3:
+                modified_style += " Matches your positive energy with more enthusiasm and celebratory comments."
+            elif stress_level == 'high' and focus_intensity > 0.3:
+                modified_style += " Becomes more focused and practical during stressful times, offering concrete help rather than just casual chat."
+            
+            # Apply modifications to priorities
+            modified_priorities = base_params['personality_priorities']
+            priority_additions = []
+            
+            if supportiveness_boost > 0.5:
+                priority_additions.append("emotional support")
+                priority_additions.append("encouragement")
+            
+            if focus_intensity > 0.5:
+                priority_additions.append("practical assistance")
+                priority_additions.append("problem-solving")
+            
+            if priority_additions:
+                modified_priorities = f"{modified_priorities}, {', '.join(priority_additions)}"
+            
+            # Create emotion context description for the recipe
+            emotion_description = f"Current emotion: {recent_emotion} | Energy: {energy_level} | Stress: {stress_level}"
+            if abs(energy_boost) > 0.3 or abs(supportiveness_boost) > 0.3 or abs(humor_adjustment) > 0.3:
+                emotion_description += f" | Personality adapted based on emotional state"
+            
+            return {
+                'personality_name': base_params['personality_name'],
+                'personality_style': modified_style,
+                'personality_tone': modified_tone,
+                'personality_priorities': modified_priorities,
+                'personality_phrases': base_params['personality_phrases'],
+                'emotion_context': emotion_description,
+                'recent_emotion': recent_emotion,
+                'energy_level': energy_level,
+                'stress_level': stress_level,
+                'emotion_modifiers': {
+                    'energy_boost': energy_boost,
+                    'supportiveness_boost': supportiveness_boost,
+                    'humor_adjustment': humor_adjustment,
+                    'focus_intensity': focus_intensity
+                }
+            }
+            
+        except Exception as e:
+            print(f"[EMOTION] Error applying emotion modifiers: {e}")
+            base_params['emotion_context'] = f"Error applying emotion context: {e}"
+            return base_params
 
     def trigger_contextual_message(self):
         """Trigger a contextual message from recipes"""

@@ -41,6 +41,26 @@ parameters:
   requirement: optional
   default: "Why did the developer, Speaking of comedy, Here's a joke for you, Plot twist comedy, Funny thing about"
   description: "Example phrases characteristic of the personality"
+- key: emotion_context
+  input_type: string
+  requirement: optional
+  default: "No emotion data available"
+  description: "Current emotional context and state"
+- key: recent_emotion
+  input_type: string
+  requirement: optional
+  default: "neutral"
+  description: "Most recent detected emotion"
+- key: energy_level
+  input_type: string
+  requirement: optional
+  default: "medium"
+  description: "Current energy level (high/medium/low)"
+- key: stress_level
+  input_type: string
+  requirement: optional
+  default: "low"
+  description: "Current stress level (high/medium/low)"
 
 prompt: |
   CURRENT LOCAL TIME: $(date)
@@ -53,7 +73,13 @@ prompt: |
   Key Priorities: {{ personality_priorities }}
   Typical Phrases: {{ personality_phrases }}
   
-  Based on the current work context, analyze the following files in ~/.local/share/goose-perception/:
+  **EMOTION-AWARE CONTEXT:**
+  {{ emotion_context }}
+  Current Emotion: {{ recent_emotion }}
+  Energy Level: {{ energy_level }}
+  Stress Level: {{ stress_level }}
+  
+  Based on the current work context AND emotional state, analyze the following files in ~/.local/share/goose-perception/:
   - LATEST_WORK.md (current focus)
   - INTERACTIONS.md (recent collaborations)
   - CONTRIBUTIONS.md (recent activity)
@@ -68,6 +94,14 @@ prompt: |
   - Focus on priorities like: {{ personality_priorities }}
   - Use phrases similar to: {{ personality_phrases }}
   - Maintain the personality consistently across all suggestions
+  
+  **EMOTION-AWARE SUGGESTION ADAPTATION:**
+  - **If recent_emotion is "happy" or "content"**: Suggest momentum-building activities, celebrating wins, sharing achievements
+  - **If recent_emotion is "tired" or "sad"**: Suggest gentler tasks, self-care, smaller wins, encouragement-focused activities
+  - **If recent_emotion is "serious" or "angry"**: Focus on practical problem-solving, concrete next steps, avoiding distractions
+  - **If stress_level is "high"**: Suggest stress-reducing activities, break tasks into smaller pieces, prioritization help
+  - **If energy_level is "low"**: Suggest routine tasks, documentation, planning rather than high-energy creative work
+  - **If energy_level is "high"**: Suggest tackling challenging problems, starting new initiatives, creative work
   
   Each suggestion should be:
   - Under 120 characters 
