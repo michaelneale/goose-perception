@@ -263,6 +263,10 @@ Voice information is kept local as are transcriptions, image processing is done 
 # Observing and learning
 
 The `observers` directory has many recipes for learning about you - these will run from time to time, some continuously. 
+Goose recipes running in the background are key to how perception works. 
+
+<img src="meetings.png"/>
+* a recipe is recalling meeting information, and looking for any spoken content during that time
 
 ### Screen watching
 
