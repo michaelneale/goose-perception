@@ -428,19 +428,47 @@ class MenuBarAvatar(QObject):
             self.popup_window.show_preferences()
     
     def toggle_to_floating_mode(self):
-        """Switch to floating avatar mode"""
+        """Switch to floating avatar mode dynamically"""
+        print("🪿 Switching to Floating Avatar mode...")
+
+        # Save preference
         user_prefs = get_user_prefs()
         user_prefs['interface_mode'] = 'floating'
         user_prefs['menu_bar_mode'] = False
         save_user_prefs(user_prefs)
-        
-        self.show_notification("Goose", "Switching to floating avatar mode...", sound_name="Glass")
-        
-        # Disable menu bar mode
+
+        self.show_notification("Goose", "Switching to floating avatar mode...")
+
+        # Use a timer to allow the notification to show
+        QTimer.singleShot(1000, self._perform_switch_to_floating)
+
+    def _perform_switch_to_floating(self):
+        """Helper to finalize the switch to floating mode"""
+        # Disable menu bar mode first
         self.disable_menu_bar_mode()
+
+        # Use the existing floating avatar instance if it exists, otherwise create it
+        from . import avatar_display
         
-        # Show restart message
-        self.show_notification("Goose", "Please restart Goose to switch to floating avatar mode", sound_name="Glass")
+        if avatar_display.avatar_instance is None:
+            print("🤖 No existing floating avatar found, creating a new one.")
+            app_instance = avatar_display.get_app_instance()
+            avatar_communicator = avatar_display.get_avatar_communicator()
+            
+            new_avatar = avatar_display.GooseAvatar()
+            new_avatar.app = app_instance
+            new_avatar.connect_communicator(avatar_communicator)
+            avatar_display.set_avatar_instance(new_avatar)
+        else:
+            print("🤖 Found existing floating avatar, reusing it.")
+
+        # Show the avatar
+        avatar_to_show = avatar_display.avatar_instance
+        avatar_to_show.position_avatar()
+        avatar_to_show.start_avatar()
+        
+        avatar_to_show.show_message("Hello! I'm back in floating mode.", 5000, 'talking')
+        print("🤖 Floating avatar activated.")
     
     def quit_application(self):
         """Quit the application"""
