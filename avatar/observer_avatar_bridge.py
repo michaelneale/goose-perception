@@ -140,6 +140,13 @@ class ObserverAvatarBridge:
         elif current_time - self.last_chatter_run > self.chatter_interval:
             self._run_chatter_recipe()
             self.last_chatter_run = current_time
+            
+        # Check if it's time to run stress wellness analysis (every 30 minutes)
+        if not hasattr(self, 'last_stress_check'):
+            self.last_stress_check = current_time
+        elif current_time - self.last_stress_check > timedelta(minutes=30):
+            self._run_stress_wellness_recipe()
+            self.last_stress_check = current_time
         
         for filename, category in self.monitored_files.items():
             file_path = self.perception_dir / filename
@@ -727,6 +734,123 @@ class ObserverAvatarBridge:
             print(f"[EMOTION] Error applying emotion modifiers: {e}")
             base_params['emotion_context'] = f"Error applying emotion context: {e}"
             return base_params
+    
+    def get_stress_wellness_parameters(self):
+        """Get parameters for stress management and wellness recipes"""
+        try:
+            import sys
+            import os
+            
+            # Add the parent directory to sys.path to import emotion_context
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.append(parent_dir)
+            
+            from emotion_context import get_emotion_context
+            
+            emotion_ctx = get_emotion_context()
+            stress_analysis = emotion_ctx.get_stress_analysis()
+            context = emotion_ctx.get_current_emotion_context()
+            receptivity = emotion_ctx.get_receptivity_score()
+            should_suggest = emotion_ctx.should_suggest_break_now()
+            
+            # Convert duration to hours and minutes
+            duration_total_minutes = stress_analysis['duration_minutes']
+            duration_hours = duration_total_minutes // 60
+            duration_minutes = duration_total_minutes % 60
+            
+            # Format time since positive emotion
+            time_since_positive = stress_analysis['time_since_last_positive']
+            if time_since_positive is None:
+                time_since_positive_str = "unknown"
+            elif time_since_positive < 60:
+                time_since_positive_str = f"{time_since_positive:.0f} minutes"
+            else:
+                time_since_positive_str = f"{time_since_positive/60:.1f} hours"
+            
+            return {
+                'stress_score': stress_analysis['stress_score'],
+                'stress_level': stress_analysis['stress_level'],
+                'intervention_type': stress_analysis['intervention_type'],
+                'duration_hours': duration_hours,
+                'duration_minutes': duration_minutes,
+                'time_since_positive': time_since_positive_str,
+                'stress_patterns': stress_analysis['patterns'],
+                'receptivity_score': receptivity,
+                'should_suggest_break': should_suggest,
+                'recent_emotion': context['recent_emotion'],
+                'energy_level': context['energy_level']
+            }
+            
+        except Exception as e:
+            print(f"[STRESS] Error getting stress wellness parameters: {e}")
+            return {
+                'stress_score': 0.0,
+                'stress_level': 'low',
+                'intervention_type': 'none',
+                'duration_hours': 0,
+                'duration_minutes': 0,
+                'time_since_positive': 'unknown',
+                'stress_patterns': {},
+                'receptivity_score': 0.5,
+                'should_suggest_break': False,
+                'recent_emotion': 'neutral',
+                'energy_level': 'medium'
+            }
+    
+    def _run_stress_wellness_recipe(self):
+        """Run the stress wellness recipe if conditions are appropriate"""
+        try:
+            import sys
+            import os
+            
+            # Add the parent directory to sys.path to import emotion_context
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.append(parent_dir)
+            
+            from emotion_context import get_emotion_context
+            
+            emotion_ctx = get_emotion_context()
+            should_suggest = emotion_ctx.should_suggest_break_now()
+            stress_analysis = emotion_ctx.get_stress_analysis()
+            
+            # Only run wellness recipe if intervention is needed OR for periodic monitoring
+            if should_suggest or stress_analysis['intervention_needed']:
+                print("🧘 Running stress & wellness analysis...")
+                
+                params = self.get_stress_wellness_parameters()
+                
+                # Log the stress context
+                print(f"[STRESS] Current stress level: {params['stress_level']} (score: {params['stress_score']:.2f})")
+                if params['should_suggest_break']:
+                    print(f"[WELLNESS] Intervention recommended: {params['intervention_type']}")
+                
+                # Build parameter arguments
+                param_args = []
+                for key, value in params.items():
+                    param_args.extend(['--params', f'{key}={value}'])
+                
+                # Run the goose recipe
+                cmd = [
+                    "goose", "run", "--no-session", 
+                    "--recipe", "observers/recipe-stress-wellness.yaml"
+                ] + param_args
+                
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                
+                if result.returncode == 0:
+                    print("✅ Stress wellness analysis completed")
+                    return True
+                else:
+                    print(f"❌ Stress wellness recipe failed: {result.stderr}")
+                    return False
+            
+            return True  # No intervention needed is success
+            
+        except Exception as e:
+            print(f"❌ Error running stress wellness recipe: {e}")
+            return False
 
     def trigger_contextual_message(self):
         """Trigger a contextual message from recipes"""
