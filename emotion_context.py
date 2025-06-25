@@ -14,9 +14,12 @@ from collections import Counter
 class EmotionContext:
     """Manages emotion context analysis and provides emotional state information"""
     
-    def __init__(self, data_dir: Optional[Path] = None):
-        self.data_dir = data_dir or Path.home() / ".local" / "share" / "goose-perception"
-        self.emotions_log_path = self.data_dir / "emotions.log"
+    def __init__(self, emotions_file: Optional[str] = None, data_dir: Optional[Path] = None):
+        if emotions_file:
+            self.emotions_log_path = Path(emotions_file)
+        else:
+            self.data_dir = data_dir or Path.home() / ".local" / "share" / "goose-perception"
+            self.emotions_log_path = self.data_dir / "emotions.log"
         
         # Emotion categorization for analysis
         self.positive_emotions = {"happy", "content", "surprised"}
@@ -531,17 +534,194 @@ class EmotionContext:
             return True
         
         return False
+    
+    def get_interaction_timing_analysis(self) -> Dict[str, Any]:
+        """
+        Advanced timing analysis for all types of interactions.
+        Returns detailed timing intelligence and recommendations.
+        """
+        emotions = self._parse_emotions_log(hours_back=2)
+        context = self.get_current_emotion_context()
+        stress_analysis = self.get_stress_analysis()
+        receptivity = self.get_receptivity_score()
+        
+        now = datetime.now()
+        
+        # Analyze emotional stability
+        recent_emotions = [e for e in emotions if (now - e['timestamp']).total_seconds() < 1800]  # 30 minutes
+        
+        emotional_stability = 'stable'
+        if len(recent_emotions) >= 4:
+            unique_emotions = len(set(e['emotion'] for e in recent_emotions if e['emotion'] != 'no_face_detected'))
+            if unique_emotions >= 4:
+                emotional_stability = 'volatile'
+            elif unique_emotions >= 3:
+                emotional_stability = 'unstable'
+        
+        # Determine interaction receptivity levels
+        interaction_receptivity = {
+            'suggestions': self._calculate_suggestion_receptivity(context, stress_analysis, receptivity),
+            'chatter': self._calculate_chatter_receptivity(context, receptivity, emotional_stability),
+            'wellness': self._calculate_wellness_receptivity(stress_analysis, receptivity),
+            'notifications': self._calculate_notification_receptivity(context, receptivity, emotional_stability)
+        }
+        
+        # Calculate optimal timing delays
+        timing_delays = self._calculate_timing_delays(context, stress_analysis, emotional_stability)
+        
+        # Determine priority levels for different message types
+        message_priorities = self._calculate_message_priorities(context, stress_analysis)
+        
+        return {
+            'timestamp': now.isoformat(),
+            'emotional_stability': emotional_stability,
+            'overall_receptivity': receptivity,
+            'interaction_receptivity': interaction_receptivity,
+            'timing_delays': timing_delays,
+            'message_priorities': message_priorities,
+            'recommendations': {
+                'should_queue_suggestions': interaction_receptivity['suggestions'] < 0.4,
+                'should_reduce_chatter': interaction_receptivity['chatter'] < 0.3,
+                'priority_wellness': stress_analysis['intervention_needed'],
+                'pause_non_urgent': receptivity < 0.3 and not stress_analysis['intervention_needed']
+            }
+        }
+    
+    def _calculate_suggestion_receptivity(self, context: Dict, stress_analysis: Dict, base_receptivity: float) -> float:
+        """Calculate receptivity specifically for work/productivity suggestions"""
+        receptivity = base_receptivity
+        
+        # Reduce receptivity during high stress (focus on wellness instead)
+        if stress_analysis['stress_level'] == 'high':
+            receptivity *= 0.3
+        elif stress_analysis['stress_level'] == 'medium':
+            receptivity *= 0.6
+        
+        # Increase receptivity during productive emotional states
+        if context['recent_emotion'] in ['content', 'happy']:
+            receptivity *= 1.2
+        elif context['recent_emotion'] in ['serious']:
+            receptivity *= 1.1  # Focused state, good for suggestions
+        
+        # Reduce during very tired or sad states
+        if context['recent_emotion'] in ['tired', 'sad']:
+            receptivity *= 0.4
+        
+        return max(0.0, min(1.0, receptivity))
+    
+    def _calculate_chatter_receptivity(self, context: Dict, base_receptivity: float, stability: str) -> float:
+        """Calculate receptivity for casual chatter and non-essential interactions"""
+        receptivity = base_receptivity
+        
+        # Reduce chatter during unstable emotional periods
+        if stability == 'volatile':
+            receptivity *= 0.2
+        elif stability == 'unstable':
+            receptivity *= 0.5
+        
+        # Adjust based on emotion
+        if context['recent_emotion'] in ['happy', 'content']:
+            receptivity *= 1.3  # More open to casual interaction
+        elif context['recent_emotion'] in ['serious', 'angry']:
+            receptivity *= 0.3  # Don't interrupt focus/distress
+        elif context['recent_emotion'] in ['tired', 'sad']:
+            receptivity *= 0.6  # Gentle interaction only
+        
+        return max(0.0, min(1.0, receptivity))
+    
+    def _calculate_wellness_receptivity(self, stress_analysis: Dict, base_receptivity: float) -> float:
+        """Calculate receptivity for wellness and break suggestions"""
+        receptivity = base_receptivity
+        
+        # Always high receptivity for wellness during stress
+        if stress_analysis['intervention_needed']:
+            if stress_analysis['stress_level'] == 'high':
+                receptivity = max(0.8, receptivity)
+            elif stress_analysis['stress_level'] == 'medium':
+                receptivity = max(0.6, receptivity)
+        
+        return max(0.0, min(1.0, receptivity))
+    
+    def _calculate_notification_receptivity(self, context: Dict, base_receptivity: float, stability: str) -> float:
+        """Calculate receptivity for notifications and alerts"""
+        receptivity = base_receptivity
+        
+        # Reduce notifications during emotional volatility
+        if stability == 'volatile':
+            receptivity *= 0.1
+        elif stability == 'unstable':
+            receptivity *= 0.4
+        
+        # Very low receptivity when angry or in no_face_detected state
+        if context['recent_emotion'] in ['angry', 'no_face_detected']:
+            receptivity *= 0.1
+        
+        return max(0.0, min(1.0, receptivity))
+    
+    def _calculate_timing_delays(self, context: Dict, stress_analysis: Dict, stability: str) -> Dict[str, int]:
+        """Calculate appropriate delays (in minutes) before showing different types of content"""
+        delays = {
+            'suggestions': 0,
+            'chatter': 0,
+            'notifications': 0,
+            'non_urgent': 0
+        }
+        
+        # Base delays for different emotional states
+        if context['recent_emotion'] == 'angry':
+            delays.update({'suggestions': 30, 'chatter': 60, 'notifications': 90, 'non_urgent': 120})
+        elif context['recent_emotion'] in ['sad', 'tired']:
+            delays.update({'suggestions': 15, 'chatter': 10, 'notifications': 20, 'non_urgent': 30})
+        elif context['recent_emotion'] == 'serious':
+            delays.update({'suggestions': 5, 'chatter': 20, 'notifications': 10, 'non_urgent': 30})
+        
+        # Additional delays for emotional instability
+        if stability == 'volatile':
+            for key in delays:
+                delays[key] += 20
+        elif stability == 'unstable':
+            for key in delays:
+                delays[key] += 10
+        
+        # Reduce delays during high stress (wellness takes priority)
+        if stress_analysis['stress_level'] == 'high':
+            delays['suggestions'] = max(0, delays['suggestions'] - 10)
+        
+        return delays
+    
+    def _calculate_message_priorities(self, context: Dict, stress_analysis: Dict) -> Dict[str, str]:
+        """Calculate priority levels for different message types"""
+        priorities = {
+            'wellness': 'medium',
+            'suggestions': 'medium', 
+            'chatter': 'low',
+            'notifications': 'medium'
+        }
+        
+        # Elevate wellness priority during stress
+        if stress_analysis['intervention_needed']:
+            if stress_analysis['stress_level'] == 'high':
+                priorities['wellness'] = 'critical'
+            elif stress_analysis['stress_level'] == 'medium':
+                priorities['wellness'] = 'high'
+        
+        # Adjust based on emotional state
+        if context['recent_emotion'] in ['happy', 'content']:
+            priorities['suggestions'] = 'high'  # Good time for productivity suggestions
+            priorities['chatter'] = 'medium'    # Open to casual interaction
+        elif context['recent_emotion'] in ['sad', 'tired']:
+            priorities['suggestions'] = 'low'   # Not ideal for work suggestions
+            priorities['wellness'] = 'high'     # Supportive content priority
+        elif context['recent_emotion'] == 'angry':
+            priorities['suggestions'] = 'low'
+            priorities['chatter'] = 'very_low'
+            priorities['notifications'] = 'low'
+        
+        return priorities
 
 
 # Global instance for easy access
-_emotion_context = None
-
-def get_emotion_context() -> EmotionContext:
-    """Get the global emotion context instance"""
-    global _emotion_context
-    if _emotion_context is None:
-        _emotion_context = EmotionContext()
-    return _emotion_context
+emotion_context = EmotionContext()
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ Monitors observer outputs and triggers appropriate avatar messages
 """
 
 import os
+import sys
 import time
 import random
 import subprocess
@@ -14,6 +15,17 @@ import threading
 import hashlib
 import pickle
 import json
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    from emotion_context import emotion_context
+    from message_queue import message_queue
+    EMOTION_FEATURES_AVAILABLE = True
+except ImportError:
+    EMOTION_FEATURES_AVAILABLE = False
+    print("Emotion-aware features not available - running in basic mode")
 
 try:
     from . import avatar_display
@@ -98,9 +110,13 @@ class ObserverAvatarBridge:
         self.is_running = False
     
     def _monitor_loop(self):
-        """Main monitoring loop"""
+        """Main monitoring loop with emotion-aware timing"""
         while self.is_running:
             try:
+                # Process emotion-aware message queue if available
+                if EMOTION_FEATURES_AVAILABLE:
+                    self._process_emotion_aware_messages()
+                
                 self._check_files()
                 self._show_next_queued_suggestion()
                 self._show_next_actionable_suggestion()
@@ -199,6 +215,189 @@ class ObserverAvatarBridge:
             print(f"[CONTEXT] Error reading {filename}: {e}")
             return ''
 
+    def _process_emotion_aware_messages(self):
+        """Process messages from the emotion-aware message queue"""
+        try:
+            # Get ready messages from queue
+            ready_messages = message_queue.get_ready_messages(limit=3)
+            
+            for msg in ready_messages:
+                delivered = False
+                
+                if msg.message_type == 'chatter':
+                    delivered = self._deliver_chatter_message(msg)
+                elif msg.message_type == 'suggestion':
+                    delivered = self._deliver_suggestion_message(msg)
+                elif msg.message_type == 'wellness':
+                    delivered = self._deliver_wellness_message(msg)
+                elif msg.message_type == 'notification':
+                    delivered = self._deliver_notification_message(msg)
+                
+                if delivered:
+                    message_queue.mark_delivered(msg.id)
+                else:
+                    message_queue.mark_delivery_attempted(msg.id)
+                    
+        except Exception as e:
+            print(f"Error processing emotion-aware messages: {e}")
+    
+    def _deliver_chatter_message(self, msg) -> bool:
+        """Deliver a chatter message with emotion-aware timing"""
+        try:
+            content = msg.content
+            
+            # Check if we should deliver now (additional timing check)
+            if not self._should_deliver_message_now(msg.message_type):
+                return False
+            
+            # Show the chatter message
+            if avatar_display:
+                message_text = content.get('message', 'Hello!')
+                avatar_display.show_avatar_message(
+                    message_text,
+                    duration=content.get('duration', 8000),
+                    style=content.get('style', 'normal')
+                )
+                print(f"📢 Emotion-aware chatter: {message_text}")
+                return True
+                
+        except Exception as e:
+            print(f"Error delivering chatter message: {e}")
+        
+        return False
+    
+    def _deliver_suggestion_message(self, msg) -> bool:
+        """Deliver a suggestion message with emotion-aware timing"""
+        try:
+            content = msg.content
+            
+            # Check if we should deliver now
+            if not self._should_deliver_message_now(msg.message_type):
+                return False
+            
+            # Show the suggestion
+            if avatar_display:
+                suggestion_text = content.get('message', 'Here\'s a suggestion')
+                avatar_display.show_avatar_message(
+                    suggestion_text,
+                    duration=content.get('duration', 12000),
+                    style=content.get('style', 'suggestion')
+                )
+                print(f"💡 Emotion-aware suggestion: {suggestion_text}")
+                return True
+                
+        except Exception as e:
+            print(f"Error delivering suggestion message: {e}")
+        
+        return False
+    
+    def _deliver_wellness_message(self, msg) -> bool:
+        """Deliver a wellness message with emotion-aware timing"""
+        try:
+            content = msg.content
+            
+            # Wellness messages have higher priority and looser timing requirements
+            if not self._should_deliver_message_now(msg.message_type, lenient=True):
+                return False
+            
+            # Show the wellness message
+            if avatar_display:
+                wellness_text = content.get('message', 'Take care of yourself!')
+                avatar_display.show_avatar_message(
+                    wellness_text,
+                    duration=content.get('duration', 10000),
+                    style=content.get('style', 'wellness')
+                )
+                print(f"🌱 Emotion-aware wellness: {wellness_text}")
+                return True
+                
+        except Exception as e:
+            print(f"Error delivering wellness message: {e}")
+        
+        return False
+    
+    def _deliver_notification_message(self, msg) -> bool:
+        """Deliver a notification message with emotion-aware timing"""
+        try:
+            content = msg.content
+            
+            # Check if we should deliver now
+            if not self._should_deliver_message_now(msg.message_type):
+                return False
+            
+            # Show the notification
+            if avatar_display:
+                notification_text = content.get('message', 'Notification')
+                avatar_display.show_avatar_message(
+                    notification_text,
+                    duration=content.get('duration', 8000),
+                    style=content.get('style', 'notification')
+                )
+                print(f"🔔 Emotion-aware notification: {notification_text}")
+                return True
+                
+        except Exception as e:
+            print(f"Error delivering notification message: {e}")
+        
+        return False
+    
+    def _should_deliver_message_now(self, message_type: str, lenient: bool = False) -> bool:
+        """Check if a message should be delivered right now based on emotional timing"""
+        try:
+            if not EMOTION_FEATURES_AVAILABLE:
+                return True  # Fall back to basic mode
+            
+            timing_analysis = emotion_context.get_interaction_timing_analysis()
+            recommendations = timing_analysis['recommendations']
+            
+            # For lenient mode (wellness messages), be more permissive
+            if lenient:
+                receptivity = timing_analysis['interaction_receptivity'].get(message_type, 0.5)
+                return receptivity >= 0.1  # Much lower threshold for wellness
+            
+            # Check specific recommendations
+            if message_type == 'suggestion' and recommendations.get('should_queue_suggestions', False):
+                return False
+            
+            if message_type == 'chatter' and recommendations.get('should_reduce_chatter', False):
+                return False
+            
+            if recommendations.get('pause_non_urgent', False) and message_type in ['chatter', 'notification']:
+                return False
+            
+            # Check minimum receptivity for this message type
+            receptivity = timing_analysis['interaction_receptivity'].get(message_type, 0.5)
+            min_receptivity = 0.3 if message_type != 'chatter' else 0.4
+            
+            return receptivity >= min_receptivity
+            
+        except Exception as e:
+            print(f"Error checking delivery timing: {e}")
+            return True  # Fall back to allowing delivery
+    
+    def queue_emotion_aware_message(self, message_type: str, content: dict, priority: str = 'medium', 
+                                   delay_minutes: int = 0, max_age_hours: float = 24.0):
+        """Queue a message for emotion-aware delivery"""
+        if not EMOTION_FEATURES_AVAILABLE:
+            # Fall back to immediate delivery in basic mode
+            if message_type == 'chatter':
+                self._deliver_chatter_message(type('', (), {'content': content})())
+            elif message_type == 'suggestion':
+                self._deliver_suggestion_message(type('', (), {'content': content})())
+            elif message_type == 'wellness':
+                self._deliver_wellness_message(type('', (), {'content': content})())
+            elif message_type == 'notification':
+                self._deliver_notification_message(type('', (), {'content': content})())
+            return None
+        
+        return message_queue.add_message(
+            message_type=message_type,
+            content=content,
+            priority=priority,
+            delay_minutes=delay_minutes,
+            max_age_hours=max_age_hours
+        )
+
     def build_recent_context(self, hours=8):
         """Build context from the last N hours of all relevant files."""
         files = ["WORK.md", "LATEST_WORK.md", "INTERACTIONS.md", "CONTRIBUTIONS.md", "ACTIVITY-LOG.md"]
@@ -210,6 +409,24 @@ class ObserverAvatarBridge:
     def _run_avatar_suggestions(self):
         """Run the avatar suggestions observer recipe with recent context and logging."""
         try:
+            # Check emotion-aware timing before running recipe
+            if EMOTION_FEATURES_AVAILABLE:
+                timing_analysis = emotion_context.get_interaction_timing_analysis()
+                recommendations = timing_analysis['recommendations']
+                
+                # If we should queue suggestions, reduce frequency of generation
+                if recommendations.get('should_queue_suggestions', False):
+                    # Random chance to skip during low receptivity
+                    if random.random() < 0.5:  # 50% chance to skip
+                        print("⏸️ Delaying suggestion generation due to low receptivity")
+                        return
+                
+                # If general pause on non-urgent content
+                if recommendations.get('pause_non_urgent', False):
+                    if random.random() < 0.8:  # 80% chance to skip
+                        print("⏸️ Pausing suggestion generation - non-urgent mode")
+                        return
+            
             print("🔍 Running avatar suggestions observer recipe...")
             personality_params = self.get_personality_parameters()
             print(f"[PERSONALITY] Using for suggestions: {personality_params}")
@@ -230,13 +447,60 @@ class ObserverAvatarBridge:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             if result.returncode == 0:
                 print("✅ Avatar suggestions recipe completed successfully")
-                self._process_new_suggestions()
+                
+                # Process suggestions with emotion-aware queueing if available
+                if EMOTION_FEATURES_AVAILABLE:
+                    self._process_suggestions_with_emotion_aware_queueing()
+                else:
+                    self._process_new_suggestions()  # Fall back to immediate processing
             else:
                 print(f"❌ Avatar suggestions recipe failed: {result.stderr}")
         except subprocess.TimeoutExpired:
             print("⏰ Avatar suggestions recipe timed out")
         except Exception as e:
             print(f"Error running avatar suggestions: {e}")
+    
+    def _process_suggestions_with_emotion_aware_queueing(self):
+        """Process generated suggestions and queue them for emotion-aware delivery"""
+        try:
+            suggestions = self._parse_suggestions_file()
+            if not suggestions:
+                return
+            
+            # Queue each suggestion for emotion-aware delivery
+            for suggestion in suggestions:
+                if isinstance(suggestion, dict) and 'message' in suggestion:
+                    # Determine priority based on suggestion type
+                    priority = 'medium'  # Default priority for suggestions
+                    suggestion_type = suggestion.get('type', 'general')
+                    
+                    if suggestion_type in ['urgent', 'important']:
+                        priority = 'high'
+                    elif suggestion_type in ['reminder', 'tip']:
+                        priority = 'low'
+                    
+                    # Create content dict
+                    content = {
+                        'message': suggestion['message'],
+                        'duration': 12000,
+                        'style': 'suggestion',
+                        'type': suggestion_type
+                    }
+                    
+                    # Queue the suggestion
+                    message_id = self.queue_emotion_aware_message(
+                        message_type='suggestion',
+                        content=content,
+                        priority=priority,
+                        delay_minutes=0,  # Let emotion system handle timing
+                        max_age_hours=48.0  # Suggestions stay relevant longer
+                    )
+                    
+                    if message_id:
+                        print(f"📅 Queued suggestion: {message_id}")
+                        
+        except Exception as e:
+            print(f"Error processing suggestions with emotion-aware queueing: {e}")
     
     def _run_actionable_suggestions(self):
         """Run the actionable suggestions observer recipe"""
@@ -275,6 +539,24 @@ class ObserverAvatarBridge:
     def _run_chatter_recipe(self):
         """Run the chit-chat recipe to generate contextual casual messages"""
         try:
+            # Check emotion-aware timing before running recipe
+            if EMOTION_FEATURES_AVAILABLE:
+                timing_analysis = emotion_context.get_interaction_timing_analysis()
+                recommendations = timing_analysis['recommendations']
+                
+                # If we should reduce chatter, skip recipe generation
+                if recommendations.get('should_reduce_chatter', False):
+                    print("⏸️ Skipping chatter generation due to emotional state")
+                    return
+                
+                # If low receptivity, reduce frequency of recipe runs
+                chatter_receptivity = timing_analysis['interaction_receptivity'].get('chatter', 0.5)
+                if chatter_receptivity < 0.3:
+                    # Random chance to skip during low receptivity
+                    if random.random() < 0.7:  # 70% chance to skip
+                        print("⏸️ Delaying chatter generation due to low receptivity")
+                        return
+            
             print("💬 Running avatar chit-chat recipe...")
             
             # Get personality parameters
@@ -297,6 +579,10 @@ class ObserverAvatarBridge:
             
             if result.returncode == 0:
                 print("✅ Avatar chit-chat recipe completed successfully")
+                
+                # If emotion features are available, process generated chatter with smart queueing
+                if EMOTION_FEATURES_AVAILABLE:
+                    self._process_chatter_with_emotion_aware_queueing()
             else:
                 print(f"❌ Avatar chit-chat recipe failed: {result.stderr}")
                 
@@ -304,6 +590,38 @@ class ObserverAvatarBridge:
             print("⏰ Avatar chit-chat recipe timed out")
         except Exception as e:
             print(f"Error running avatar chit-chat: {e}")
+    
+    def _process_chatter_with_emotion_aware_queueing(self):
+        """Process generated chatter and queue it for emotion-aware delivery"""
+        try:
+            messages = self._parse_chatter_file()
+            if not messages:
+                return
+            
+            # Queue each message for emotion-aware delivery
+            for message in messages:
+                if isinstance(message, str) and message.strip():
+                    # Create content dict
+                    content = {
+                        'message': message.strip(),
+                        'duration': 8000,
+                        'style': 'normal'
+                    }
+                    
+                    # Queue the message
+                    message_id = self.queue_emotion_aware_message(
+                        message_type='chatter',
+                        content=content,
+                        priority='low',  # Chatter is generally low priority
+                        delay_minutes=0,  # Let emotion system handle timing
+                        max_age_hours=6.0  # Chatter becomes stale quickly
+                    )
+                    
+                    if message_id:
+                        print(f"📅 Queued chatter message: {message_id}")
+                        
+        except Exception as e:
+            print(f"Error processing chatter with emotion-aware queueing: {e}")
     
     def _parse_suggestions_file(self):
         """Parse the AVATAR_SUGGESTIONS.json file and return suggestions"""
