@@ -34,7 +34,61 @@ except ImportError:
 
 class ObserverAvatarBridge:
     def __init__(self):
-        self.perception_dir = Path("~/.local/share/goose-perception").expanduser()
+        self.base_dir = Path(__file__).parent.parent
+        self.perception_dir = self.base_dir / ".goose-perception"
+        self.perception_dir.mkdir(exist_ok=True)
+        self.state_dir = Path.home() / ".local/share/goose-perception" 
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Emotion-aware message queue
+        from message_queue import EmotionAwareMessageQueue
+        self.emotion_aware_messages = EmotionAwareMessageQueue()
+        
+        # Initialize previous emotional state tracking
+        self.previous_emotion_state = None
+        
+        # File monitoring
+        self.file_watcher = None
+        self.monitoring = False
+        self.file_last_modified = {}
+        
+        # Load state first, then initialize queues
+        self._load_state()
+        
+        # Suggestion queues and state
+        self.suggestion_queue = getattr(self, 'suggestion_queue', [])
+        self.shown_suggestions = getattr(self, 'shown_suggestions', set())
+        self.last_suggestion_display = getattr(self, 'last_suggestion_display', datetime.min)
+        
+        # Actionable suggestion queue and state  
+        self.actionable_suggestion_queue = getattr(self, 'actionable_suggestion_queue', [])
+        self.shown_actionable_suggestions = getattr(self, 'shown_actionable_suggestions', set())
+        self.last_actionable_display = getattr(self, 'last_actionable_display', datetime.min)
+        
+        # Chitchat queue and state
+        self.chitchat_queue = getattr(self, 'chitchat_queue', [])
+        self.shown_chitchat = getattr(self, 'shown_chitchat', set())
+        self.last_chitchat_display = getattr(self, 'last_chitchat_display', datetime.min)
+        
+        # Feedback tracking
+        self.completed_suggestions = getattr(self, 'completed_suggestions', set())
+        self.dismissed_suggestions = getattr(self, 'dismissed_suggestions', set())
+        
+        # Set up emotion context monitoring
+        try:
+            import sys
+            import os
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.append(parent_dir)
+            from emotion_context import emotion_context
+            self.emotion_context = emotion_context
+            # Initialize previous state
+            self.previous_emotion_state = self._get_emotion_state_snapshot()
+        except Exception as e:
+            print(f"⚠️ Could not initialize emotion context: {e}")
+            self.emotion_context = None
+            self.previous_emotion_state = None
         self.last_check_times = {}
         self.last_file_contents = {}
         self.is_running = False
@@ -348,11 +402,11 @@ class ObserverAvatarBridge:
                 return True  # Fall back to basic mode
             
             # Check if emotion data is available
-            if not emotion_context.is_emotion_data_available():
+            if not self.emotion_context.is_emotion_data_available():
                 print(f"[TIMING] No emotion data available - allowing {message_type} delivery")
                 return True  # Allow all messages when no emotion data
             
-            timing_analysis = emotion_context.get_interaction_timing_analysis()
+            timing_analysis = self.emotion_context.get_interaction_timing_analysis()
             recommendations = timing_analysis.get('recommendations', {})
             
             # For lenient mode (wellness messages), be more permissive
@@ -414,9 +468,9 @@ class ObserverAvatarBridge:
         """Run the avatar suggestions observer recipe with recent context and logging."""
         try:
             # Check emotion-aware timing before running recipe (if emotion data available)
-            if EMOTION_FEATURES_AVAILABLE and emotion_context.is_emotion_data_available():
+            if EMOTION_FEATURES_AVAILABLE and self.emotion_context.is_emotion_data_available():
                 try:
-                    timing_analysis = emotion_context.get_interaction_timing_analysis()
+                    timing_analysis = self.emotion_context.get_interaction_timing_analysis()
                     recommendations = timing_analysis.get('recommendations', {})
                     
                     # If we should queue suggestions, reduce frequency of generation
@@ -475,6 +529,13 @@ class ObserverAvatarBridge:
             suggestions = self._parse_suggestions_file()
             if not suggestions:
                 return
+            
+            # Limit the number of suggestions to prevent overwhelming the queue
+            MAX_SUGGESTIONS = 5  # Only queue 5 suggestions at a time
+            suggestions = suggestions[:MAX_SUGGESTIONS]
+            
+            if len(suggestions) > MAX_SUGGESTIONS:
+                print(f"📝 Limiting suggestions to {MAX_SUGGESTIONS} messages (had {len(suggestions)})")
             
             # Queue each suggestion for emotion-aware delivery
             for suggestion in suggestions:
@@ -549,9 +610,9 @@ class ObserverAvatarBridge:
         """Run the chit-chat recipe to generate contextual casual messages"""
         try:
             # Check emotion-aware timing before running recipe (if emotion data available)
-            if EMOTION_FEATURES_AVAILABLE and emotion_context.is_emotion_data_available():
+            if EMOTION_FEATURES_AVAILABLE and self.emotion_context.is_emotion_data_available():
                 try:
-                    timing_analysis = emotion_context.get_interaction_timing_analysis()
+                    timing_analysis = self.emotion_context.get_interaction_timing_analysis()
                     recommendations = timing_analysis.get('recommendations', {})
                     
                     # If we should reduce chatter, skip recipe generation
@@ -611,6 +672,13 @@ class ObserverAvatarBridge:
             messages = self._parse_chatter_file()
             if not messages:
                 return
+            
+            # Limit the number of messages to prevent overwhelming the queue
+            MAX_CHATTER_MESSAGES = 3  # Only queue 3 messages at a time
+            messages = messages[:MAX_CHATTER_MESSAGES]
+            
+            if len(messages) > MAX_CHATTER_MESSAGES:
+                print(f"📝 Limiting chatter to {MAX_CHATTER_MESSAGES} messages (had {len(messages)})")
             
             # Queue each message for emotion-aware delivery
             for message in messages:
@@ -857,9 +925,22 @@ class ObserverAvatarBridge:
             if filename == 'AVATAR_SUGGESTIONS.json':
                 self._process_new_suggestions()
                 return
-            # For other files, trigger suggestion generation and queue if new
-            if filename in ['WORK.md', 'LATEST_WORK.md', 'INTERACTIONS.md', 'CONTRIBUTIONS.md', 'ACTIVITY-LOG.md', 'recipe-avatar-suggestions.yaml', 'recipe-actionable-suggestions.yaml', 'recipe-avatar-chatter.yaml']:
-                self.on_context_or_recipe_change()
+            # For recipe files, only regenerate if emotional state changed
+            if filename in ['recipe-avatar-suggestions.yaml', 'recipe-actionable-suggestions.yaml', 'recipe-avatar-chatter.yaml']:
+                if self._has_emotion_state_changed():
+                    print("[EMOTION] Emotional state changed - regenerating suggestions with new context")
+                    self.on_context_or_recipe_change()
+                else:
+                    print("[EMOTION] Recipe file changed but emotional state unchanged - skipping regeneration")
+                return
+            # For content files, use lighter context update
+            if filename in ['WORK.md', 'LATEST_WORK.md', 'INTERACTIONS.md', 'CONTRIBUTIONS.md', 'ACTIVITY-LOG.md']:
+                # Only regenerate if emotional state changed OR it's been a while since last regeneration
+                if self._has_emotion_state_changed():
+                    print("[EMOTION] Emotional state changed - regenerating suggestions")
+                    self.on_context_or_recipe_change()
+                else:
+                    print("[EMOTION] Content updated but emotional state unchanged - keeping existing suggestions")
                 return
             # Show a contextual message (unchanged)
             if random.random() > 0.3:
@@ -1408,12 +1489,52 @@ class ObserverAvatarBridge:
 
     def on_context_or_recipe_change(self):
         """Call this after context or recipe change to clear state and regenerate suggestions."""
-        print("[CONTEXT/RECIPE] Detected context or recipe change. Clearing all state and regenerating suggestions.")
+        print("[CONTEXT/RECIPE] Regenerating suggestions after emotional context change.")
         self.clear_all_state()
         self._run_avatar_suggestions()
         self._run_actionable_suggestions()
         self._run_chatter_recipe()
         print("[CONTEXT/RECIPE] Regenerated all suggestions after context/recipe change.")
+
+    def _get_emotion_state_snapshot(self):
+        """Get a snapshot of current emotional state for comparison"""
+        try:
+            if self.emotion_context and self.emotion_context.is_emotion_data_available():
+                context = self.emotion_context.get_current_emotion_context()
+                return {
+                    'recent_emotion': context.get('recent_emotion'),
+                    'energy_level': context.get('energy_level'),
+                    'stress_level': context.get('stress_level'),
+                    'dominant_emotion': context.get('dominant_emotion')
+                }
+        except Exception as e:
+            print(f"[EMOTION] Error getting emotion snapshot: {e}")
+        return None
+
+    def _has_emotion_state_changed(self):
+        """Check if emotional state has significantly changed since last check"""
+        current_state = self._get_emotion_state_snapshot()
+        
+        if self.previous_emotion_state is None and current_state is None:
+            return False  # No change (both None)
+        
+        if self.previous_emotion_state is None or current_state is None:
+            self.previous_emotion_state = current_state
+            return True  # State availability changed
+        
+        # Check for significant changes
+        changed = (
+            self.previous_emotion_state['recent_emotion'] != current_state['recent_emotion'] or
+            self.previous_emotion_state['energy_level'] != current_state['energy_level'] or
+            self.previous_emotion_state['stress_level'] != current_state['stress_level']
+        )
+        
+        if changed:
+            print(f"[EMOTION] State changed: {self.previous_emotion_state['recent_emotion']}→{current_state['recent_emotion']}, energy: {self.previous_emotion_state['energy_level']}→{current_state['energy_level']}, stress: {self.previous_emotion_state['stress_level']}→{current_state['stress_level']}")
+            self.previous_emotion_state = current_state
+            return True
+        
+        return False
 
 def trigger_personality_update():
     """Trigger personality-based suggestion regeneration (can be called from other modules)"""
