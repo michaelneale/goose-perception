@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 import logging
 import numpy as np
+from collections import deque
 
 # Set up logging to suppress verbose output
 logging.getLogger('deepface').setLevel(logging.ERROR)
@@ -55,11 +56,83 @@ class LightweightEmotionDetector:
         self.emotion_model = 'emotion'  # DeepFace's smallest model
         self.detector_backend = 'opencv'  # Fastest detector
         
+        # Calibration settings
+        self.calibration_data = self._load_calibration()
+        self.confidence_threshold = self.calibration_data.get('confidence_threshold', 0.4)  # Lower default
+        self.personal_baselines = self.calibration_data.get('personal_baselines', {})
+        self.environmental_factors = self.calibration_data.get('environmental_factors', {})
+        
+        # Calibration aggressiveness (0.0 = no calibration, 1.0 = full calibration)
+        self.calibration_strength = self.calibration_data.get('calibration_strength', 0.3)  # Gentle by default
+        
+        # Temporal smoothing
+        self.emotion_history = deque(maxlen=5)  # Last 5 detections for smoothing
+        self.enable_temporal_smoothing = self.calibration_data.get('temporal_smoothing', True)
+        
+        # Manual feedback system
+        self.feedback_corrections = self.calibration_data.get('feedback_corrections', {})
+        
         # Ensure data directory exists
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize the system
         self._initialize()
+    
+    def _load_calibration(self):
+        """Load calibration data from file"""
+        try:
+            calibration_file = Path.home() / ".local" / "share" / "goose-perception" / "calibration.json"
+            if calibration_file.exists():
+                with open(calibration_file, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"Note: Creating new calibration file ({e})")
+        
+        # Default calibration settings (gentle)
+        return {
+            'confidence_threshold': 0.4,  # Lower threshold for more responsiveness
+            'personal_baselines': {},
+            'environmental_factors': {},
+            'temporal_smoothing': True,
+            'feedback_corrections': {},
+            'calibration_strength': 0.3  # Gentle calibration by default
+        }
+    
+    def _save_calibration(self):
+        """Save calibration data to file"""
+        try:
+            calibration_file = self.data_dir / "calibration.json"
+            
+            # Convert numpy types to Python types for JSON serialization
+            def convert_numpy_types(obj):
+                if hasattr(obj, 'item'):  # numpy scalars
+                    return obj.item()
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, dict):
+                    return {k: convert_numpy_types(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_numpy_types(v) for v in obj]
+                else:
+                    return obj
+            
+            calibration_data = {
+                'confidence_threshold': float(self.confidence_threshold),
+                'personal_baselines': convert_numpy_types(self.personal_baselines),
+                'environmental_factors': convert_numpy_types(self.environmental_factors),
+                'temporal_smoothing': self.enable_temporal_smoothing,
+                'feedback_corrections': convert_numpy_types(self.feedback_corrections),
+                'calibration_strength': float(self.calibration_strength),
+                'last_updated': datetime.now().isoformat()
+            }
+            
+            with open(calibration_file, 'w') as f:
+                json.dump(calibration_data, f, indent=2)
+            
+            print(f"✅ Calibration saved to {calibration_file}")
+            
+        except Exception as e:
+            print(f"❌ Error saving calibration: {e}")
     
     def _initialize(self):
         """Initialize the lightweight emotion detection system"""
@@ -156,9 +229,9 @@ class LightweightEmotionDetector:
             print(f"❌ Camera initialization failed: {e}")
             self.camera = None
     
-    def detect_emotion(self):
+    def detect_emotion(self, apply_calibration=True):
         """
-        Detect emotion using lightweight modern models
+        Detect emotion using lightweight modern models with optional calibration
         """
         # Check for manual override
         override_file = self.data_dir / "emotion_override.txt"
@@ -188,9 +261,14 @@ class LightweightEmotionDetector:
             
             # Use modern emotion detection
             if DEEPFACE_AVAILABLE:
-                return self._detect_with_deepface(frame)
+                raw_result = self._detect_with_deepface(frame)
             else:
-                return self._detect_fallback(frame)
+                raw_result = self._detect_fallback(frame)
+            
+            if raw_result and apply_calibration:
+                return self._apply_calibration(raw_result, frame)
+            
+            return raw_result
                 
         except Exception as e:
             print(f"❌ Error during emotion detection: {e}")
@@ -287,6 +365,240 @@ class LightweightEmotionDetector:
                 "method": "fallback_error",
                 "error": str(e)
             }
+    
+    def _apply_calibration(self, raw_result, frame):
+        """Apply calibration adjustments to raw emotion detection"""
+        if not raw_result:
+            return raw_result
+        
+        calibrated_result = raw_result.copy()
+        calibrated_result['raw_emotion'] = raw_result['emotion']
+        calibrated_result['raw_confidence'] = raw_result['confidence']
+        
+        # 1. Apply confidence threshold filtering
+        if raw_result['confidence'] < self.confidence_threshold:
+            calibrated_result['emotion'] = 'uncertain'
+            calibrated_result['confidence'] = raw_result['confidence']
+            calibrated_result['calibration_note'] = f"Below confidence threshold ({self.confidence_threshold})"
+            return calibrated_result
+        
+        # 2. Apply personal baseline correction (gentler)
+        emotion = raw_result['emotion']
+        confidence = raw_result['confidence']
+        
+        if emotion in self.personal_baselines:
+            baseline = self.personal_baselines[emotion]
+            # Adjustable correction based on calibration strength
+            baseline_confidence = baseline.get('avg_confidence', 0.5)
+            confidence_adjustment = (confidence - baseline_confidence) * 0.2 * self.calibration_strength
+            calibrated_result['confidence'] = max(0.1, min(1.0, confidence + confidence_adjustment))
+            calibrated_result['baseline_adjustment'] = confidence_adjustment
+        
+        # 3. Apply environmental calibration
+        frame_brightness = np.mean(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
+        env_key = f"brightness_{int(frame_brightness/20)*20}"  # Group by 20-unit ranges
+        
+        if env_key in self.environmental_factors:
+            env_factor = self.environmental_factors[env_key]
+            emotion_adjustments = env_factor.get('emotion_adjustments', {})
+            if emotion in emotion_adjustments:
+                adjustment = emotion_adjustments[emotion]
+                calibrated_result['confidence'] *= (1 + adjustment)
+                calibrated_result['confidence'] = max(0.1, min(1.0, calibrated_result['confidence']))
+                calibrated_result['environmental_adjustment'] = adjustment
+        
+        # 4. Apply feedback corrections
+        feedback_key = f"{emotion}_{int(confidence*10)/10}"  # Round confidence to 0.1
+        if feedback_key in self.feedback_corrections:
+            correction = self.feedback_corrections[feedback_key]
+            corrected_emotion = correction.get('corrected_emotion', emotion)
+            correction_weight = correction.get('weight', 1.0)
+            
+            if correction_weight > 2:  # Strong correction based on multiple feedbacks
+                calibrated_result['emotion'] = corrected_emotion
+                calibrated_result['feedback_correction'] = True
+        
+        # 5. Apply temporal smoothing
+        if self.enable_temporal_smoothing:
+            self.emotion_history.append({
+                'emotion': calibrated_result['emotion'],
+                'confidence': calibrated_result['confidence']
+            })
+            
+            if len(self.emotion_history) >= 3:
+                smoothed = self._temporal_smooth()
+                calibrated_result.update(smoothed)
+        
+        calibrated_result['method'] = calibrated_result.get('method', '') + '_calibrated'
+        return calibrated_result
+    
+    def _temporal_smooth(self):
+        """Apply gentle temporal smoothing to reduce detection noise"""
+        if len(self.emotion_history) < 3:
+            return {}
+        
+        current_detection = self.emotion_history[-1]
+        recent_emotions = [h['emotion'] for h in self.emotion_history]
+        
+        # Only smooth if current detection has low confidence AND there's a pattern
+        if current_detection['confidence'] > 0.7:
+            return {}  # High confidence - don't smooth
+        
+        # Count emotion frequencies in recent history
+        from collections import Counter
+        emotion_counts = Counter(recent_emotions[:-1])  # Exclude current detection
+        
+        if len(emotion_counts) == 0:
+            return {}
+        
+        most_common_emotion = emotion_counts.most_common(1)[0][0]
+        
+        # Only smooth if there's a strong pattern (3+ occurrences) and current is uncertain
+        if emotion_counts[most_common_emotion] >= 3 and current_detection['confidence'] < 0.6:
+            avg_confidence = np.mean([h['confidence'] for h in self.emotion_history[:-1] 
+                                    if h['emotion'] == most_common_emotion])
+            
+            return {
+                'emotion': most_common_emotion,
+                'confidence': min(avg_confidence, 0.8),  # Cap smoothed confidence
+                'temporal_smoothing': True,
+                'smoothing_history': recent_emotions,
+                'smoothing_reason': f"Low confidence {current_detection['confidence']:.2f}, pattern: {most_common_emotion}"
+            }
+        
+        return {}
+    
+    def calibrate_confidence_threshold(self, test_detections=10):
+        """Calibrate confidence threshold by analyzing detection quality"""
+        print(f"🎯 Calibrating confidence threshold with {test_detections} detections...")
+        print("Make various facial expressions during this calibration.")
+        
+        detections = []
+        for i in range(test_detections):
+            print(f"Detection {i+1}/{test_detections}...")
+            result = self.detect_emotion(apply_calibration=False)  # Get raw results
+            if result and result.get('confidence', 0) > 0:
+                detections.append(result['confidence'])
+            time.sleep(2)
+        
+        if detections:
+            # Set threshold at 15th percentile to be less aggressive
+            new_threshold = np.percentile(detections, 15)
+            old_threshold = self.confidence_threshold
+            self.confidence_threshold = max(0.3, min(0.6, new_threshold))  # Clamp between 0.3-0.6 (less strict)
+            
+            print(f"✅ Confidence threshold calibrated: {old_threshold:.2f} → {self.confidence_threshold:.2f}")
+            self._save_calibration()
+        else:
+            print("❌ No valid detections for calibration")
+    
+    def calibrate_personal_baseline(self, emotion='neutral', duration=30):
+        """Calibrate personal baseline for a specific emotion"""
+        print(f"🎯 Calibrating personal baseline for '{emotion}'")
+        print(f"Please maintain a {emotion} expression for {duration} seconds...")
+        
+        start_time = time.time()
+        detections = []
+        
+        while time.time() - start_time < duration:
+            result = self.detect_emotion(apply_calibration=False)
+            if result and result.get('confidence', 0) > 0.3:  # Basic confidence filter
+                detections.append({
+                    'emotion': result['emotion'],
+                    'confidence': result['confidence'],
+                    'timestamp': time.time()
+                })
+            time.sleep(1)
+        
+        if detections:
+            # Analyze the detections
+            target_detections = [d for d in detections if d['emotion'] == emotion]
+            avg_confidence = np.mean([d['confidence'] for d in detections])
+            
+            self.personal_baselines[emotion] = {
+                'avg_confidence': avg_confidence,
+                'sample_count': len(detections),
+                'target_accuracy': len(target_detections) / len(detections) if detections else 0,
+                'calibrated_at': datetime.now().isoformat()
+            }
+            
+            print(f"✅ Baseline calibrated for '{emotion}': {len(detections)} samples, {avg_confidence:.2f} avg confidence")
+            self._save_calibration()
+        else:
+            print(f"❌ No valid detections for {emotion} baseline")
+    
+    def add_feedback_correction(self, detected_emotion, detected_confidence, actual_emotion):
+        """Add manual feedback to improve future detections"""
+        feedback_key = f"{detected_emotion}_{int(detected_confidence*10)/10}"
+        
+        if feedback_key not in self.feedback_corrections:
+            self.feedback_corrections[feedback_key] = {
+                'corrected_emotion': actual_emotion,
+                'weight': 1.0,
+                'examples': []
+            }
+        else:
+            # Increase weight for repeated corrections
+            self.feedback_corrections[feedback_key]['weight'] += 0.5
+            if self.feedback_corrections[feedback_key]['corrected_emotion'] != actual_emotion:
+                # Conflicting feedback, reduce weight
+                self.feedback_corrections[feedback_key]['weight'] *= 0.8
+        
+        self.feedback_corrections[feedback_key]['examples'].append({
+            'timestamp': datetime.now().isoformat(),
+            'detected': detected_emotion,
+            'actual': actual_emotion,
+            'confidence': detected_confidence
+        })
+        
+        # Keep only last 10 examples
+        self.feedback_corrections[feedback_key]['examples'] = \
+            self.feedback_corrections[feedback_key]['examples'][-10:]
+        
+        print(f"✅ Feedback recorded: {detected_emotion}→{actual_emotion} (weight: {self.feedback_corrections[feedback_key]['weight']:.1f})")
+        self._save_calibration()
+    
+    def get_calibration_status(self):
+        """Get current calibration status and recommendations"""
+        status = {
+            'confidence_threshold': self.confidence_threshold,
+            'personal_baselines': len(self.personal_baselines),
+            'feedback_corrections': len(self.feedback_corrections),
+            'temporal_smoothing': self.enable_temporal_smoothing,
+            'calibration_strength': self.calibration_strength,
+            'recommendations': []
+        }
+        
+        # Generate recommendations
+        if len(self.personal_baselines) == 0:
+            status['recommendations'].append("Run calibrate_personal_baseline('neutral') to improve accuracy")
+        
+        if len(self.feedback_corrections) < 5:
+            status['recommendations'].append("Use add_feedback_correction() when you notice wrong detections")
+        
+        if self.confidence_threshold == 0.5:  # Default value
+            status['recommendations'].append("Run calibrate_confidence_threshold() to optimize detection quality")
+        
+        return status
+    
+    def set_calibration_strength(self, strength):
+        """Set calibration aggressiveness (0.0 = no calibration, 1.0 = full calibration)"""
+        if 0.0 <= strength <= 1.0:
+            old_strength = self.calibration_strength
+            self.calibration_strength = strength
+            self._save_calibration()
+            print(f"✅ Calibration strength: {old_strength:.1f} → {strength:.1f}")
+            
+            if strength == 0.0:
+                print("   📌 Calibration disabled - raw AI detection only")
+            elif strength <= 0.3:
+                print("   📌 Gentle calibration - responsive with light smoothing")
+            elif strength <= 0.7:
+                print("   📌 Moderate calibration - balanced accuracy and stability")
+            else:
+                print("   📌 Strong calibration - maximum stability, slower response")
+        else:
+            print("❌ Strength must be between 0.0 and 1.0")
     
     def log_emotion(self, emotion_data):
         """Log emotion data to file"""
