@@ -27,6 +27,8 @@ dependencies = [
     "pyyaml>=6.0",
     "insightface>=0.7.3",
     "opencv-python>=4.8.0",
+    "deepface>=0.0.93",
+    "tf-keras>=2.19.0",
 ]
 
 [build-system]
