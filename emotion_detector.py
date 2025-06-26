@@ -4,6 +4,8 @@ emotion_detector.py - Facial emotion detection using camera and InsightFace
 Detects emotional state from webcam feed and logs it similar to other perception activities
 """
 
+import cv2
+import numpy as np
 import os
 import json
 import threading
@@ -15,32 +17,13 @@ import logging
 # Set up logging to suppress insightface warnings
 logging.getLogger('insightface').setLevel(logging.ERROR)
 
-# Try to import required dependencies
-OPENCV_AVAILABLE = False
-INSIGHTFACE_AVAILABLE = False
-NUMPY_AVAILABLE = False
-
-try:
-    import cv2
-    OPENCV_AVAILABLE = True
-except ImportError:
-    print("⚠️ OpenCV (cv2) not available. Emotion detection will be disabled.")
-
-try:
-    import numpy as np
-    NUMPY_AVAILABLE = True
-except ImportError:
-    print("⚠️ NumPy not available. Emotion detection will be disabled.")
-
 try:
     import insightface
     from insightface.app import FaceAnalysis
     INSIGHTFACE_AVAILABLE = True
 except ImportError:
+    INSIGHTFACE_AVAILABLE = False
     print("⚠️ InsightFace not available. Emotion detection will be disabled.")
-
-# Check if all dependencies are available
-EMOTION_DETECTION_FULLY_AVAILABLE = OPENCV_AVAILABLE and INSIGHTFACE_AVAILABLE and NUMPY_AVAILABLE
 
 class EmotionDetector:
     """
@@ -58,19 +41,9 @@ class EmotionDetector:
         # Ensure data directory exists
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
-        # Initialize if all dependencies are available
-        if EMOTION_DETECTION_FULLY_AVAILABLE:
+        # Initialize if dependencies are available
+        if INSIGHTFACE_AVAILABLE:
             self._initialize()
-        else:
-            print("⚠️ Emotion detection dependencies not fully available. Skipping initialization.")
-            missing = []
-            if not OPENCV_AVAILABLE:
-                missing.append("OpenCV")
-            if not NUMPY_AVAILABLE:
-                missing.append("NumPy")
-            if not INSIGHTFACE_AVAILABLE:
-                missing.append("InsightFace")
-            print(f"   Missing: {', '.join(missing)}")
     
     def _initialize(self):
         """Initialize the face analysis model and camera"""
@@ -181,6 +154,13 @@ class EmotionDetector:
             
             # Check for emotion attribute (some InsightFace models have this)
             emotion = getattr(face, 'emotion', None)
+            
+            # Also check for 'emotions' or 'expression' attributes
+            if emotion is None:
+                emotion = getattr(face, 'emotions', None)
+            if emotion is None:
+                emotion = getattr(face, 'expression', None)
+            
             if emotion is not None:
                 print(f"🎭 InsightFace emotion detected: {emotion}")
                 # Use InsightFace's emotion detection if available
@@ -195,6 +175,7 @@ class EmotionDetector:
                     confidence = 0.8
             else:
                 # Fall back to geometric analysis
+                print("📐 Using geometric emotion analysis (InsightFace emotion model not available)")
                 detected_emotion, confidence = self._geometric_emotion_analysis(face)
             
             # Get face embedding for recognition
@@ -253,19 +234,25 @@ class EmotionDetector:
                 ])
                 avg_eye_height = (left_eye_height + right_eye_height) / 2
                 
-                # Better emotion classification
-                if smile_ratio > 4.0 and avg_eye_height > 6:
-                    return "happy", min(0.9, smile_ratio / 6.0)
-                elif smile_ratio > 3.2 and avg_eye_height > 5:
+                # Better emotion classification with adjusted thresholds
+                # Debug logging
+                print(f"🔍 Emotion metrics - smile_ratio: {smile_ratio:.2f}, avg_eye_height: {avg_eye_height:.2f}")
+                
+                # More accurate thresholds based on typical facial proportions
+                if smile_ratio > 5.5 and avg_eye_height > 7:
+                    return "happy", min(0.9, smile_ratio / 7.0)
+                elif smile_ratio > 4.5 and avg_eye_height > 6:
                     return "content", 0.7
-                elif avg_eye_height < 4:
+                elif avg_eye_height < 3.5:
                     return "tired", 0.8
-                elif smile_ratio < 2.8 and avg_eye_height < 6:
+                elif smile_ratio < 2.5 and avg_eye_height < 5:
                     return "sad", 0.6
-                elif avg_eye_height > 10:
+                elif avg_eye_height > 12:
                     return "surprised", 0.7
-                elif smile_ratio < 3.0:
+                elif smile_ratio < 3.5 and avg_eye_height > 4:
                     return "serious", 0.6
+                elif smile_ratio < 2.0:
+                    return "angry", 0.6
                 else:
                     return "neutral", 0.5
             else:
@@ -279,7 +266,24 @@ class EmotionDetector:
         Capture a frame from camera and detect emotional state
         Returns emotion data or None if detection fails
         """
-        if not self.is_initialized or not self.camera or not EMOTION_DETECTION_FULLY_AVAILABLE:
+        # Check for manual emotion override (for testing)
+        override_file = self.data_dir / "emotion_override.txt"
+        if override_file.exists():
+            try:
+                override_emotion = override_file.read_text().strip()
+                if override_emotion:
+                    print(f"🎭 Using manual emotion override: {override_emotion}")
+                    return {
+                        "timestamp": datetime.now().isoformat(),
+                        "emotion": override_emotion,
+                        "confidence": 1.0,
+                        "face_id": 1,
+                        "details": {"override": True}
+                    }
+            except Exception as e:
+                print(f"Error reading override: {e}")
+        
+        if not self.is_initialized or not self.camera:
             return None
         
         try:
@@ -416,9 +420,6 @@ def get_emotion_detector():
 
 def run_emotion_detection_cycle():
     """Run a single emotion detection cycle (for use by perception.py)"""
-    if not EMOTION_DETECTION_FULLY_AVAILABLE:
-        return  # Silently skip if dependencies not available
-    
     detector = get_emotion_detector()
     if detector.is_initialized:
         detector.run_detection_cycle()
@@ -433,19 +434,6 @@ def cleanup_emotion_detector():
 if __name__ == "__main__":
     # Test the emotion detector
     print("🎭 Testing emotion detection...")
-    
-    if not EMOTION_DETECTION_FULLY_AVAILABLE:
-        print("❌ Cannot test emotion detection - dependencies not available")
-        missing = []
-        if not OPENCV_AVAILABLE:
-            missing.append("OpenCV")
-        if not NUMPY_AVAILABLE:
-            missing.append("NumPy")
-        if not INSIGHTFACE_AVAILABLE:
-            missing.append("InsightFace")
-        print(f"   Missing: {', '.join(missing)}")
-        exit(1)
-    
     detector = EmotionDetector()
     
     if detector.is_initialized:

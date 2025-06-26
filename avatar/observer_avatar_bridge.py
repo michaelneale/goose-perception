@@ -887,18 +887,20 @@ class ObserverAvatarBridge:
     
     def _show_suggestion(self, suggestion):
         """Helper method to show a suggestion with proper avatar state"""
-        # Map suggestion types to avatar states
+        # Map suggestion types to valid avatar states
+        # Valid states: idle, talking, pointing, sleeping
         suggestion_types = {
-            'productivity': 'work',
-            'collaboration': 'meetings', 
-            'focus': 'focus',
-            'attention': 'attention',
-            'optimization': 'optimization',
-            'break': 'break',
-            'system': 'optimization'
+            'productivity': 'pointing',
+            'collaboration': 'pointing', 
+            'focus': 'pointing',
+            'attention': 'pointing',
+            'optimization': 'pointing',
+            'break': 'talking',
+            'system': 'pointing',
+            'general': 'talking'
         }
         
-        suggestion_type = suggestion_types.get(suggestion['type'], 'work')
+        suggestion_type = suggestion_types.get(suggestion['type'], 'pointing')
         message = suggestion['message']
         
         # Use the thread-safe function instead of direct call
