@@ -3,6 +3,9 @@
 > [!NOTE]
 > This is experimental and very much a work in progress and showcase of async goose and recipes, use at own risk
 
+> [!TIP]
+> **🆕 NEW: AI-Powered Emotion Detection** - The emotion detection system has been completely rebuilt with modern neural networks, achieving 84-100% confidence scores and comprehensive calibration options. No more "always happy" emotions!
+
 
 What if you didn't have to learn how to use an agent, if it didn't wait for you to chat with it? That is this project. 
 
@@ -169,8 +172,53 @@ Once running - just go about your day, you don't need to do anything, it will do
 ### Voice Activation
 You can ask goose to do something by talking - just mention "goose", it will detect that you are talking to it (vs about it).
 
-### Emotion Detection
-Goose automatically detects your emotional state every 1 minute using your webcam (when enabled), logging emotions like happy, content, neutral, tired, or surprised to help understand your work patterns. The avatar system gracefully falls back to neutral defaults when emotion detection is disabled.
+### 🎭 Emotion Detection System
+Goose features a **state-of-the-art AI-powered emotion detection system** that automatically detects your emotional state every 1 minute using your webcam. This helps understand your work patterns, stress levels, and optimal productivity times.
+
+#### 🚀 Modern AI Detection
+- **DeepFace Neural Networks**: Uses pre-trained emotion recognition models for high accuracy
+- **Multi-Method Fallback**: DeepFace → OpenCV → brightness-based detection  
+- **Real-time Confidence Scoring**: 84-100% confidence scores with detailed emotion breakdowns
+- **7 Emotion Categories**: Happy, neutral, sad, angry, surprised, fear, disgust
+
+#### 🎯 Smart Calibration System
+The emotion detection includes comprehensive calibration to improve accuracy for your specific expressions:
+
+- **Personal Baseline Calibration**: Learn what YOUR neutral/happy/sad expressions look like
+- **Confidence Threshold Tuning**: Automatically optimize detection sensitivity
+- **Temporal Smoothing**: Reduce noise while preserving genuine emotional changes
+- **Manual Feedback Corrections**: Correct wrong detections to improve future accuracy
+- **Environmental Adaptation**: Account for your lighting, camera angle, and setup
+
+#### 🛠️ Calibration Tool
+Use the interactive calibration tool to optimize emotion detection:
+
+```bash
+uv run calibrate_emotion_detection.py
+```
+
+**Available Calibration Options:**
+1. **Check calibration status** - See current settings and recommendations
+2. **Calibrate confidence threshold** - Optimize detection sensitivity with 10 test detections
+3. **Personal baseline calibration** - Train on your neutral, happy, and sad expressions
+4. **Manual feedback corrections** - Improve accuracy by correcting wrong detections
+5. **Calibration strength adjustment** - Control responsiveness vs stability (0.0-1.0)
+6. **Live testing** - Compare calibrated vs uncalibrated detection in real-time
+
+#### 📊 Detection Features
+- **Emotion History Tracking**: Maintains rolling log of emotions with timestamps
+- **Confidence-Based Filtering**: Only reports emotions above your calibrated threshold
+- **Smart Temporal Smoothing**: Preserves high-confidence emotions while reducing noise
+- **Fallback Gracefully**: Works even if AI models fail to load
+- **Privacy-First**: All processing happens locally on your machine
+
+#### 🎛️ Customization
+- **Calibration Strength**: Adjust from 0.0 (raw AI, most responsive) to 1.0 (maximum stability)
+- **Detection Interval**: Configurable timing between emotion checks (default: 1 minute)
+- **Manual Override**: Create emotion overrides for testing or specific needs
+- **Logging Options**: Detailed emotion logs with method tracking and confidence scores
+
+The avatar system uses this emotion data to provide context-aware suggestions and adapts its personality based on your emotional state. When emotion detection is disabled, the system gracefully falls back to neutral defaults.
 
 ### Hotkey Activation  
 - **`Cmd+Shift+G`**: Capture your screen and give Goose an instruction about what to do with it
@@ -240,6 +288,19 @@ just test-emotion     # test emotion detection immediately (bypass 5-minute time
 just kill             # kill switch
 ```
 
+### 🎭 Emotion Detection Commands
+
+```bash
+# Setup and test the emotion detection system
+uv run setup_emotion_detection.py         # Install dependencies and test system
+uv run test_emotion_detection.py          # Compare old vs new emotion detection
+uv run test_emotion_detection.py --live   # Live emotion detection test (5 detections)
+uv run calibrate_emotion_detection.py     # Interactive calibration tool
+
+# Direct testing
+uv run emotion_detector_v2.py             # Test the emotion detector directly
+```
+
 
 ## Models and data
 
@@ -256,6 +317,8 @@ There are models such as `llava:3b` (ideally 13b or up) which can read screen co
 This is an emerging space so keep an eye out
 
 Voice information is kept local as are transcriptions, image processing is done by goose and the images removed after use.
+
+**Emotion Detection Models**: The emotion detection system uses DeepFace with pre-trained neural networks that download automatically on first use (~50MB). All emotion detection processing happens locally on your machine - no images or emotion data leave your computer. The system gracefully falls back to OpenCV-based detection if the AI models fail to load.
 
 
 ## How It Works
