@@ -4,8 +4,6 @@ emotion_detector.py - Facial emotion detection using camera and InsightFace
 Detects emotional state from webcam feed and logs it similar to other perception activities
 """
 
-import cv2
-import numpy as np
 import os
 import json
 import threading
@@ -17,13 +15,32 @@ import logging
 # Set up logging to suppress insightface warnings
 logging.getLogger('insightface').setLevel(logging.ERROR)
 
+# Try to import required dependencies
+OPENCV_AVAILABLE = False
+INSIGHTFACE_AVAILABLE = False
+NUMPY_AVAILABLE = False
+
+try:
+    import cv2
+    OPENCV_AVAILABLE = True
+except ImportError:
+    print("⚠️ OpenCV (cv2) not available. Emotion detection will be disabled.")
+
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    print("⚠️ NumPy not available. Emotion detection will be disabled.")
+
 try:
     import insightface
     from insightface.app import FaceAnalysis
     INSIGHTFACE_AVAILABLE = True
 except ImportError:
-    INSIGHTFACE_AVAILABLE = False
     print("⚠️ InsightFace not available. Emotion detection will be disabled.")
+
+# Check if all dependencies are available
+EMOTION_DETECTION_FULLY_AVAILABLE = OPENCV_AVAILABLE and INSIGHTFACE_AVAILABLE and NUMPY_AVAILABLE
 
 class EmotionDetector:
     """
@@ -41,9 +58,19 @@ class EmotionDetector:
         # Ensure data directory exists
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
-        # Initialize if dependencies are available
-        if INSIGHTFACE_AVAILABLE:
+        # Initialize if all dependencies are available
+        if EMOTION_DETECTION_FULLY_AVAILABLE:
             self._initialize()
+        else:
+            print("⚠️ Emotion detection dependencies not fully available. Skipping initialization.")
+            missing = []
+            if not OPENCV_AVAILABLE:
+                missing.append("OpenCV")
+            if not NUMPY_AVAILABLE:
+                missing.append("NumPy")
+            if not INSIGHTFACE_AVAILABLE:
+                missing.append("InsightFace")
+            print(f"   Missing: {', '.join(missing)}")
     
     def _initialize(self):
         """Initialize the face analysis model and camera"""
@@ -252,7 +279,7 @@ class EmotionDetector:
         Capture a frame from camera and detect emotional state
         Returns emotion data or None if detection fails
         """
-        if not self.is_initialized or not self.camera:
+        if not self.is_initialized or not self.camera or not EMOTION_DETECTION_FULLY_AVAILABLE:
             return None
         
         try:
@@ -389,6 +416,9 @@ def get_emotion_detector():
 
 def run_emotion_detection_cycle():
     """Run a single emotion detection cycle (for use by perception.py)"""
+    if not EMOTION_DETECTION_FULLY_AVAILABLE:
+        return  # Silently skip if dependencies not available
+    
     detector = get_emotion_detector()
     if detector.is_initialized:
         detector.run_detection_cycle()
@@ -403,6 +433,19 @@ def cleanup_emotion_detector():
 if __name__ == "__main__":
     # Test the emotion detector
     print("🎭 Testing emotion detection...")
+    
+    if not EMOTION_DETECTION_FULLY_AVAILABLE:
+        print("❌ Cannot test emotion detection - dependencies not available")
+        missing = []
+        if not OPENCV_AVAILABLE:
+            missing.append("OpenCV")
+        if not NUMPY_AVAILABLE:
+            missing.append("NumPy")
+        if not INSIGHTFACE_AVAILABLE:
+            missing.append("InsightFace")
+        print(f"   Missing: {', '.join(missing)}")
+        exit(1)
+    
     detector = EmotionDetector()
     
     if detector.is_initialized:
