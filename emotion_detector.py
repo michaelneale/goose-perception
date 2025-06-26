@@ -204,61 +204,112 @@ class EmotionDetector:
             }
     
     def _geometric_emotion_analysis(self, face):
-        """Fallback geometric emotion analysis"""
+        """Enhanced geometric emotion analysis using facial landmarks"""
         try:
             if hasattr(face, 'landmark_2d_106'):
                 landmarks = face.landmark_2d_106
                 
-                # Mouth analysis
+                # Get key facial regions with proper landmark indices for 106-point model
+                # Mouth region (points 84-95 in 106-point model)
                 mouth_points = landmarks[84:96]
-                mouth_left = mouth_points[0]
-                mouth_right = mouth_points[6]
-                mouth_top = mouth_points[3]
-                mouth_bottom = mouth_points[9]
                 
-                mouth_width = np.linalg.norm(mouth_right - mouth_left)
-                mouth_height = np.linalg.norm(mouth_bottom - mouth_top)
-                smile_ratio = mouth_width / (mouth_height + 1e-6)
+                # Eye regions (approximate - adjust based on actual 106-point layout)
+                left_eye = landmarks[60:68]   # Left eye region
+                right_eye = landmarks[68:76]  # Right eye region
                 
-                # Eye analysis
-                left_eye = landmarks[60:68]
-                right_eye = landmarks[68:76]
+                # Eyebrow regions (approximate)
+                left_eyebrow = landmarks[33:38]   
+                right_eyebrow = landmarks[38:43]
                 
-                left_eye_height = np.mean([
-                    np.linalg.norm(left_eye[1] - left_eye[5]),
-                    np.linalg.norm(left_eye[2] - left_eye[4])
-                ])
-                right_eye_height = np.mean([
-                    np.linalg.norm(right_eye[1] - right_eye[5]),
-                    np.linalg.norm(right_eye[2] - right_eye[4])
-                ])
-                avg_eye_height = (left_eye_height + right_eye_height) / 2
+                # Analyze mouth geometry
+                mouth_corners = [mouth_points[0], mouth_points[6]]  # Left and right corners
+                mouth_center_top = mouth_points[3]
+                mouth_center_bottom = mouth_points[9]
                 
-                # Better emotion classification with adjusted thresholds
-                # Debug logging
-                print(f"🔍 Emotion metrics - smile_ratio: {smile_ratio:.2f}, avg_eye_height: {avg_eye_height:.2f}")
+                # Calculate mouth curvature (smile/frown indicator)
+                mouth_width = np.linalg.norm(mouth_corners[1] - mouth_corners[0])
+                mouth_height = np.linalg.norm(mouth_center_bottom - mouth_center_top)
                 
-                # More accurate thresholds based on typical facial proportions
-                if smile_ratio > 5.5 and avg_eye_height > 7:
-                    return "happy", min(0.9, smile_ratio / 7.0)
-                elif smile_ratio > 4.5 and avg_eye_height > 6:
+                # More sophisticated mouth analysis
+                # Check if corners are raised (smile) or lowered (frown)
+                corner_height_avg = (mouth_corners[0][1] + mouth_corners[1][1]) / 2
+                center_height = mouth_center_top[1]
+                mouth_curvature = center_height - corner_height_avg  # Positive = smile, negative = frown
+                
+                # Normalize mouth metrics
+                mouth_aspect_ratio = mouth_width / (mouth_height + 1e-6)
+                
+                # Analyze eye openness
+                def eye_aspect_ratio(eye_points):
+                    # Calculate eye aspect ratio (EAR)
+                    # Vertical distances
+                    A = np.linalg.norm(eye_points[1] - eye_points[5])
+                    B = np.linalg.norm(eye_points[2] - eye_points[4])
+                    # Horizontal distance  
+                    C = np.linalg.norm(eye_points[0] - eye_points[3])
+                    return (A + B) / (2.0 * C + 1e-6)
+                
+                left_ear = eye_aspect_ratio(left_eye)
+                right_ear = eye_aspect_ratio(right_eye)
+                avg_ear = (left_ear + right_ear) / 2
+                
+                # Analyze eyebrow position (raised = surprise, lowered = anger/concentration)
+                def eyebrow_height(eyebrow_points, eye_points):
+                    eyebrow_center = np.mean(eyebrow_points, axis=0)
+                    eye_center = np.mean(eye_points, axis=0)
+                    return eyebrow_center[1] - eye_center[1]  # Negative = raised eyebrows
+                
+                left_brow_height = eyebrow_height(left_eyebrow, left_eye)
+                right_brow_height = eyebrow_height(right_eyebrow, right_eye)
+                avg_brow_height = (left_brow_height + right_brow_height) / 2
+                
+                # Debug logging with more detailed metrics
+                print(f"🔍 Detailed emotion metrics:")
+                print(f"   Mouth: aspect_ratio={mouth_aspect_ratio:.2f}, curvature={mouth_curvature:.2f}")
+                print(f"   Eyes: ear={avg_ear:.3f}")
+                print(f"   Eyebrows: height={avg_brow_height:.2f}")
+                
+                # Enhanced emotion classification using multiple features
+                # Happy: raised mouth corners, normal/wide eyes, normal/raised eyebrows
+                if mouth_curvature < -2 and mouth_aspect_ratio > 3.5 and avg_ear > 0.25:
+                    confidence = min(0.9, abs(mouth_curvature) / 5.0)
+                    return "happy", confidence
+                
+                # Content/slight smile: slight mouth curvature, normal eyes
+                elif mouth_curvature < -0.5 and mouth_aspect_ratio > 3.0 and avg_ear > 0.2:
                     return "content", 0.7
-                elif avg_eye_height < 3.5:
+                
+                # Sad: lowered mouth corners, normal/droopy eyes
+                elif mouth_curvature > 1 or (mouth_aspect_ratio < 2.5 and avg_ear < 0.2):
+                    confidence = min(0.8, mouth_curvature / 3.0)
+                    return "sad", confidence
+                
+                # Surprised: wide eyes, raised eyebrows, open mouth
+                elif avg_ear > 0.35 and avg_brow_height < -3 and mouth_aspect_ratio > 4.0:
+                    return "surprised", 0.8
+                
+                # Angry: lowered eyebrows, tight mouth, normal/narrow eyes
+                elif avg_brow_height > 2 and mouth_aspect_ratio < 3.0 and avg_ear < 0.25:
+                    return "angry", 0.7
+                
+                # Tired: droopy eyes, neutral mouth
+                elif avg_ear < 0.15:
                     return "tired", 0.8
-                elif smile_ratio < 2.5 and avg_eye_height < 5:
-                    return "sad", 0.6
-                elif avg_eye_height > 12:
-                    return "surprised", 0.7
-                elif smile_ratio < 3.5 and avg_eye_height > 4:
+                
+                # Serious/concentrated: slightly lowered brows, neutral mouth
+                elif avg_brow_height > 0.5 and abs(mouth_curvature) < 1:
                     return "serious", 0.6
-                elif smile_ratio < 2.0:
-                    return "angry", 0.6
+                
+                # Neutral: everything in normal ranges
                 else:
                     return "neutral", 0.5
+                    
             else:
+                print("⚠️ No 106-point landmarks available for emotion analysis")
                 return "neutral", 0.3
+                
         except Exception as e:
-            print(f"Error in geometric analysis: {e}")
+            print(f"❌ Error in geometric emotion analysis: {e}")
             return "unknown", 0.0
     
     def detect_emotion(self):
@@ -282,6 +333,19 @@ class EmotionDetector:
                     }
             except Exception as e:
                 print(f"Error reading override: {e}")
+        
+        # Check for calibration mode
+        calibration_file = self.data_dir / "emotion_calibration.txt"
+        if calibration_file.exists():
+            try:
+                calibration_mode = calibration_file.read_text().strip()
+                if calibration_mode:
+                    print(f"🎯 Calibration mode: {calibration_mode}")
+                    # Capture baseline measurements for this emotion
+                    emotion_data = self._capture_calibration_data(calibration_mode)
+                    return emotion_data
+            except Exception as e:
+                print(f"Error in calibration mode: {e}")
         
         if not self.is_initialized or not self.camera:
             return None
@@ -401,6 +465,81 @@ class EmotionDetector:
             except ImportError:
                 pass  # log_activity not available
     
+    def _capture_calibration_data(self, emotion_label):
+        """Capture calibration data for a specific emotion"""
+        try:
+            # Capture frame
+            ret, frame = self.camera.read()
+            if not ret:
+                print("⚠️ Failed to capture calibration frame")
+                return None
+            
+            # Analyze faces in the frame
+            faces = self.app.get(frame)
+            
+            if not faces:
+                print("⚠️ No face detected for calibration")
+                return None
+            
+            # Use the largest face
+            largest_face = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+            
+            # Get detailed metrics for calibration
+            if hasattr(largest_face, 'landmark_2d_106'):
+                landmarks = largest_face.landmark_2d_106
+                mouth_points = landmarks[84:96]
+                left_eye = landmarks[60:68]
+                right_eye = landmarks[68:76]
+                left_eyebrow = landmarks[33:38]
+                right_eyebrow = landmarks[38:43]
+                
+                # Calculate all the metrics
+                mouth_corners = [mouth_points[0], mouth_points[6]]
+                mouth_center_top = mouth_points[3]
+                mouth_center_bottom = mouth_points[9]
+                
+                mouth_width = np.linalg.norm(mouth_corners[1] - mouth_corners[0])
+                mouth_height = np.linalg.norm(mouth_center_bottom - mouth_center_top)
+                
+                corner_height_avg = (mouth_corners[0][1] + mouth_corners[1][1]) / 2
+                center_height = mouth_center_top[1]
+                mouth_curvature = center_height - corner_height_avg
+                mouth_aspect_ratio = mouth_width / (mouth_height + 1e-6)
+                
+                # Save calibration data
+                calibration_data = {
+                    "emotion": emotion_label,
+                    "mouth_curvature": float(mouth_curvature),
+                    "mouth_aspect_ratio": float(mouth_aspect_ratio),
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                calibration_log = self.data_dir / "emotion_calibration.json"
+                if calibration_log.exists():
+                    with open(calibration_log, 'r') as f:
+                        data = json.load(f)
+                else:
+                    data = {"calibrations": []}
+                
+                data["calibrations"].append(calibration_data)
+                
+                with open(calibration_log, 'w') as f:
+                    json.dump(data, f, indent=2)
+                
+                print(f"🎯 Calibrated {emotion_label}: curvature={mouth_curvature:.2f}, ratio={mouth_aspect_ratio:.2f}")
+                
+                return {
+                    "timestamp": datetime.now().isoformat(),
+                    "emotion": f"calibrating_{emotion_label}",
+                    "confidence": 1.0,
+                    "face_id": 1,
+                    "details": {"calibration": calibration_data}
+                }
+            
+        except Exception as e:
+            print(f"❌ Error in calibration: {e}")
+            return None
+
     def cleanup(self):
         """Clean up camera resources"""
         if self.camera:
