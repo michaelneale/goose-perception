@@ -39,7 +39,8 @@ prompt: |
     
     Look at their content, description and prompt to discern the aims. 
 
-    If any are clearly not working well, you can edit them. 
+    If any are clearly not working well, you can edit them.
+    Some may not be working well due to a lack of permissions or dependencies, so you may be able to resolve that or prompt the user to help 
     If one is already in the adapted-observers/ you can edit it in place, or remove it (perhaps it is not needed or it ie better to revert to default by just removing it)
     If a recipe is not in the adapted-observers/ directory and you need to edit, IMPORTANT that you first copy it to the adapted-observers/ directory, and edit it in place there.
 

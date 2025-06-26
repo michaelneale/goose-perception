@@ -17,6 +17,8 @@ prompt: |
   please look in /tmp/screenshots for screenshots of work activity which have veen taken every 20 seconds over the past 20 minutes at least.
   only consider the most recently 20 minutes worth at most (biased towards newest files)
   it is important you note the timestamp of the file
+  if the file is a picture of a desktop background only, and that is all you see, this is a failure and you should log it to FAILURES.md
+    - you can also prompt the user that they will need to give permission to this process to be able to look at the screen, which may involve openning their settings
   your aim is to form a picture of what they are working on, and pay attention to changes and note them down
   The user is working on various projects so you are to summarize work going on as best you can, you can try to guess the project names being worked on from the context as more is revealed.
   if any screens are for chat or email pay attention to the people being communicated with and topics
