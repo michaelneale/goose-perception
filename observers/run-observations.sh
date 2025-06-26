@@ -264,6 +264,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md" "weekday-only"
   run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
   run_recipe_if_needed "recipe-interactions.yaml" "hourly" "INTERACTIONS.md"
+  run_recipe_if_needed "recipe-chrome-history.yaml" "4h" "CHROME_HISTORY.md" "weekday-only"
   run_recipe_if_needed "recipe-important-attention-message.yaml" "hourly" ".important-messages" "weekday-only"
   run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
   run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention" "weekday-only"

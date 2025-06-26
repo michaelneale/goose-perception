@@ -26,7 +26,7 @@ This is the most personal way to build up a background assistant that can take a
 ## Quick start 
 
 Run this via `just run` and let it observe how you work (watch and listen), in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
-Always watching, and listening and perceiving and then acting. If this is all to much `just simple` will run just the recipesd (no voice or other enhancements)
+Always watching, and listening and perceiving and then acting. If this is all to much `just run-simple` will run just the recipesd (no voice or other enhancements)
 
 
 ## 🎭 Avatar Personality System
@@ -231,6 +231,7 @@ For the hotkey functionality (`Cmd+Shift+G`) to work, you may need to grant perm
 
 ```bash
 just run              # Run the application
+just run-simple       # Run the application without voice or avatar features (just recipes)
 just train-classifier # run the classifier (won't usually need to)
 just status           # to check what is running
 just logs             # to follow along with background things going on
@@ -511,4 +512,3 @@ The system uses a background thread for transcription:
 - **Sequential Processing**: Each audio chunk is processed in order
 - **Reliable Wake Word Detection**: The system processes each chunk fully before moving to the next
 - **Focused Attention**: Once activated, the system captures the entire conversation without interruption
-
