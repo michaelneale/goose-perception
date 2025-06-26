@@ -253,10 +253,10 @@ class ObserverAvatarBridge:
             # Show the chatter message
             if avatar_display:
                 message_text = content.get('message', 'Hello!')
-                avatar_display.show_avatar_message(
+                avatar_display.show_message(
                     message_text,
                     duration=content.get('duration', 8000),
-                    style=content.get('style', 'normal')
+                    avatar_state=content.get('style', 'talking')
                 )
                 print(f"📢 Emotion-aware chatter: {message_text}")
                 return True
@@ -278,10 +278,10 @@ class ObserverAvatarBridge:
             # Show the suggestion
             if avatar_display:
                 suggestion_text = content.get('message', 'Here\'s a suggestion')
-                avatar_display.show_avatar_message(
+                avatar_display.show_message(
                     suggestion_text,
                     duration=content.get('duration', 12000),
-                    style=content.get('style', 'suggestion')
+                    avatar_state=content.get('style', 'talking')
                 )
                 print(f"💡 Emotion-aware suggestion: {suggestion_text}")
                 return True
@@ -303,10 +303,10 @@ class ObserverAvatarBridge:
             # Show the wellness message
             if avatar_display:
                 wellness_text = content.get('message', 'Take care of yourself!')
-                avatar_display.show_avatar_message(
+                avatar_display.show_message(
                     wellness_text,
                     duration=content.get('duration', 10000),
-                    style=content.get('style', 'wellness')
+                    avatar_state=content.get('style', 'talking')
                 )
                 print(f"🌱 Emotion-aware wellness: {wellness_text}")
                 return True
@@ -328,10 +328,10 @@ class ObserverAvatarBridge:
             # Show the notification
             if avatar_display:
                 notification_text = content.get('message', 'Notification')
-                avatar_display.show_avatar_message(
+                avatar_display.show_message(
                     notification_text,
                     duration=content.get('duration', 8000),
-                    style=content.get('style', 'notification')
+                    avatar_state=content.get('style', 'talking')
                 )
                 print(f"🔔 Emotion-aware notification: {notification_text}")
                 return True
@@ -380,14 +380,13 @@ class ObserverAvatarBridge:
         """Queue a message for emotion-aware delivery"""
         if not EMOTION_FEATURES_AVAILABLE:
             # Fall back to immediate delivery in basic mode
-            if message_type == 'chatter':
-                self._deliver_chatter_message(type('', (), {'content': content})())
-            elif message_type == 'suggestion':
-                self._deliver_suggestion_message(type('', (), {'content': content})())
-            elif message_type == 'wellness':
-                self._deliver_wellness_message(type('', (), {'content': content})())
-            elif message_type == 'notification':
-                self._deliver_notification_message(type('', (), {'content': content})())
+            if avatar_display:
+                message_text = content.get('message', 'Message')
+                avatar_display.show_message(
+                    message_text,
+                    duration=content.get('duration', 8000),
+                    avatar_state='talking'
+                )
             return None
         
         return message_queue.add_message(
@@ -874,14 +873,13 @@ class ObserverAvatarBridge:
                 sys.path.append(parent_dir)
             
             try:
-                from emotion_context import get_emotion_context
-                emotion_ctx = get_emotion_context()
-                emotion_context = emotion_ctx.get_current_emotion_context()
-                modifiers = emotion_context.get('personality_modifiers', {})
-                print(f"[EMOTION] Current emotion context: {emotion_context['recent_emotion']} (energy: {emotion_context['energy_level']}, stress: {emotion_context['stress_level']})")
+                from emotion_context import emotion_context as emotion_ctx
+                emotion_context_data = emotion_ctx.get_current_emotion_context()
+                modifiers = emotion_context_data.get('personality_modifiers', {})
+                print(f"[EMOTION] Current emotion context: {emotion_context_data['recent_emotion']} (energy: {emotion_context_data['energy_level']}, stress: {emotion_context_data['stress_level']})")
             except Exception as e:
                 print(f"[EMOTION] Could not load emotion context: {e}")
-                emotion_context = {}
+                emotion_context_data = {}
                 modifiers = {}
             
             settings_path = Path.home() / ".local/share/goose-perception/PERSONALITY_SETTINGS.json"
@@ -906,7 +904,7 @@ class ObserverAvatarBridge:
                                     'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
                                 }
                                 # Apply emotion-aware modifications
-                                return self._apply_emotion_modifiers(base_params, emotion_context, modifiers)
+                                return self._apply_emotion_modifiers(base_params, emotion_context_data, modifiers)
                             else:
                                 print(f"[PERSONALITY] No data found for personality: {saved_personality}, falling back to default.")
                 except Exception as e:
@@ -930,7 +928,7 @@ class ObserverAvatarBridge:
                             'personality_priorities': ', '.join(personality_data.get('priorities', [])),
                             'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
                         }
-                        return self._apply_emotion_modifiers(base_params, emotion_context, modifiers)
+                        return self._apply_emotion_modifiers(base_params, emotion_context_data, modifiers)
             
             print("[PERSONALITY] Fallback to comedian personality.")
             base_params = {
@@ -940,7 +938,7 @@ class ObserverAvatarBridge:
                 'personality_priorities': 'humor, entertainment, making people laugh, finding the funny side',
                 'personality_phrases': 'Why did the developer, Speaking of comedy, Here\'s a joke for you, Plot twist comedy, Funny thing about'
             }
-            return self._apply_emotion_modifiers(base_params, emotion_context, modifiers)
+            return self._apply_emotion_modifiers(base_params, emotion_context_data, modifiers)
             
         except Exception as e:
             print(f"[PERSONALITY] Error getting personality parameters: {e}")
@@ -1064,13 +1062,12 @@ class ObserverAvatarBridge:
             if parent_dir not in sys.path:
                 sys.path.append(parent_dir)
             
-            from emotion_context import get_emotion_context
+            from emotion_context import emotion_context
             
-            emotion_ctx = get_emotion_context()
-            stress_analysis = emotion_ctx.get_stress_analysis()
-            context = emotion_ctx.get_current_emotion_context()
-            receptivity = emotion_ctx.get_receptivity_score()
-            should_suggest = emotion_ctx.should_suggest_break_now()
+            stress_analysis = emotion_context.get_stress_analysis()
+            context_data = emotion_context.get_current_emotion_context()
+            receptivity = emotion_context.get_receptivity_score()
+            should_suggest = emotion_context.should_suggest_break_now()
             
             # Convert duration to hours and minutes
             duration_total_minutes = stress_analysis['duration_minutes']
@@ -1096,8 +1093,8 @@ class ObserverAvatarBridge:
                 'stress_patterns': stress_analysis['patterns'],
                 'receptivity_score': receptivity,
                 'should_suggest_break': should_suggest,
-                'recent_emotion': context['recent_emotion'],
-                'energy_level': context['energy_level']
+                'recent_emotion': context_data['recent_emotion'],
+                'energy_level': context_data['energy_level']
             }
             
         except Exception as e:
@@ -1127,11 +1124,10 @@ class ObserverAvatarBridge:
             if parent_dir not in sys.path:
                 sys.path.append(parent_dir)
             
-            from emotion_context import get_emotion_context
+            from emotion_context import emotion_context
             
-            emotion_ctx = get_emotion_context()
-            should_suggest = emotion_ctx.should_suggest_break_now()
-            stress_analysis = emotion_ctx.get_stress_analysis()
+            should_suggest = emotion_context.should_suggest_break_now()
+            stress_analysis = emotion_context.get_stress_analysis()
             
             # Only run wellness recipe if intervention is needed OR for periodic monitoring
             if should_suggest or stress_analysis['intervention_needed']:
