@@ -91,12 +91,17 @@ class EmotionAwareMessageQueue:
         now = datetime.now()
         message_id = f"{message_type}_{now.strftime('%Y%m%d_%H%M%S')}_{len(self.messages)}"
         
-        # Get timing analysis for smart delay calculation
-        timing_analysis = emotion_context.get_interaction_timing_analysis()
-        
-        # Calculate smart delivery delay based on emotional context
-        emotional_delays = timing_analysis['timing_delays']
-        emotional_delay = emotional_delays.get(message_type, 0)
+        # Get timing analysis for smart delay calculation (if emotion data available)
+        try:
+            if emotion_context.is_emotion_data_available():
+                timing_analysis = emotion_context.get_interaction_timing_analysis()
+                emotional_delays = timing_analysis['timing_delays']
+                emotional_delay = emotional_delays.get(message_type, 0)
+            else:
+                emotional_delay = 0  # No delay if no emotion data
+        except Exception as e:
+            print(f"[QUEUE] Could not get emotional timing analysis: {e}")
+            emotional_delay = 0
         
         # Use the longer of requested delay or emotional delay
         total_delay = max(delay_minutes, emotional_delay)
@@ -133,7 +138,31 @@ class EmotionAwareMessageQueue:
             List of messages ready for delivery, sorted by priority and age
         """
         now = datetime.now()
-        timing_analysis = emotion_context.get_interaction_timing_analysis()
+        
+        # Get timing analysis if emotion data is available
+        try:
+            if emotion_context.is_emotion_data_available():
+                timing_analysis = emotion_context.get_interaction_timing_analysis()
+            else:
+                # Fallback: allow all messages when no emotion data
+                timing_analysis = {
+                    'interaction_receptivity': {
+                        'suggestions': 1.0,
+                        'chatter': 1.0, 
+                        'wellness': 1.0,
+                        'notifications': 1.0
+                    }
+                }
+        except Exception as e:
+            print(f"[QUEUE] Could not get timing analysis: {e}")
+            timing_analysis = {
+                'interaction_receptivity': {
+                    'suggestions': 1.0,
+                    'chatter': 1.0,
+                    'wellness': 1.0, 
+                    'notifications': 1.0
+                }
+            }
         
         ready_messages = []
         
@@ -196,7 +225,35 @@ class EmotionAwareMessageQueue:
     def get_queue_stats(self) -> Dict[str, Any]:
         """Get statistics about the current queue state"""
         now = datetime.now()
-        timing_analysis = emotion_context.get_interaction_timing_analysis()
+        
+        # Get timing analysis if emotion data is available
+        try:
+            if emotion_context.is_emotion_data_available():
+                timing_analysis = emotion_context.get_interaction_timing_analysis()
+            else:
+                # Fallback: basic stats when no emotion data
+                return {
+                    'total_messages': len(self.messages),
+                    'ready_now': len(self.messages),
+                    'waiting_for_time': 0,
+                    'waiting_for_context': 0,
+                    'by_type': {},
+                    'by_priority': {},
+                    'avg_age_hours': 0.0,
+                    'oldest_message_hours': 0.0
+                }
+        except Exception as e:
+            print(f"[QUEUE] Could not get timing analysis for stats: {e}")
+            return {
+                'total_messages': len(self.messages),
+                'ready_now': 0,
+                'waiting_for_time': 0,
+                'waiting_for_context': len(self.messages),
+                'by_type': {},
+                'by_priority': {},
+                'avg_age_hours': 0.0,
+                'oldest_message_hours': 0.0
+            }
         
         stats = {
             'total_messages': len(self.messages),
@@ -292,34 +349,43 @@ class EmotionAwareMessageQueue:
     
     def _meets_context_requirements(self, message: QueuedMessage, timing_analysis: Dict[str, Any]) -> bool:
         """Check if current emotional context meets message delivery requirements"""
-        requirements = message.context_requirements
-        context = emotion_context.get_current_emotion_context()
-        
-        # Check minimum receptivity
-        message_receptivity = timing_analysis['interaction_receptivity'].get(message.message_type, 0.0)
-        if message_receptivity < requirements.get('min_receptivity', 0.3):
-            return False
-        
-        # Check blocked emotions
-        blocked_emotions = requirements.get('blocked_emotions', [])
-        if context['recent_emotion'] in blocked_emotions:
-            return False
-        
-        # Check stress level
-        stress_analysis = emotion_context.get_stress_analysis()
-        max_stress = requirements.get('max_stress_level', 'high')
-        stress_levels = {'low': 0, 'medium': 1, 'high': 2}
-        if (stress_levels.get(stress_analysis['stress_level'], 0) > 
-            stress_levels.get(max_stress, 2)):
-            return False
-        
-        # Check emotional stability
-        required_stability = requirements.get('required_stability')
-        if (required_stability and 
-            timing_analysis['emotional_stability'] != required_stability):
-            return False
-        
-        return True
+        try:
+            # If no emotion data available, allow all messages 
+            if not emotion_context.is_emotion_data_available():
+                return True
+            
+            requirements = message.context_requirements
+            context = emotion_context.get_current_emotion_context()
+            
+            # Check minimum receptivity
+            message_receptivity = timing_analysis.get('interaction_receptivity', {}).get(message.message_type, 1.0)
+            if message_receptivity < requirements.get('min_receptivity', 0.3):
+                return False
+            
+            # Check blocked emotions
+            blocked_emotions = requirements.get('blocked_emotions', [])
+            if context['recent_emotion'] in blocked_emotions:
+                return False
+            
+            # Check stress level
+            stress_analysis = emotion_context.get_stress_analysis()
+            max_stress = requirements.get('max_stress_level', 'high')
+            stress_levels = {'low': 0, 'medium': 1, 'high': 2}
+            if (stress_levels.get(stress_analysis['stress_level'], 0) > 
+                stress_levels.get(max_stress, 2)):
+                return False
+            
+            # Check emotional stability
+            required_stability = requirements.get('required_stability')
+            if (required_stability and 
+                timing_analysis.get('emotional_stability') != required_stability):
+                return False
+            
+            return True
+            
+        except Exception as e:
+            print(f"[QUEUE] Error checking context requirements: {e} - allowing message")
+            return True  # Allow message if there's an error
     
     def _clean_expired_messages(self):
         """Remove messages that have exceeded their maximum age"""

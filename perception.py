@@ -1109,7 +1109,7 @@ def main():
         print("🔥 Hotkey: Cmd+Shift+G for screen capture")
         print("🎙️ Voice: Say 'goose' to activate voice commands")
         if EMOTION_DETECTION_AVAILABLE:
-            print("🎭 Emotion: Facial emotion detection every 5 minutes")
+            print("🎭 Emotion: Facial emotion detection every 1 minute")
         print()
         log_activity("Listening for wake word")
         
@@ -1121,7 +1121,7 @@ def main():
             except:
                 pass
             
-            # Run emotion detection cycle if available (every 5 minutes)
+            # Run emotion detection cycle if available (every 1 minute)
             if EMOTION_DETECTION_AVAILABLE:
                 try:
                     run_emotion_detection_cycle()

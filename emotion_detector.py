@@ -52,7 +52,7 @@ class EmotionDetector:
         self.camera = None
         self.is_initialized = False
         self.last_detection_time = 0
-        self.detection_interval = 300  # 5 seconds for testing (normally 300 for 5 minutes)
+        self.detection_interval = 60   # 1 minute for responsive emotion-aware features
         self.data_dir = Path.home() / ".local" / "share" / "goose-perception"
         
         # Ensure data directory exists

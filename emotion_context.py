@@ -30,9 +30,18 @@ class EmotionContext:
         self.high_energy_emotions = {"happy", "surprised"}
         self.low_energy_emotions = {"sad", "tired", "serious", "angry"}
     
+    def is_emotion_data_available(self) -> bool:
+        """Check if emotion data is available and recent"""
+        try:
+            recent_emotions = self._parse_emotions_log(hours_back=1)
+            return len(recent_emotions) > 0
+        except Exception:
+            return False
+    
     def _parse_emotions_log(self, hours_back: int = 24) -> List[Dict]:
         """Parse emotions.log and return recent entries within specified hours"""
         if not self.emotions_log_path.exists():
+            print(f"[EMOTION] No emotions.log found at {self.emotions_log_path} - emotion features disabled")
             return []
         
         cutoff_time = datetime.now() - timedelta(hours=hours_back)
@@ -58,8 +67,11 @@ class EmotionContext:
                         except ValueError:
                             continue
         except Exception as e:
-            print(f"Warning: Could not parse emotions.log: {e}")
+            print(f"[EMOTION] Could not parse emotions.log: {e} - using neutral defaults")
             return []
+        
+        if not emotions:
+            print(f"[EMOTION] No recent emotion data found (last {hours_back} hours) - using neutral defaults")
         
         return sorted(emotions, key=lambda x: x['timestamp'])
     

@@ -170,7 +170,7 @@ Once running - just go about your day, you don't need to do anything, it will do
 You can ask goose to do something by talking - just mention "goose", it will detect that you are talking to it (vs about it).
 
 ### Emotion Detection
-Goose automatically detects your emotional state every 5 minutes using your webcam, logging emotions like happy, content, neutral, tired, or surprised to help understand your work patterns.
+Goose automatically detects your emotional state every 1 minute using your webcam (when enabled), logging emotions like happy, content, neutral, tired, or surprised to help understand your work patterns. The avatar system gracefully falls back to neutral defaults when emotion detection is disabled.
 
 ### Hotkey Activation  
 - **`Cmd+Shift+G`**: Capture your screen and give Goose an instruction about what to do with it

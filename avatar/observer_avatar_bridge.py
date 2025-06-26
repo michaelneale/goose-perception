@@ -347,12 +347,17 @@ class ObserverAvatarBridge:
             if not EMOTION_FEATURES_AVAILABLE:
                 return True  # Fall back to basic mode
             
+            # Check if emotion data is available
+            if not emotion_context.is_emotion_data_available():
+                print(f"[TIMING] No emotion data available - allowing {message_type} delivery")
+                return True  # Allow all messages when no emotion data
+            
             timing_analysis = emotion_context.get_interaction_timing_analysis()
-            recommendations = timing_analysis['recommendations']
+            recommendations = timing_analysis.get('recommendations', {})
             
             # For lenient mode (wellness messages), be more permissive
             if lenient:
-                receptivity = timing_analysis['interaction_receptivity'].get(message_type, 0.5)
+                receptivity = timing_analysis.get('interaction_receptivity', {}).get(message_type, 0.5)
                 return receptivity >= 0.1  # Much lower threshold for wellness
             
             # Check specific recommendations
@@ -366,13 +371,13 @@ class ObserverAvatarBridge:
                 return False
             
             # Check minimum receptivity for this message type
-            receptivity = timing_analysis['interaction_receptivity'].get(message_type, 0.5)
+            receptivity = timing_analysis.get('interaction_receptivity', {}).get(message_type, 0.5)
             min_receptivity = 0.3 if message_type != 'chatter' else 0.4
             
             return receptivity >= min_receptivity
             
         except Exception as e:
-            print(f"Error checking delivery timing: {e}")
+            print(f"[TIMING] Error checking delivery timing: {e} - allowing delivery")
             return True  # Fall back to allowing delivery
     
     def queue_emotion_aware_message(self, message_type: str, content: dict, priority: str = 'medium', 
@@ -408,23 +413,28 @@ class ObserverAvatarBridge:
     def _run_avatar_suggestions(self):
         """Run the avatar suggestions observer recipe with recent context and logging."""
         try:
-            # Check emotion-aware timing before running recipe
-            if EMOTION_FEATURES_AVAILABLE:
-                timing_analysis = emotion_context.get_interaction_timing_analysis()
-                recommendations = timing_analysis['recommendations']
-                
-                # If we should queue suggestions, reduce frequency of generation
-                if recommendations.get('should_queue_suggestions', False):
-                    # Random chance to skip during low receptivity
-                    if random.random() < 0.5:  # 50% chance to skip
-                        print("⏸️ Delaying suggestion generation due to low receptivity")
-                        return
-                
-                # If general pause on non-urgent content
-                if recommendations.get('pause_non_urgent', False):
-                    if random.random() < 0.8:  # 80% chance to skip
-                        print("⏸️ Pausing suggestion generation - non-urgent mode")
-                        return
+            # Check emotion-aware timing before running recipe (if emotion data available)
+            if EMOTION_FEATURES_AVAILABLE and emotion_context.is_emotion_data_available():
+                try:
+                    timing_analysis = emotion_context.get_interaction_timing_analysis()
+                    recommendations = timing_analysis.get('recommendations', {})
+                    
+                    # If we should queue suggestions, reduce frequency of generation
+                    if recommendations.get('should_queue_suggestions', False):
+                        # Random chance to skip during low receptivity
+                        if random.random() < 0.5:  # 50% chance to skip
+                            print("⏸️ Delaying suggestion generation due to low receptivity")
+                            return
+                    
+                    # If general pause on non-urgent content
+                    if recommendations.get('pause_non_urgent', False):
+                        if random.random() < 0.8:  # 80% chance to skip
+                            print("⏸️ Pausing suggestion generation - non-urgent mode")
+                            return
+                except Exception as e:
+                    print(f"[SUGGESTIONS] Error getting emotion timing - proceeding: {e}")
+            elif EMOTION_FEATURES_AVAILABLE:
+                print("[SUGGESTIONS] No emotion data available - proceeding normally")
             
             print("🔍 Running avatar suggestions observer recipe...")
             personality_params = self.get_personality_parameters()
@@ -538,23 +548,28 @@ class ObserverAvatarBridge:
     def _run_chatter_recipe(self):
         """Run the chit-chat recipe to generate contextual casual messages"""
         try:
-            # Check emotion-aware timing before running recipe
-            if EMOTION_FEATURES_AVAILABLE:
-                timing_analysis = emotion_context.get_interaction_timing_analysis()
-                recommendations = timing_analysis['recommendations']
-                
-                # If we should reduce chatter, skip recipe generation
-                if recommendations.get('should_reduce_chatter', False):
-                    print("⏸️ Skipping chatter generation due to emotional state")
-                    return
-                
-                # If low receptivity, reduce frequency of recipe runs
-                chatter_receptivity = timing_analysis['interaction_receptivity'].get('chatter', 0.5)
-                if chatter_receptivity < 0.3:
-                    # Random chance to skip during low receptivity
-                    if random.random() < 0.7:  # 70% chance to skip
-                        print("⏸️ Delaying chatter generation due to low receptivity")
+            # Check emotion-aware timing before running recipe (if emotion data available)
+            if EMOTION_FEATURES_AVAILABLE and emotion_context.is_emotion_data_available():
+                try:
+                    timing_analysis = emotion_context.get_interaction_timing_analysis()
+                    recommendations = timing_analysis.get('recommendations', {})
+                    
+                    # If we should reduce chatter, skip recipe generation
+                    if recommendations.get('should_reduce_chatter', False):
+                        print("⏸️ Skipping chatter generation due to emotional state")
                         return
+                    
+                    # If low receptivity, reduce frequency of recipe runs
+                    chatter_receptivity = timing_analysis.get('interaction_receptivity', {}).get('chatter', 0.5)
+                    if chatter_receptivity < 0.3:
+                        # Random chance to skip during low receptivity
+                        if random.random() < 0.7:  # 70% chance to skip
+                            print("⏸️ Delaying chatter generation due to low receptivity")
+                            return
+                except Exception as e:
+                    print(f"[CHATTER] Error getting emotion timing - proceeding: {e}")
+            elif EMOTION_FEATURES_AVAILABLE:
+                print("[CHATTER] No emotion data available - proceeding normally")
             
             print("💬 Running avatar chit-chat recipe...")
             
