@@ -29,8 +29,9 @@ This is a simplified version of the observers system that runs locally without e
 ## Usage
 
 ```bash
-cd observers/local-observers
-./run-local-observations.sh
+# OLD: ./run-local-observations.sh (removed)
+# NEW: Use the main system which now includes these recipes automatically:
+just run-simple
 ```
 
 ## Key Differences from Main Observers
@@ -43,8 +44,10 @@ cd observers/local-observers
 
 ## Files
 
-- `run-local-observations.sh` - Main script
+- ~~`run-local-observations.sh` - Main script~~ **REMOVED** - replaced by GooseSchedule
 - `recipe-work-simple.yaml` - Work analysis from text descriptions
 - `recipe-focus-simple.yaml` - Focus and productivity analysis
 - `recipe-contributions-simple.yaml` - Local git and file activity analysis
 - `recipe-interactions-simple.yaml` - Communication analysis from available data
+
+Note: These recipes are now automatically scheduled and managed by the main GooseSchedule system. No manual script execution is needed.
