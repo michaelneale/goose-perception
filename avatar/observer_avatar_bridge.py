@@ -5,6 +5,7 @@ Monitors observer outputs and triggers appropriate avatar messages
 """
 
 import os
+import sys
 import time
 import random
 import subprocess
@@ -15,6 +16,17 @@ import hashlib
 import pickle
 import json
 
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    from emotion_context import emotion_context
+    from message_queue import message_queue
+    EMOTION_FEATURES_AVAILABLE = True
+except ImportError:
+    EMOTION_FEATURES_AVAILABLE = False
+    print("Emotion-aware features not available - running in basic mode")
+
 try:
     from . import avatar_display
 except ImportError:
@@ -22,7 +34,61 @@ except ImportError:
 
 class ObserverAvatarBridge:
     def __init__(self):
-        self.perception_dir = Path("~/.local/share/goose-perception").expanduser()
+        self.base_dir = Path(__file__).parent.parent
+        self.perception_dir = self.base_dir / ".goose-perception"
+        self.perception_dir.mkdir(exist_ok=True)
+        self.state_dir = Path.home() / ".local/share/goose-perception" 
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Emotion-aware message queue
+        from message_queue import EmotionAwareMessageQueue
+        self.emotion_aware_messages = EmotionAwareMessageQueue()
+        
+        # Initialize previous emotional state tracking
+        self.previous_emotion_state = None
+        
+        # File monitoring
+        self.file_watcher = None
+        self.monitoring = False
+        self.file_last_modified = {}
+        
+        # Load state first, then initialize queues
+        self._load_state()
+        
+        # Suggestion queues and state
+        self.suggestion_queue = getattr(self, 'suggestion_queue', [])
+        self.shown_suggestions = getattr(self, 'shown_suggestions', set())
+        self.last_suggestion_display = getattr(self, 'last_suggestion_display', datetime.min)
+        
+        # Actionable suggestion queue and state  
+        self.actionable_suggestion_queue = getattr(self, 'actionable_suggestion_queue', [])
+        self.shown_actionable_suggestions = getattr(self, 'shown_actionable_suggestions', set())
+        self.last_actionable_display = getattr(self, 'last_actionable_display', datetime.min)
+        
+        # Chitchat queue and state
+        self.chitchat_queue = getattr(self, 'chitchat_queue', [])
+        self.shown_chitchat = getattr(self, 'shown_chitchat', set())
+        self.last_chitchat_display = getattr(self, 'last_chitchat_display', datetime.min)
+        
+        # Feedback tracking
+        self.completed_suggestions = getattr(self, 'completed_suggestions', set())
+        self.dismissed_suggestions = getattr(self, 'dismissed_suggestions', set())
+        
+        # Set up emotion context monitoring
+        try:
+            import sys
+            import os
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.append(parent_dir)
+            from emotion_context import emotion_context
+            self.emotion_context = emotion_context
+            # Initialize previous state
+            self.previous_emotion_state = self._get_emotion_state_snapshot()
+        except Exception as e:
+            print(f"⚠️ Could not initialize emotion context: {e}")
+            self.emotion_context = None
+            self.previous_emotion_state = None
         self.last_check_times = {}
         self.last_file_contents = {}
         self.is_running = False
@@ -98,9 +164,13 @@ class ObserverAvatarBridge:
         self.is_running = False
     
     def _monitor_loop(self):
-        """Main monitoring loop"""
+        """Main monitoring loop with emotion-aware timing"""
         while self.is_running:
             try:
+                # Process emotion-aware message queue if available
+                if EMOTION_FEATURES_AVAILABLE:
+                    self._process_emotion_aware_messages()
+                
                 self._check_files()
                 self._show_next_queued_suggestion()
                 self._show_next_actionable_suggestion()
@@ -140,6 +210,13 @@ class ObserverAvatarBridge:
         elif current_time - self.last_chatter_run > self.chatter_interval:
             self._run_chatter_recipe()
             self.last_chatter_run = current_time
+            
+        # Check if it's time to run stress wellness analysis (every 30 minutes)
+        if not hasattr(self, 'last_stress_check'):
+            self.last_stress_check = current_time
+        elif current_time - self.last_stress_check > timedelta(minutes=30):
+            self._run_stress_wellness_recipe()
+            self.last_stress_check = current_time
         
         for filename, category in self.monitored_files.items():
             file_path = self.perception_dir / filename
@@ -192,6 +269,193 @@ class ObserverAvatarBridge:
             print(f"[CONTEXT] Error reading {filename}: {e}")
             return ''
 
+    def _process_emotion_aware_messages(self):
+        """Process messages from the emotion-aware message queue"""
+        try:
+            # Get ready messages from queue
+            ready_messages = message_queue.get_ready_messages(limit=3)
+            
+            for msg in ready_messages:
+                delivered = False
+                
+                if msg.message_type == 'chatter':
+                    delivered = self._deliver_chatter_message(msg)
+                elif msg.message_type == 'suggestion':
+                    delivered = self._deliver_suggestion_message(msg)
+                elif msg.message_type == 'wellness':
+                    delivered = self._deliver_wellness_message(msg)
+                elif msg.message_type == 'notification':
+                    delivered = self._deliver_notification_message(msg)
+                
+                if delivered:
+                    message_queue.mark_delivered(msg.id)
+                else:
+                    message_queue.mark_delivery_attempted(msg.id)
+                    
+        except Exception as e:
+            print(f"Error processing emotion-aware messages: {e}")
+    
+    def _deliver_chatter_message(self, msg) -> bool:
+        """Deliver a chatter message with emotion-aware timing"""
+        try:
+            content = msg.content
+            
+            # Check if we should deliver now (additional timing check)
+            if not self._should_deliver_message_now(msg.message_type):
+                return False
+            
+            # Show the chatter message
+            if avatar_display:
+                message_text = content.get('message', 'Hello!')
+                avatar_display.show_message(
+                    message_text,
+                    duration=content.get('duration', 8000),
+                    avatar_state=content.get('style', 'talking')
+                )
+                print(f"📢 Emotion-aware chatter: {message_text}")
+                return True
+                
+        except Exception as e:
+            print(f"Error delivering chatter message: {e}")
+        
+        return False
+    
+    def _deliver_suggestion_message(self, msg) -> bool:
+        """Deliver a suggestion message with emotion-aware timing"""
+        try:
+            content = msg.content
+            
+            # Check if we should deliver now
+            if not self._should_deliver_message_now(msg.message_type):
+                return False
+            
+            # Show the suggestion
+            if avatar_display:
+                suggestion_text = content.get('message', 'Here\'s a suggestion')
+                avatar_display.show_message(
+                    suggestion_text,
+                    duration=content.get('duration', 12000),
+                    avatar_state=content.get('style', 'talking')
+                )
+                print(f"💡 Emotion-aware suggestion: {suggestion_text}")
+                return True
+                
+        except Exception as e:
+            print(f"Error delivering suggestion message: {e}")
+        
+        return False
+    
+    def _deliver_wellness_message(self, msg) -> bool:
+        """Deliver a wellness message with emotion-aware timing"""
+        try:
+            content = msg.content
+            
+            # Wellness messages have higher priority and looser timing requirements
+            if not self._should_deliver_message_now(msg.message_type, lenient=True):
+                return False
+            
+            # Show the wellness message
+            if avatar_display:
+                wellness_text = content.get('message', 'Take care of yourself!')
+                avatar_display.show_message(
+                    wellness_text,
+                    duration=content.get('duration', 10000),
+                    avatar_state=content.get('style', 'talking')
+                )
+                print(f"🌱 Emotion-aware wellness: {wellness_text}")
+                return True
+                
+        except Exception as e:
+            print(f"Error delivering wellness message: {e}")
+        
+        return False
+    
+    def _deliver_notification_message(self, msg) -> bool:
+        """Deliver a notification message with emotion-aware timing"""
+        try:
+            content = msg.content
+            
+            # Check if we should deliver now
+            if not self._should_deliver_message_now(msg.message_type):
+                return False
+            
+            # Show the notification
+            if avatar_display:
+                notification_text = content.get('message', 'Notification')
+                avatar_display.show_message(
+                    notification_text,
+                    duration=content.get('duration', 8000),
+                    avatar_state=content.get('style', 'talking')
+                )
+                print(f"🔔 Emotion-aware notification: {notification_text}")
+                return True
+                
+        except Exception as e:
+            print(f"Error delivering notification message: {e}")
+        
+        return False
+    
+    def _should_deliver_message_now(self, message_type: str, lenient: bool = False) -> bool:
+        """Check if a message should be delivered right now based on emotional timing"""
+        try:
+            if not EMOTION_FEATURES_AVAILABLE:
+                return True  # Fall back to basic mode
+            
+            # Check if emotion data is available
+            if not self.emotion_context.is_emotion_data_available():
+                print(f"[TIMING] No emotion data available - allowing {message_type} delivery")
+                return True  # Allow all messages when no emotion data
+            
+            timing_analysis = self.emotion_context.get_interaction_timing_analysis()
+            recommendations = timing_analysis.get('recommendations', {})
+            
+            # For lenient mode (wellness messages), be more permissive
+            if lenient:
+                receptivity = timing_analysis.get('interaction_receptivity', {}).get(message_type, 0.5)
+                return receptivity >= 0.1  # Much lower threshold for wellness
+            
+            # Check specific recommendations
+            if message_type == 'suggestion' and recommendations.get('should_queue_suggestions', False):
+                return False
+            
+            if message_type == 'chatter' and recommendations.get('should_reduce_chatter', False):
+                return False
+            
+            if recommendations.get('pause_non_urgent', False) and message_type in ['chatter', 'notification']:
+                return False
+            
+            # Check minimum receptivity for this message type
+            receptivity = timing_analysis.get('interaction_receptivity', {}).get(message_type, 0.5)
+            min_receptivity = 0.3 if message_type != 'chatter' else 0.4
+            
+            return receptivity >= min_receptivity
+            
+        except Exception as e:
+            print(f"[TIMING] Error checking delivery timing: {e} - allowing delivery")
+            return True  # Fall back to allowing delivery
+    
+    def queue_emotion_aware_message(self, message_type: str, content: dict, priority: str = 'medium', 
+                                   delay_minutes: int = 0, max_age_hours: float = 24.0):
+        """Queue a message for emotion-aware delivery"""
+        if not EMOTION_FEATURES_AVAILABLE:
+            # Fall back to immediate delivery in basic mode
+            if avatar_display:
+                message_text = content.get('message', 'Message')
+                avatar_display.show_message(
+                    message_text,
+                    duration=content.get('duration', 8000),
+                    avatar_state='talking'
+                )
+            return None
+        
+        return message_queue.add_message(
+            message_type=message_type,
+            content=content,
+            priority=priority,
+            delay_minutes=delay_minutes,
+            max_age_hours=max_age_hours
+        )
+
     def build_recent_context(self, hours=8):
         """Build context from the last N hours of all relevant files."""
         files = ["WORK.md", "LATEST_WORK.md", "INTERACTIONS.md", "CONTRIBUTIONS.md", "ACTIVITY-LOG.md"]
@@ -203,6 +467,29 @@ class ObserverAvatarBridge:
     def _run_avatar_suggestions(self):
         """Run the avatar suggestions observer recipe with recent context and logging."""
         try:
+            # Check emotion-aware timing before running recipe (if emotion data available)
+            if EMOTION_FEATURES_AVAILABLE and self.emotion_context.is_emotion_data_available():
+                try:
+                    timing_analysis = self.emotion_context.get_interaction_timing_analysis()
+                    recommendations = timing_analysis.get('recommendations', {})
+                    
+                    # If we should queue suggestions, reduce frequency of generation
+                    if recommendations.get('should_queue_suggestions', False):
+                        # Random chance to skip during low receptivity
+                        if random.random() < 0.5:  # 50% chance to skip
+                            print("⏸️ Delaying suggestion generation due to low receptivity")
+                            return
+                    
+                    # If general pause on non-urgent content
+                    if recommendations.get('pause_non_urgent', False):
+                        if random.random() < 0.8:  # 80% chance to skip
+                            print("⏸️ Pausing suggestion generation - non-urgent mode")
+                            return
+                except Exception as e:
+                    print(f"[SUGGESTIONS] Error getting emotion timing - proceeding: {e}")
+            elif EMOTION_FEATURES_AVAILABLE:
+                print("[SUGGESTIONS] No emotion data available - proceeding normally")
+            
             print("🔍 Running avatar suggestions observer recipe...")
             personality_params = self.get_personality_parameters()
             print(f"[PERSONALITY] Using for suggestions: {personality_params}")
@@ -223,13 +510,67 @@ class ObserverAvatarBridge:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             if result.returncode == 0:
                 print("✅ Avatar suggestions recipe completed successfully")
-                self._process_new_suggestions()
+                
+                # Process suggestions with emotion-aware queueing if available
+                if EMOTION_FEATURES_AVAILABLE:
+                    self._process_suggestions_with_emotion_aware_queueing()
+                else:
+                    self._process_new_suggestions()  # Fall back to immediate processing
             else:
                 print(f"❌ Avatar suggestions recipe failed: {result.stderr}")
         except subprocess.TimeoutExpired:
             print("⏰ Avatar suggestions recipe timed out")
         except Exception as e:
             print(f"Error running avatar suggestions: {e}")
+    
+    def _process_suggestions_with_emotion_aware_queueing(self):
+        """Process generated suggestions and queue them for emotion-aware delivery"""
+        try:
+            suggestions = self._parse_suggestions_file()
+            if not suggestions:
+                return
+            
+            # Limit the number of suggestions to prevent overwhelming the queue
+            MAX_SUGGESTIONS = 5  # Only queue 5 suggestions at a time
+            suggestions = suggestions[:MAX_SUGGESTIONS]
+            
+            if len(suggestions) > MAX_SUGGESTIONS:
+                print(f"📝 Limiting suggestions to {MAX_SUGGESTIONS} messages (had {len(suggestions)})")
+            
+            # Queue each suggestion for emotion-aware delivery
+            for suggestion in suggestions:
+                if isinstance(suggestion, dict) and 'message' in suggestion:
+                    # Determine priority based on suggestion type
+                    priority = 'medium'  # Default priority for suggestions
+                    suggestion_type = suggestion.get('type', 'general')
+                    
+                    if suggestion_type in ['urgent', 'important']:
+                        priority = 'high'
+                    elif suggestion_type in ['reminder', 'tip']:
+                        priority = 'low'
+                    
+                    # Create content dict
+                    content = {
+                        'message': suggestion['message'],
+                        'duration': 12000,
+                        'style': 'suggestion',
+                        'type': suggestion_type
+                    }
+                    
+                    # Queue the suggestion
+                    message_id = self.queue_emotion_aware_message(
+                        message_type='suggestion',
+                        content=content,
+                        priority=priority,
+                        delay_minutes=0,  # Let emotion system handle timing
+                        max_age_hours=48.0  # Suggestions stay relevant longer
+                    )
+                    
+                    if message_id:
+                        print(f"📅 Queued suggestion: {message_id}")
+                        
+        except Exception as e:
+            print(f"Error processing suggestions with emotion-aware queueing: {e}")
     
     def _run_actionable_suggestions(self):
         """Run the actionable suggestions observer recipe"""
@@ -268,6 +609,29 @@ class ObserverAvatarBridge:
     def _run_chatter_recipe(self):
         """Run the chit-chat recipe to generate contextual casual messages"""
         try:
+            # Check emotion-aware timing before running recipe (if emotion data available)
+            if EMOTION_FEATURES_AVAILABLE and self.emotion_context.is_emotion_data_available():
+                try:
+                    timing_analysis = self.emotion_context.get_interaction_timing_analysis()
+                    recommendations = timing_analysis.get('recommendations', {})
+                    
+                    # If we should reduce chatter, skip recipe generation
+                    if recommendations.get('should_reduce_chatter', False):
+                        print("⏸️ Skipping chatter generation due to emotional state")
+                        return
+                    
+                    # If low receptivity, reduce frequency of recipe runs
+                    chatter_receptivity = timing_analysis.get('interaction_receptivity', {}).get('chatter', 0.5)
+                    if chatter_receptivity < 0.3:
+                        # Random chance to skip during low receptivity
+                        if random.random() < 0.7:  # 70% chance to skip
+                            print("⏸️ Delaying chatter generation due to low receptivity")
+                            return
+                except Exception as e:
+                    print(f"[CHATTER] Error getting emotion timing - proceeding: {e}")
+            elif EMOTION_FEATURES_AVAILABLE:
+                print("[CHATTER] No emotion data available - proceeding normally")
+            
             print("💬 Running avatar chit-chat recipe...")
             
             # Get personality parameters
@@ -290,6 +654,10 @@ class ObserverAvatarBridge:
             
             if result.returncode == 0:
                 print("✅ Avatar chit-chat recipe completed successfully")
+                
+                # If emotion features are available, process generated chatter with smart queueing
+                if EMOTION_FEATURES_AVAILABLE:
+                    self._process_chatter_with_emotion_aware_queueing()
             else:
                 print(f"❌ Avatar chit-chat recipe failed: {result.stderr}")
                 
@@ -297,6 +665,45 @@ class ObserverAvatarBridge:
             print("⏰ Avatar chit-chat recipe timed out")
         except Exception as e:
             print(f"Error running avatar chit-chat: {e}")
+    
+    def _process_chatter_with_emotion_aware_queueing(self):
+        """Process generated chatter and queue it for emotion-aware delivery"""
+        try:
+            messages = self._parse_chatter_file()
+            if not messages:
+                return
+            
+            # Limit the number of messages to prevent overwhelming the queue
+            MAX_CHATTER_MESSAGES = 3  # Only queue 3 messages at a time
+            messages = messages[:MAX_CHATTER_MESSAGES]
+            
+            if len(messages) > MAX_CHATTER_MESSAGES:
+                print(f"📝 Limiting chatter to {MAX_CHATTER_MESSAGES} messages (had {len(messages)})")
+            
+            # Queue each message for emotion-aware delivery
+            for message in messages:
+                if isinstance(message, str) and message.strip():
+                    # Create content dict
+                    content = {
+                        'message': message.strip(),
+                        'duration': 8000,
+                        'style': 'normal'
+                    }
+                    
+                    # Queue the message
+                    message_id = self.queue_emotion_aware_message(
+                        message_type='chatter',
+                        content=content,
+                        priority='low',  # Chatter is generally low priority
+                        delay_minutes=0,  # Let emotion system handle timing
+                        max_age_hours=6.0  # Chatter becomes stale quickly
+                    )
+                    
+                    if message_id:
+                        print(f"📅 Queued chatter message: {message_id}")
+                        
+        except Exception as e:
+            print(f"Error processing chatter with emotion-aware queueing: {e}")
     
     def _parse_suggestions_file(self):
         """Parse the AVATAR_SUGGESTIONS.json file and return suggestions"""
@@ -480,18 +887,20 @@ class ObserverAvatarBridge:
     
     def _show_suggestion(self, suggestion):
         """Helper method to show a suggestion with proper avatar state"""
-        # Map suggestion types to avatar states
+        # Map suggestion types to valid avatar states
+        # Valid states: idle, talking, pointing, sleeping
         suggestion_types = {
-            'productivity': 'work',
-            'collaboration': 'meetings', 
-            'focus': 'focus',
-            'attention': 'attention',
-            'optimization': 'optimization',
-            'break': 'break',
-            'system': 'optimization'
+            'productivity': 'pointing',
+            'collaboration': 'pointing', 
+            'focus': 'pointing',
+            'attention': 'pointing',
+            'optimization': 'pointing',
+            'break': 'talking',
+            'system': 'pointing',
+            'general': 'talking'
         }
         
-        suggestion_type = suggestion_types.get(suggestion['type'], 'work')
+        suggestion_type = suggestion_types.get(suggestion['type'], 'pointing')
         message = suggestion['message']
         
         # Use the thread-safe function instead of direct call
@@ -518,9 +927,22 @@ class ObserverAvatarBridge:
             if filename == 'AVATAR_SUGGESTIONS.json':
                 self._process_new_suggestions()
                 return
-            # For other files, trigger suggestion generation and queue if new
-            if filename in ['WORK.md', 'LATEST_WORK.md', 'INTERACTIONS.md', 'CONTRIBUTIONS.md', 'ACTIVITY-LOG.md', 'recipe-avatar-suggestions.yaml', 'recipe-actionable-suggestions.yaml', 'recipe-avatar-chatter.yaml']:
-                self.on_context_or_recipe_change()
+            # For recipe files, only regenerate if emotional state changed
+            if filename in ['recipe-avatar-suggestions.yaml', 'recipe-actionable-suggestions.yaml', 'recipe-avatar-chatter.yaml']:
+                if self._has_emotion_state_changed():
+                    print("[EMOTION] Emotional state changed - regenerating suggestions with new context")
+                    self.on_context_or_recipe_change()
+                else:
+                    print("[EMOTION] Recipe file changed but emotional state unchanged - skipping regeneration")
+                return
+            # For content files, use lighter context update
+            if filename in ['WORK.md', 'LATEST_WORK.md', 'INTERACTIONS.md', 'CONTRIBUTIONS.md', 'ACTIVITY-LOG.md']:
+                # Only regenerate if emotional state changed OR it's been a while since last regeneration
+                if self._has_emotion_state_changed():
+                    print("[EMOTION] Emotional state changed - regenerating suggestions")
+                    self.on_context_or_recipe_change()
+                else:
+                    print("[EMOTION] Content updated but emotional state unchanged - keeping existing suggestions")
                 return
             # Show a contextual message (unchanged)
             if random.random() > 0.3:
@@ -536,10 +958,28 @@ class ObserverAvatarBridge:
             print(f"Error processing {filename} change: {e}")
     
     def get_personality_parameters(self):
-        """Get personality parameters for recipes - thread-safe version with extra logging and robust fallback"""
+        """Get personality parameters for recipes with emotion-aware adaptation"""
         try:
             from pathlib import Path
             import json
+            import sys
+            import os
+            
+            # Add the parent directory to sys.path to import emotion_context
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.append(parent_dir)
+            
+            try:
+                from emotion_context import emotion_context as emotion_ctx
+                emotion_context_data = emotion_ctx.get_current_emotion_context()
+                modifiers = emotion_context_data.get('personality_modifiers', {})
+                print(f"[EMOTION] Current emotion context: {emotion_context_data['recent_emotion']} (energy: {emotion_context_data['energy_level']}, stress: {emotion_context_data['stress_level']})")
+            except Exception as e:
+                print(f"[EMOTION] Could not load emotion context: {e}")
+                emotion_context_data = {}
+                modifiers = {}
+            
             settings_path = Path.home() / ".local/share/goose-perception/PERSONALITY_SETTINGS.json"
             if settings_path.exists():
                 try:
@@ -554,19 +994,22 @@ class ObserverAvatarBridge:
                             personality_data = personalities_data.get("personalities", {}).get(saved_personality, {})
                             if personality_data:
                                 print(f"[PERSONALITY] Using personality data: {personality_data.get('name', saved_personality.title())}")
-                                return {
+                                base_params = {
                                     'personality_name': personality_data.get('name', saved_personality.title()),
                                     'personality_style': personality_data.get('suggestion_style', ''),
                                     'personality_tone': personality_data.get('tone', ''),
                                     'personality_priorities': ', '.join(personality_data.get('priorities', [])),
                                     'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
                                 }
+                                # Apply emotion-aware modifications
+                                return self._apply_emotion_modifiers(base_params, emotion_context_data, modifiers)
                             else:
                                 print(f"[PERSONALITY] No data found for personality: {saved_personality}, falling back to default.")
                 except Exception as e:
                     print(f"[PERSONALITY] Error reading personality settings: {e}")
             else:
                 print("[PERSONALITY] Settings file not found, using default personality.")
+            
             # Fallback to professional if available, else comedian
             fallback_personality = "professional"
             personalities_path = Path(__file__).parent / "personalities.json"
@@ -576,21 +1019,25 @@ class ObserverAvatarBridge:
                     if fallback_personality in personalities_data.get("personalities", {}):
                         print(f"[PERSONALITY] Fallback to: {fallback_personality}")
                         personality_data = personalities_data["personalities"][fallback_personality]
-                        return {
+                        base_params = {
                             'personality_name': personality_data.get('name', fallback_personality.title()),
                             'personality_style': personality_data.get('suggestion_style', ''),
                             'personality_tone': personality_data.get('tone', ''),
                             'personality_priorities': ', '.join(personality_data.get('priorities', [])),
                             'personality_phrases': ', '.join(personality_data.get('example_phrases', []))
                         }
+                        return self._apply_emotion_modifiers(base_params, emotion_context_data, modifiers)
+            
             print("[PERSONALITY] Fallback to comedian personality.")
-            return {
+            base_params = {
                 'personality_name': 'Comedian',
                 'personality_style': 'Everything is an opportunity for humor. Makes jokes about coding, work situations, and daily activities. Keeps things light and funny.',
                 'personality_tone': 'humorous, witty, entertaining, lighthearted',
                 'personality_priorities': 'humor, entertainment, making people laugh, finding the funny side',
                 'personality_phrases': 'Why did the developer, Speaking of comedy, Here\'s a joke for you, Plot twist comedy, Funny thing about'
             }
+            return self._apply_emotion_modifiers(base_params, emotion_context_data, modifiers)
+            
         except Exception as e:
             print(f"[PERSONALITY] Error getting personality parameters: {e}")
             return {
@@ -600,6 +1047,222 @@ class ObserverAvatarBridge:
                 'personality_priorities': 'humor, entertainment, making people laugh',
                 'personality_phrases': 'Why did the developer, Speaking of comedy, Here\'s a joke for you'
             }
+    
+    def _apply_emotion_modifiers(self, base_params, emotion_context, modifiers):
+        """Apply emotion-based modifications to personality parameters"""
+        try:
+            if not emotion_context or not modifiers:
+                # Add emotion context info even if no modifications
+                base_params['emotion_context'] = "No emotion data available - using default personality"
+                return base_params
+            
+            recent_emotion = emotion_context.get('recent_emotion', 'neutral')
+            energy_level = emotion_context.get('energy_level', 'medium')
+            stress_level = emotion_context.get('stress_level', 'low')
+            
+            # Get modifier values
+            energy_boost = modifiers.get('energy_boost', 0.0)
+            supportiveness_boost = modifiers.get('supportiveness_boost', 0.0)
+            humor_adjustment = modifiers.get('humor_adjustment', 0.0)
+            focus_intensity = modifiers.get('focus_intensity', 0.0)
+            
+            # Apply modifications to tone
+            modified_tone = base_params['personality_tone']
+            tone_additions = []
+            
+            if energy_boost > 0.5:
+                tone_additions.append("energetic")
+                tone_additions.append("enthusiastic")
+            elif energy_boost < -0.5:
+                tone_additions.append("gentle")
+                tone_additions.append("calm")
+            
+            if supportiveness_boost > 0.5:
+                tone_additions.append("supportive")
+                tone_additions.append("encouraging")
+                tone_additions.append("understanding")
+            
+            if humor_adjustment < -0.3:
+                tone_additions.append("focused")
+                tone_additions.append("serious")
+            elif humor_adjustment > 0.3:
+                tone_additions.append("playful")
+                tone_additions.append("witty")
+            
+            if focus_intensity > 0.5:
+                tone_additions.append("direct")
+                tone_additions.append("practical")
+            
+            if tone_additions:
+                modified_tone = f"{modified_tone}, {', '.join(tone_additions)}"
+            
+            # Apply modifications to style
+            modified_style = base_params['personality_style']
+            
+            if recent_emotion in ['sad', 'tired'] and supportiveness_boost > 0.3:
+                modified_style += " Adapts to provide extra encouragement and gentle support when you seem tired or down."
+            elif recent_emotion == 'happy' and energy_boost > 0.3:
+                modified_style += " Matches your positive energy with more enthusiasm and celebratory comments."
+            elif stress_level == 'high' and focus_intensity > 0.3:
+                modified_style += " Becomes more focused and practical during stressful times, offering concrete help rather than just casual chat."
+            
+            # Apply modifications to priorities
+            modified_priorities = base_params['personality_priorities']
+            priority_additions = []
+            
+            if supportiveness_boost > 0.5:
+                priority_additions.append("emotional support")
+                priority_additions.append("encouragement")
+            
+            if focus_intensity > 0.5:
+                priority_additions.append("practical assistance")
+                priority_additions.append("problem-solving")
+            
+            if priority_additions:
+                modified_priorities = f"{modified_priorities}, {', '.join(priority_additions)}"
+            
+            # Create emotion context description for the recipe
+            emotion_description = f"Current emotion: {recent_emotion} | Energy: {energy_level} | Stress: {stress_level}"
+            if abs(energy_boost) > 0.3 or abs(supportiveness_boost) > 0.3 or abs(humor_adjustment) > 0.3:
+                emotion_description += f" | Personality adapted based on emotional state"
+            
+            return {
+                'personality_name': base_params['personality_name'],
+                'personality_style': modified_style,
+                'personality_tone': modified_tone,
+                'personality_priorities': modified_priorities,
+                'personality_phrases': base_params['personality_phrases'],
+                'emotion_context': emotion_description,
+                'recent_emotion': recent_emotion,
+                'energy_level': energy_level,
+                'stress_level': stress_level,
+                'emotion_modifiers': {
+                    'energy_boost': energy_boost,
+                    'supportiveness_boost': supportiveness_boost,
+                    'humor_adjustment': humor_adjustment,
+                    'focus_intensity': focus_intensity
+                }
+            }
+            
+        except Exception as e:
+            print(f"[EMOTION] Error applying emotion modifiers: {e}")
+            base_params['emotion_context'] = f"Error applying emotion context: {e}"
+            return base_params
+    
+    def get_stress_wellness_parameters(self):
+        """Get parameters for stress management and wellness recipes"""
+        try:
+            import sys
+            import os
+            
+            # Add the parent directory to sys.path to import emotion_context
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.append(parent_dir)
+            
+            from emotion_context import emotion_context
+            
+            stress_analysis = emotion_context.get_stress_analysis()
+            context_data = emotion_context.get_current_emotion_context()
+            receptivity = emotion_context.get_receptivity_score()
+            should_suggest = emotion_context.should_suggest_break_now()
+            
+            # Convert duration to hours and minutes
+            duration_total_minutes = stress_analysis['duration_minutes']
+            duration_hours = duration_total_minutes // 60
+            duration_minutes = duration_total_minutes % 60
+            
+            # Format time since positive emotion
+            time_since_positive = stress_analysis['time_since_last_positive']
+            if time_since_positive is None:
+                time_since_positive_str = "unknown"
+            elif time_since_positive < 60:
+                time_since_positive_str = f"{time_since_positive:.0f} minutes"
+            else:
+                time_since_positive_str = f"{time_since_positive/60:.1f} hours"
+            
+            return {
+                'stress_score': stress_analysis['stress_score'],
+                'stress_level': stress_analysis['stress_level'],
+                'intervention_type': stress_analysis['intervention_type'],
+                'duration_hours': duration_hours,
+                'duration_minutes': duration_minutes,
+                'time_since_positive': time_since_positive_str,
+                'stress_patterns': stress_analysis['patterns'],
+                'receptivity_score': receptivity,
+                'should_suggest_break': should_suggest,
+                'recent_emotion': context_data['recent_emotion'],
+                'energy_level': context_data['energy_level']
+            }
+            
+        except Exception as e:
+            print(f"[STRESS] Error getting stress wellness parameters: {e}")
+            return {
+                'stress_score': 0.0,
+                'stress_level': 'low',
+                'intervention_type': 'none',
+                'duration_hours': 0,
+                'duration_minutes': 0,
+                'time_since_positive': 'unknown',
+                'stress_patterns': {},
+                'receptivity_score': 0.5,
+                'should_suggest_break': False,
+                'recent_emotion': 'neutral',
+                'energy_level': 'medium'
+            }
+    
+    def _run_stress_wellness_recipe(self):
+        """Run the stress wellness recipe if conditions are appropriate"""
+        try:
+            import sys
+            import os
+            
+            # Add the parent directory to sys.path to import emotion_context
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.append(parent_dir)
+            
+            from emotion_context import emotion_context
+            
+            should_suggest = emotion_context.should_suggest_break_now()
+            stress_analysis = emotion_context.get_stress_analysis()
+            
+            # Only run wellness recipe if intervention is needed OR for periodic monitoring
+            if should_suggest or stress_analysis['intervention_needed']:
+                print("🧘 Running stress & wellness analysis...")
+                
+                params = self.get_stress_wellness_parameters()
+                
+                # Log the stress context
+                print(f"[STRESS] Current stress level: {params['stress_level']} (score: {params['stress_score']:.2f})")
+                if params['should_suggest_break']:
+                    print(f"[WELLNESS] Intervention recommended: {params['intervention_type']}")
+                
+                # Build parameter arguments
+                param_args = []
+                for key, value in params.items():
+                    param_args.extend(['--params', f'{key}={value}'])
+                
+                # Run the goose recipe
+                cmd = [
+                    "goose", "run", "--no-session", 
+                    "--recipe", "observers/recipe-stress-wellness.yaml"
+                ] + param_args
+                
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                
+                if result.returncode == 0:
+                    print("✅ Stress wellness analysis completed")
+                    return True
+                else:
+                    print(f"❌ Stress wellness recipe failed: {result.stderr}")
+                    return False
+            
+            return True  # No intervention needed is success
+            
+        except Exception as e:
+            print(f"❌ Error running stress wellness recipe: {e}")
+            return False
 
     def trigger_contextual_message(self):
         """Trigger a contextual message from recipes"""
@@ -828,12 +1491,52 @@ class ObserverAvatarBridge:
 
     def on_context_or_recipe_change(self):
         """Call this after context or recipe change to clear state and regenerate suggestions."""
-        print("[CONTEXT/RECIPE] Detected context or recipe change. Clearing all state and regenerating suggestions.")
+        print("[CONTEXT/RECIPE] Regenerating suggestions after emotional context change.")
         self.clear_all_state()
         self._run_avatar_suggestions()
         self._run_actionable_suggestions()
         self._run_chatter_recipe()
         print("[CONTEXT/RECIPE] Regenerated all suggestions after context/recipe change.")
+
+    def _get_emotion_state_snapshot(self):
+        """Get a snapshot of current emotional state for comparison"""
+        try:
+            if self.emotion_context and self.emotion_context.is_emotion_data_available():
+                context = self.emotion_context.get_current_emotion_context()
+                return {
+                    'recent_emotion': context.get('recent_emotion'),
+                    'energy_level': context.get('energy_level'),
+                    'stress_level': context.get('stress_level'),
+                    'dominant_emotion': context.get('dominant_emotion')
+                }
+        except Exception as e:
+            print(f"[EMOTION] Error getting emotion snapshot: {e}")
+        return None
+
+    def _has_emotion_state_changed(self):
+        """Check if emotional state has significantly changed since last check"""
+        current_state = self._get_emotion_state_snapshot()
+        
+        if self.previous_emotion_state is None and current_state is None:
+            return False  # No change (both None)
+        
+        if self.previous_emotion_state is None or current_state is None:
+            self.previous_emotion_state = current_state
+            return True  # State availability changed
+        
+        # Check for significant changes
+        changed = (
+            self.previous_emotion_state['recent_emotion'] != current_state['recent_emotion'] or
+            self.previous_emotion_state['energy_level'] != current_state['energy_level'] or
+            self.previous_emotion_state['stress_level'] != current_state['stress_level']
+        )
+        
+        if changed:
+            print(f"[EMOTION] State changed: {self.previous_emotion_state['recent_emotion']}→{current_state['recent_emotion']}, energy: {self.previous_emotion_state['energy_level']}→{current_state['energy_level']}, stress: {self.previous_emotion_state['stress_level']}→{current_state['stress_level']}")
+            self.previous_emotion_state = current_state
+            return True
+        
+        return False
 
 def trigger_personality_update():
     """Trigger personality-based suggestion regeneration (can be called from other modules)"""

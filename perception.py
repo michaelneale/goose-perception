@@ -56,13 +56,20 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wake-c
 # Import the wake classifier
 from classifier import GooseWakeClassifier
 
-# Import emotion detection
+# Import emotion detection - using new lightweight version
 try:
-    from emotion_detector import run_emotion_detection_cycle, cleanup_emotion_detector
+    from emotion_detector_v2 import run_emotion_detection_cycle, cleanup_emotion_detector
     EMOTION_DETECTION_AVAILABLE = True
+    print("✅ Using lightweight emotion detection system")
 except ImportError as e:
-    print(f"⚠️ Emotion detection not available: {e}")
-    EMOTION_DETECTION_AVAILABLE = False
+    print(f"⚠️ New emotion detection not available, trying legacy version: {e}")
+    try:
+        from emotion_detector import run_emotion_detection_cycle, cleanup_emotion_detector
+        EMOTION_DETECTION_AVAILABLE = True
+        print("⚠️ Using legacy emotion detection system")
+    except ImportError as e2:
+        print(f"⚠️ No emotion detection available: {e2}")
+        EMOTION_DETECTION_AVAILABLE = False
 
 # Initialize the Whisper models
 def load_models():
@@ -1109,7 +1116,7 @@ def main():
         print("🔥 Hotkey: Cmd+Shift+G for screen capture")
         print("🎙️ Voice: Say 'goose' to activate voice commands")
         if EMOTION_DETECTION_AVAILABLE:
-            print("🎭 Emotion: Facial emotion detection every 5 minutes")
+            print("🎭 Emotion: Facial emotion detection every 1 minute")
         print()
         log_activity("Listening for wake word")
         
@@ -1121,7 +1128,7 @@ def main():
             except:
                 pass
             
-            # Run emotion detection cycle if available (every 5 minutes)
+            # Run emotion detection cycle if available (every 1 minute)
             if EMOTION_DETECTION_AVAILABLE:
                 try:
                     run_emotion_detection_cycle()
