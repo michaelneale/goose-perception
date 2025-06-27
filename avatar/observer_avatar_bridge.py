@@ -35,8 +35,8 @@ except ImportError:
 class ObserverAvatarBridge:
     def __init__(self):
         self.base_dir = Path(__file__).parent.parent
-        self.perception_dir = self.base_dir / ".goose-perception"
-        self.perception_dir.mkdir(exist_ok=True)
+        self.perception_dir = Path.home() / ".local/share/goose-perception" 
+        self.perception_dir.mkdir(parents=True, exist_ok=True)
         self.state_dir = Path.home() / ".local/share/goose-perception" 
         self.state_dir.mkdir(parents=True, exist_ok=True)
         
