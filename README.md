@@ -28,8 +28,11 @@ This is the most personal way to build up a background assistant that can take a
 
 ## Quick start 
 
-Run this via `just run` and let it observe how you work (watch and listen), in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
-Always watching, and listening and perceiving and then acting. If this is all to much `just run-simple` will run just the recipesd (no voice or other enhancements)
+Run this via `just run` and let it observe how you work (watch and listen). The system automatically sets up **29 scheduled background recipes** via GooseSchedule that will learn your patterns and start doing work for you (carefully!) - suggesting things, reminding you, and taking helpful actions.
+
+**🚀 Zero-Config Setup**: Everything installs automatically on first run, including dependencies and schedule configuration.
+
+Always watching, listening, and perceiving, then acting. If this is all too much, `just run-simple` will run just the recipes and screenshot capture (no voice or avatar enhancements).
 
 
 ## 🎭 Avatar Personality System
@@ -256,7 +259,7 @@ A normal goose session can also benefit from this context as well.
 
 Prerequisites:
 - `just` command runner
-- macOS (for hotkey functionality)
+- macOS (for hotkey functionality and auto-dependency installation)
 
 The application will:
 1. Create a virtual environment with Python 3.12
@@ -278,15 +281,36 @@ For the hotkey functionality (`Cmd+Shift+G`) to work, you may need to grant perm
 ### Available Commands
 
 ```bash
-just run              # Run the application
-just run-simple       # Run the application without voice or avatar features (just recipes)
-just train-classifier # run the classifier (won't usually need to)
-just status           # to check what is running
-just logs             # to follow along with background things going on
-just test             # run all automated tests
-just test-avatar      # run interactive avatar test (opens GUI)
-just test-emotion     # test emotion detection immediately (bypass 5-minute timer)
-just kill             # kill switch
+# Core System Commands
+just run              # Run full system (voice, avatar, recipes, schedules)
+just run-simple       # Run just recipes and screenshot capture (no voice/avatar)
+just kill             # Kill all processes and pause schedules
+
+# Schedule Management Commands
+just status           # Show system status and schedule health
+just sync-schedules   # Manually sync all 29 recipes to GooseSchedule
+just resume-schedules # Resume paused schedules (auto-starts services)
+
+# Setup and Maintenance Commands
+just setup            # Install dependencies (auto-runs on first use)
+just train-classifier # Train wake word classifier (won't usually need to)
+just logs             # View live observer logs
+just logs-recent      # View recent observer logs
+
+# Testing Commands
+just test             # Run all automated tests
+just test-avatar      # Run interactive avatar test (opens GUI)
+just test-emotion     # Test emotion detection immediately (bypass 5-minute timer)
+
+# Schedule Management Tools
+python3 schedule_manager.py list     # List all 29 recipes and their configurations
+python3 schedule_manager.py status   # Detailed schedule health diagnostics
+python3 schedule_manager.py dry-run  # Preview what would be synced to GooseSchedule
+
+# Direct GooseSchedule Access (when system is running)
+goose schedule list                  # View active schedules in GooseSchedule
+goose schedule services-status       # Check Temporal service health
+goose schedule run-now SCHEDULE_ID   # Manually trigger a specific recipe
 ```
 
 ### 🎭 Emotion Detection Commands
@@ -306,7 +330,8 @@ uv run emotion_detector_v2.py             # Test the emotion detector directly
 ## Models and data
 
 The voice models (currently whisper) and locally trained models (distilbert based) all run locally when listening in to the environment and for commands, no audio leaves your machine. 
-Screen shots are taken periodically but cleaned out, goose is used to summarised those into a rolling log
+
+Screenshots are taken periodically by the automated screenshot service (`screenshot_capture.py`) and cleaned out regularly. Goose recipes use these screenshots to maintain rolling logs of your work activity. All screenshot scheduling is now managed through GooseSchedule rather than the old bash scripts that were previously used.
 
 ### Local models and personal data
 
@@ -326,8 +351,11 @@ Voice information is kept local as are transcriptions, image processing is done 
 
 # Observing and learning
 
-The `observers` directory has many recipes for learning about you - these will run from time to time, some continuously. 
-Goose recipes running in the background are key to how perception works. 
+The `observers` directory contains **29 automated recipes** that learn about your work patterns, activities, and preferences. These recipes are automatically scheduled and managed by **GooseSchedule**, running at optimal frequencies from every 15 minutes to weekly.
+
+**🔄 Automated Background Operation**: All recipes run continuously in the background via GooseSchedule - no manual intervention needed. The system intelligently schedules high-frequency monitoring (work analysis, focus tracking) alongside periodic deep analysis (weekly summaries, optimization reports).
+
+Goose recipes running in the background are key to how perception works, and the new scheduling system ensures they run reliably with automatic retry, pause/resume, and health monitoring. 
 
 <img src="meetings.png"/>
 * a recipe is recalling meeting information, and looking for any spoken content during that time
