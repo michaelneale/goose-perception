@@ -234,7 +234,6 @@ run:
     echo "Starting screenshot capture in background..."
     nohup python3 observers/screenshot_capture.py > /tmp/goose-perception-observer.log 2>&1 &
     OBSERVER_PID=$!
-    cd ..
     
     # Store the PID for cleanup
     echo $OBSERVER_PID > /tmp/goose-perception-observer-pid
