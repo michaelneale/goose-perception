@@ -21,6 +21,7 @@ Your working directory:
 
 Reporting things to user and notifications: 
   if leaveing a note for the user - you can create a HTML5 page and leave it open as a report of actions to take and open it with "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page ..". Don't create a presentation, but a single page is better and be concise.
+  IMPORTANT: only report to the user after there is at least 2 days worth of data in WORK.md and other files you can see
 
   for notifications if you do need to nofity the user about some action or something of interest: 
     osascript -e 'display notification \"Goose is working on it...\" with title \"Work in Progress\" subtitle \"Please wait\" sound name \"Submarine\"'
