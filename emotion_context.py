@@ -19,7 +19,10 @@ class EmotionContext:
             self.emotions_log_path = Path(emotions_file)
         else:
             self.data_dir = data_dir or Path.home() / ".local" / "share" / "goose-perception"
-            self.emotions_log_path = self.data_dir / "emotions.log"
+            # Try the newer format first, fall back to old format
+            self.emotions_log_path = self.data_dir / "emotions_v2.log"
+            if not self.emotions_log_path.exists():
+                self.emotions_log_path = self.data_dir / "emotions.log"
         
         # Emotion categorization for analysis
         self.positive_emotions = {"happy", "content", "surprised"}
@@ -52,7 +55,20 @@ class EmotionContext:
                 reader = csv.reader(f)
                 for row in reader:
                     if len(row) >= 3:
-                        timestamp_str, emotion, face_id = row[0], row[1], row[2]
+                        timestamp_str, emotion = row[0], row[1]
+                        
+                        # Handle both old and new format
+                        if len(row) == 3:
+                            # Old format: timestamp,emotion,face_id
+                            face_id = row[2]
+                            confidence = None
+                            method = None
+                        else:
+                            # New format: timestamp,emotion,confidence,method
+                            confidence = float(row[2]) if row[2] else None
+                            method = row[3] if len(row) > 3 else None
+                            face_id = "1"  # Default face ID for new format
+                        
                         try:
                             timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
                             if timestamp.tzinfo:
@@ -62,7 +78,9 @@ class EmotionContext:
                                 emotions.append({
                                     'timestamp': timestamp,
                                     'emotion': emotion,
-                                    'face_id': face_id
+                                    'face_id': face_id,
+                                    'confidence': confidence,
+                                    'method': method
                                 })
                         except ValueError:
                             continue
@@ -70,7 +88,7 @@ class EmotionContext:
             print(f"[EMOTION] Could not parse emotions.log: {e} - using neutral defaults")
             return []
         
-        if not emotions:
+        if not emotions and hours_back == 1:  # Only print for short-term checks
             print(f"[EMOTION] No recent emotion data found (last {hours_back} hours) - using neutral defaults")
         
         return sorted(emotions, key=lambda x: x['timestamp'])

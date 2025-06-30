@@ -91,6 +91,53 @@ check-ffmpeg:
         echo "ℹ️  Not on macOS, skipping ffmpeg check"
     fi
 
+# Check for Temporal CLI on macOS and install if needed
+check-temporal:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    # Only check on macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "🔍 Checking for Temporal CLI on macOS..."
+        
+        # Check if temporal is available
+        if ! command -v temporal &> /dev/null; then
+            echo "⚠️  Temporal CLI not found. Installing via Homebrew..."
+            
+            # Check if brew is available
+            if ! command -v brew &> /dev/null; then
+                echo "❌ Homebrew not found. Please install Homebrew first:"
+                echo "   /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+                exit 1
+            fi
+            
+            # Install temporal
+            echo "📦 Installing Temporal CLI..."
+            if brew install temporal; then
+                echo "✅ Temporal CLI installed successfully!"
+                echo "🔄 This enables advanced GooseSchedule features with complex cron expressions"
+            else
+                echo "❌ Failed to install Temporal CLI. Please install manually:"
+                echo "   brew install temporal"
+                echo "ℹ️  Without Temporal, GooseSchedule will use legacy mode (basic schedules only)"
+                # Don't exit - legacy mode still works
+            fi
+        else
+            echo "✅ Temporal CLI is already installed"
+            
+            # Check if Temporal services are running for GooseSchedule
+            echo "🔍 Checking Temporal services status..."
+            if goose schedule services-status &> /dev/null; then
+                echo "✅ Temporal services are running for GooseSchedule"
+            else
+                echo "ℹ️  Temporal CLI installed but services may need to start (will auto-start when needed)"
+            fi
+        fi
+    else
+        echo "ℹ️  Not on macOS, skipping Temporal check"
+        echo "ℹ️  For Linux/Windows, install Temporal from: https://github.com/temporalio/cli/releases"
+    fi
+
 # Setup required dependencies and data
 setup:
     #!/usr/bin/env bash
@@ -100,7 +147,39 @@ setup:
     # Check for ffmpeg on macOS
     just check-ffmpeg
     
+    # Check for Temporal CLI on macOS
+    just check-temporal
+    
     echo "✅ Setup complete! (NLTK data will be downloaded automatically when needed)"
+
+# Sync GooseSchedule schedules
+sync-schedules:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🔧 Setting up directories..."
+    python3 setup_directories.py
+    echo "🔄 Syncing GooseSchedule schedules..."
+    python3 startup.py
+
+# Resume GooseSchedule schedules (auto-starts services)
+resume-schedules:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "▶️  Resuming GooseSchedule schedules..."
+    if command -v goose &> /dev/null; then
+        # Services auto-start when we check status or sync
+        if goose schedule services-status &> /dev/null; then
+            echo "✅ Temporal services are running"
+        else
+            echo "🔄 Starting Temporal services..."
+            # Trigger service start by running a simple sync
+            python3 startup.py > /dev/null
+        fi
+        echo "✅ All schedules resumed"
+    else
+        echo "❌ GooseSchedule not available"
+        exit 1
+    fi
 
 # Train the wake word classifier
 train-classifier:
@@ -123,9 +202,12 @@ run-simple:
     # Kill any existing processes first
     just kill
     
-    echo "Starting observers..."
-    cd observers 
-    ./run-observations.sh
+    # Sync GooseSchedule schedules
+    echo "🔄 Syncing GooseSchedule schedules..."
+    python3 startup.py
+    
+    echo "Starting screenshot capture..."
+    python3 observers/screenshot_capture.py
 
 # Run the full voice recognition system (observers + voice)
 run: 
@@ -145,11 +227,13 @@ run:
     # Kill any existing processes first
     just kill
     
-    echo "Starting observers in background..."
-    cd observers 
-    nohup ./run-observations.sh > /tmp/goose-perception-observer.log 2>&1 &
+    # Sync GooseSchedule schedules
+    echo "🔄 Syncing GooseSchedule schedules..."
+    python3 startup.py
+    
+    echo "Starting screenshot capture in background..."
+    nohup python3 observers/screenshot_capture.py > /tmp/goose-perception-observer.log 2>&1 &
     OBSERVER_PID=$!
-    cd ..
     
     # Store the PID for cleanup
     echo $OBSERVER_PID > /tmp/goose-perception-observer-pid
@@ -165,6 +249,15 @@ kill:
     #!/usr/bin/env bash
     echo "🚦 KILLING ALL GOOSE PERCEPTION PROCESSES..."
     
+    # Pause all schedules by stopping Temporal services
+    echo "⏸️  Pausing all GooseSchedule jobs..."
+    if command -v goose &> /dev/null; then
+        goose schedule services-stop 2>/dev/null || true
+        echo "✅ All schedules paused"
+    else
+        echo "ℹ️  GooseSchedule not available, skipping schedule pause"
+    fi
+    
     # Create halt file
     touch /tmp/goose-perception-halt 2>/dev/null || true
     
@@ -179,14 +272,14 @@ kill:
     
     # Nuclear option - kill everything related
     echo "Killing all related processes..."
-    pkill -KILL -f "run-observations.sh" 2>/dev/null || true
+    pkill -KILL -f "screenshot_capture.py" 2>/dev/null || true
     pkill -KILL -f "goose run" 2>/dev/null || true
     pkill -KILL -f "recipe-" 2>/dev/null || true
     
     # Clean up temp files
     rm -f /tmp/goose-perception-* 2>/dev/null || true
     
-    echo "✅ All processes killed."
+    echo "✅ All processes killed and schedules paused."
 
 # View observer logs
 logs:
@@ -220,6 +313,22 @@ status:
     fi
     echo
     
+    # Check GooseSchedule status
+    if command -v goose &> /dev/null; then
+        echo "=== Schedule Status ==="
+        if goose schedule services-status &> /dev/null; then
+            echo "✅ Temporal services running - schedules active"
+            SCHEDULE_COUNT=$(goose schedule list 2>/dev/null | grep -c "ID:" || echo "0")
+            echo "📋 Active schedules: $SCHEDULE_COUNT"
+        else
+            echo "⏸️  Temporal services stopped - schedules paused"
+        fi
+        echo
+    else
+        echo "❌ GooseSchedule not available"
+        echo
+    fi
+    
     # Check for observer PID file
     if [ -f "/tmp/goose-perception-observer-pid" ]; then
         OBSERVER_PID=$(cat /tmp/goose-perception-observer-pid)
@@ -239,7 +348,7 @@ status:
     echo
     
     echo "Running observation scripts:"
-    ps aux | grep "run-observations.sh" | grep -v grep || echo "  None found"
+    ps aux | grep "screenshot_capture.py" | grep -v grep || echo "  None found"
     echo
 
 # Run tests
