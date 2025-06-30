@@ -942,7 +942,9 @@ class ObserverAvatarBridge:
                     print("[EMOTION] Emotional state changed - regenerating suggestions")
                     self.on_context_or_recipe_change()
                 else:
-                    print("[EMOTION] Content updated but emotional state unchanged - keeping existing suggestions")
+                    # Reduce log spam - only print this occasionally
+                    if random.random() < 0.1:  # 10% chance
+                        print("[EMOTION] Content updated but emotional state unchanged - keeping existing suggestions")
                 return
             # Show a contextual message (unchanged)
             if random.random() > 0.3:
