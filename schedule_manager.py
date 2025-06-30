@@ -258,15 +258,42 @@ class ScheduleManager:
         """Get existing scheduled jobs from GooseSchedule"""
         try:
             result = subprocess.run(
-                ["goose", "schedule", "list", "--format", "json"],
+                ["goose", "schedule", "list"],
                 capture_output=True,
                 text=True,
                 check=True
             )
+            
+            schedules = {}
             if result.stdout.strip():
-                return {job["id"]: job for job in json.loads(result.stdout)}
-            return {}
-        except (subprocess.CalledProcessError, json.JSONDecodeError):
+                # Parse the human-readable output
+                lines = result.stdout.strip().split('\n')
+                current_job = {}
+                
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith("- ID: "):
+                        # If we have a previous job, add it to schedules
+                        if current_job.get("id"):
+                            schedules[current_job["id"]] = current_job
+                        # Start new job
+                        current_job = {"id": line[6:]}  # Remove "- ID: " prefix
+                    elif line.startswith("Status: "):
+                        current_job["status"] = line[8:]
+                    elif line.startswith("Cron: "):
+                        current_job["cron"] = line[6:]
+                    elif line.startswith("Recipe Source"):
+                        current_job["recipe_source"] = line.split(": ", 1)[1] if ": " in line else ""
+                    elif line.startswith("Last Run: "):
+                        current_job["last_run"] = line[10:]
+                
+                # Don't forget the last job
+                if current_job.get("id"):
+                    schedules[current_job["id"]] = current_job
+                    
+            return schedules
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️  Warning: Failed to get existing schedules: {e}")
             return {}
     
     def add_schedule(self, job_id: str, config: ScheduleConfig) -> bool:
@@ -347,7 +374,7 @@ class ScheduleManager:
                     print(f"  Would add: {job_id}")
                     added += 1
             else:
-                print(f"Schedule {job_id} already exists")
+                print(f"✓ Schedule {job_id} already exists")
         
         print()
         
