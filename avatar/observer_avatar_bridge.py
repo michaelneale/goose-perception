@@ -615,17 +615,22 @@ class ObserverAvatarBridge:
                     timing_analysis = self.emotion_context.get_interaction_timing_analysis()
                     recommendations = timing_analysis.get('recommendations', {})
                     
-                    # If we should reduce chatter, skip recipe generation
-                    if recommendations.get('should_reduce_chatter', False):
-                        print("⏸️ Skipping chatter generation due to emotional state")
-                        return
-                    
-                    # If low receptivity, reduce frequency of recipe runs
+                    # Be less aggressive about blocking chatter - allow supportive messages
                     chatter_receptivity = timing_analysis.get('interaction_receptivity', {}).get('chatter', 0.5)
-                    if chatter_receptivity < 0.3:
-                        # Random chance to skip during low receptivity
-                        if random.random() < 0.7:  # 70% chance to skip
-                            print("⏸️ Delaying chatter generation due to low receptivity")
+                    
+                    # Only block chatter if receptivity is extremely low AND recommendations are very restrictive
+                    if recommendations.get('should_reduce_chatter', False) and chatter_receptivity < 0.05:
+                        # Still allow occasional supportive chatter even when recommended to reduce
+                        if random.random() < 0.8:  # 80% chance to skip when extremely low receptivity
+                            print("⏸️ Skipping chatter generation due to very low emotional receptivity")
+                            return
+                        else:
+                            print("💬 Generating supportive chatter despite low receptivity")
+                    
+                    # For moderate low receptivity, just reduce frequency but don't block entirely
+                    elif chatter_receptivity < 0.2:
+                        if random.random() < 0.5:  # 50% chance to skip (reduced from 70%)
+                            print("⏸️ Reducing chatter frequency due to emotional state")
                             return
                 except Exception as e:
                     print(f"[CHATTER] Error getting emotion timing - proceeding: {e}")
@@ -1526,19 +1531,64 @@ class ObserverAvatarBridge:
             self.previous_emotion_state = current_state
             return True  # State availability changed
         
-        # Check for significant changes
-        changed = (
-            self.previous_emotion_state['recent_emotion'] != current_state['recent_emotion'] or
-            self.previous_emotion_state['energy_level'] != current_state['energy_level'] or
-            self.previous_emotion_state['stress_level'] != current_state['stress_level']
-        )
+        # Add a timestamp and count for more intelligent change detection
+        if not hasattr(self, 'last_emotion_change_time'):
+            self.last_emotion_change_time = datetime.now()
+            self.emotion_change_count = 0
         
-        if changed:
-            print(f"[EMOTION] State changed: {self.previous_emotion_state['recent_emotion']}→{current_state['recent_emotion']}, energy: {self.previous_emotion_state['energy_level']}→{current_state['energy_level']}, stress: {self.previous_emotion_state['stress_level']}→{current_state['stress_level']}")
+        # Only check for SIGNIFICANT changes, not every minor emotion fluctuation
+        significant_change = False
+        
+        # Major emotion category changes (positive/negative/neutral shifts)
+        prev_emotion = self.previous_emotion_state['recent_emotion']
+        curr_emotion = current_state['recent_emotion']
+        
+        # Group emotions into broader categories to reduce sensitivity
+        positive_emotions = {'happy', 'content', 'surprised'}
+        negative_emotions = {'sad', 'tired', 'serious', 'angry', 'fear'}
+        neutral_emotions = {'neutral', 'uncertain'}
+        
+        def get_emotion_category(emotion):
+            if emotion in positive_emotions:
+                return 'positive'
+            elif emotion in negative_emotions:
+                return 'negative'
+            else:
+                return 'neutral'
+        
+        prev_category = get_emotion_category(prev_emotion)
+        curr_category = get_emotion_category(curr_emotion)
+        
+        # Only trigger on category changes OR significant sustained changes
+        if prev_category != curr_category:
+            # Reset change tracking for category changes
+            time_since_last = (datetime.now() - self.last_emotion_change_time).total_seconds()
+            if time_since_last > 300:  # 5 minutes minimum between major changes
+                significant_change = True
+                self.last_emotion_change_time = datetime.now()
+                self.emotion_change_count = 0
+            else:
+                # Too frequent - log but don't regenerate
+                if random.random() < 0.1:  # Occasional logging
+                    print(f"[EMOTION] Frequent emotion changes detected ({prev_emotion}→{curr_emotion}) - stabilizing...")
+        
+        # Energy/stress level changes (less sensitive)
+        if (self.previous_emotion_state['energy_level'] != current_state['energy_level'] or
+            self.previous_emotion_state['stress_level'] != current_state['stress_level']):
+            # Only trigger if it's been a while since last change
+            time_since_last = (datetime.now() - self.last_emotion_change_time).total_seconds()
+            if time_since_last > 600:  # 10 minutes for energy/stress changes
+                significant_change = True
+                self.last_emotion_change_time = datetime.now()
+        
+        if significant_change:
+            print(f"[EMOTION] Significant state change: {prev_emotion}→{curr_emotion}, energy: {self.previous_emotion_state['energy_level']}→{current_state['energy_level']}, stress: {self.previous_emotion_state['stress_level']}→{current_state['stress_level']}")
             self.previous_emotion_state = current_state
             return True
-        
-        return False
+        else:
+            # Update state but don't trigger regeneration
+            self.previous_emotion_state = current_state
+            return False
 
 def trigger_personality_update():
     """Trigger personality-based suggestion regeneration (can be called from other modules)"""
