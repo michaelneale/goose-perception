@@ -156,10 +156,8 @@ setup:
 sync-schedules:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "🔧 Setting up directories..."
-    python3 setup_directories.py
     echo "🔄 Syncing GooseSchedule schedules..."
-    python3 startup.py
+    ./.use-hermit python3 sync_schedules.py
 
 # Resume GooseSchedule schedules (auto-starts services)
 resume-schedules:
@@ -173,7 +171,7 @@ resume-schedules:
         else
             echo "🔄 Starting Temporal services..."
             # Trigger service start by running a simple sync
-            python3 startup.py > /dev/null
+            ./.use-hermit python3 sync_schedules.py > /dev/null
         fi
         echo "✅ All schedules resumed"
     else
@@ -202,12 +200,13 @@ run-simple:
     # Kill any existing processes first
     just kill
     
-    # Sync GooseSchedule schedules
+    # Sync GooseSchedule schedules (includes system setup)
     echo "🔄 Syncing GooseSchedule schedules..."
-    python3 startup.py
+    ./.use-hermit python3 sync_schedules.py
     
-    echo "Starting screenshot capture..."
-    python3 observers/screenshot_capture.py
+    echo "✅ Observers are now running via GooseSchedule"
+    echo "   Use 'just status' to check status"
+    echo "   Use 'just schedule-status' for detailed schedule info"
 
 # Run the full voice recognition system (observers + voice)
 run: 
@@ -227,17 +226,11 @@ run:
     # Kill any existing processes first
     just kill
     
-    # Sync GooseSchedule schedules
+    # Sync GooseSchedule schedules (includes system setup)
     echo "🔄 Syncing GooseSchedule schedules..."
-    python3 startup.py
+    ./.use-hermit python3 sync_schedules.py
     
-    echo "Starting screenshot capture in background..."
-    nohup python3 observers/screenshot_capture.py > /tmp/goose-perception-observer.log 2>&1 &
-    OBSERVER_PID=$!
-    
-    # Store the PID for cleanup
-    echo $OBSERVER_PID > /tmp/goose-perception-observer-pid
-    echo "Observer started with PID: $OBSERVER_PID (use 'just logs' to view)"
+    echo "✅ Observers are now running via GooseSchedule"
     
     # Simple cleanup that always runs
     trap 'echo "Cleaning up..."; just kill' EXIT INT TERM
@@ -247,7 +240,7 @@ run:
 
 kill:
     #!/usr/bin/env bash
-    echo "🚦 KILLING ALL GOOSE PERCEPTION PROCESSES..."
+    echo "🚦 STOPPING ALL GOOSE PERCEPTION PROCESSES..."
     
     # Pause all schedules by stopping Temporal services
     echo "⏸️  Pausing all GooseSchedule jobs..."
@@ -258,59 +251,44 @@ kill:
         echo "ℹ️  GooseSchedule not available, skipping schedule pause"
     fi
     
-    # Create halt file
-    touch /tmp/goose-perception-halt 2>/dev/null || true
-    
-    # Kill specific observer PID if we have it
-    if [ -f "/tmp/goose-perception-observer-pid" ]; then
-        OBSERVER_PID=$(cat /tmp/goose-perception-observer-pid 2>/dev/null || echo "")
-        if [ -n "$OBSERVER_PID" ]; then
-            echo "Killing observer PID: $OBSERVER_PID"
-            kill -KILL $OBSERVER_PID 2>/dev/null || true
-        fi
-    fi
-    
-    # Nuclear option - kill everything related
+    # Kill any running goose processes
     echo "Killing all related processes..."
-    pkill -KILL -f "screenshot_capture.py" 2>/dev/null || true
     pkill -KILL -f "goose run" 2>/dev/null || true
     pkill -KILL -f "recipe-" 2>/dev/null || true
     
     # Clean up temp files
     rm -f /tmp/goose-perception-* 2>/dev/null || true
     
-    echo "✅ All processes killed and schedules paused."
+    echo "✅ All processes stopped and schedules paused."
 
-# View observer logs
+# View observer logs (now from GooseSchedule)
 logs:
     #!/usr/bin/env bash
-    echo "=== Observer Logs ==="
-    if [ -f "/tmp/goose-perception-observer.log" ]; then
-        tail -f /tmp/goose-perception-observer.log
+    echo "=== GooseSchedule Logs ==="
+    if command -v goose &> /dev/null; then
+        echo "Recent schedule activity:"
+        goose schedule list 2>/dev/null || echo "No schedules found"
+        echo ""
+        echo "To view logs for a specific recipe run:"
+        echo "  goose run --recipe observers/recipe-name.yaml"
     else
-        echo "No log file found at /tmp/goose-perception-observer.log"
+        echo "GooseSchedule not available"
     fi
 
 # View recent observer logs
 logs-recent:
     #!/usr/bin/env bash
-    echo "=== Recent Observer Logs ==="
-    if [ -f "/tmp/goose-perception-observer.log" ]; then
-        tail -50 /tmp/goose-perception-observer.log
+    echo "=== Recent Schedule Activity ==="
+    if command -v goose &> /dev/null; then
+        goose schedule list 2>/dev/null || echo "No schedules found"
     else
-        echo "No log file found"
+        echo "GooseSchedule not available"
     fi
 
 # Check status of running processes
 status:
     #!/usr/bin/env bash
     echo "=== Goose Perception Status ==="
-    echo
-    
-    # Check for halt file
-    if [ -f "/tmp/goose-perception-halt" ]; then
-        echo "🛑 Halt file exists - system should be stopping"
-    fi
     echo
     
     # Check GooseSchedule status
@@ -320,8 +298,12 @@ status:
             echo "✅ Temporal services running - schedules active"
             SCHEDULE_COUNT=$(goose schedule list 2>/dev/null | grep -c "ID:" || echo "0")
             echo "📋 Active schedules: $SCHEDULE_COUNT"
+            echo ""
+            echo "Recent schedule activity:"
+            ./.use-hermit python3 schedule_manager.py status
         else
             echo "⏸️  Temporal services stopped - schedules paused"
+            echo "   Run 'just resume-schedules' to restart"
         fi
         echo
     else
@@ -329,26 +311,8 @@ status:
         echo
     fi
     
-    # Check for observer PID file
-    if [ -f "/tmp/goose-perception-observer-pid" ]; then
-        OBSERVER_PID=$(cat /tmp/goose-perception-observer-pid)
-        if kill -0 $OBSERVER_PID 2>/dev/null; then
-            echo "✅ Observer process running (PID: $OBSERVER_PID)"
-        else
-            echo "❌ Observer PID file exists but process not running (stale PID: $OBSERVER_PID)"
-        fi
-    else
-        echo "❌ No observer PID file found"
-    fi
-    echo
-    
-    # Check for running processes
     echo "Running goose processes:"
     ps aux | grep -E "(goose|recipe-)" | grep -v grep | grep -v "just status" || echo "  None found"
-    echo
-    
-    echo "Running observation scripts:"
-    ps aux | grep "screenshot_capture.py" | grep -v grep || echo "  None found"
     echo
 
 # Run tests
@@ -403,3 +367,50 @@ test-avatar:
 update: 
     git checkout main
     git pull origin main    
+
+# Schedule management commands
+schedule-list:
+    #!/usr/bin/env bash
+    echo "📋 Discovered Schedules:"
+    ./.use-hermit python3 schedule_manager.py list
+
+schedule-status:
+    #!/usr/bin/env bash
+    echo "📊 Schedule Status:"
+    ./.use-hermit python3 schedule_manager.py status
+
+schedule-sync:
+    #!/usr/bin/env bash
+    echo "🔄 Syncing Schedules:"
+    ./.use-hermit python3 sync_schedules.py
+
+schedule-dry-run:
+    #!/usr/bin/env bash
+    echo "🔍 Schedule Dry Run (no changes):"
+    ./.use-hermit python3 schedule_manager.py dry-run
+
+schedule-help:
+    #!/usr/bin/env bash
+    echo "📖 Schedule Management Commands:"
+    echo "  just schedule-list      - List all configured schedules"
+    echo "  just schedule-status    - Show schedule status"
+    echo "  just schedule-sync      - Sync schedules with GooseSchedule"
+    echo "  just schedule-sync-safe - Sync without removing extra schedules"
+    echo "  just schedule-dry-run   - Show what would change (no changes)"
+    echo "  just schedule-clean     - Clean up old/extra schedules (interactive)"
+    echo "  just sync-schedules     - Full sync with directory setup"
+    echo ""
+    echo "📝 To add schedule to a recipe:"
+    echo "  ./.use-hermit python3 schedule_manager.py add-schedule --recipe observers/recipe-example.yaml --frequency hourly"
+    echo ""
+    echo "📖 See SCHEDULE_CONFIGURATION.md for detailed documentation"
+
+schedule-sync-safe:
+    #!/usr/bin/env bash
+    echo "🔄 Syncing Schedules (safe mode - no removal):"
+    ./.use-hermit python3 schedule_manager.py sync --no-remove
+
+schedule-clean:
+    #!/usr/bin/env bash
+    echo "🧹 Cleaning up extra schedules:"
+    ./.use-hermit python3 schedule_manager.py clean    

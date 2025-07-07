@@ -1,0 +1,38 @@
+version: 1.0.0
+title: System Setup
+author:
+  contact: system
+description: One-time setup of goose-perception directory structure
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+prompt: |
+  Set up the required directory structure for goose-perception.
+  
+  Your task is to:
+  1. Create the main goose-perception data directory: ~/.local/share/goose-perception
+  2. Create subdirectories for automated actions: automated-actions/daily and automated-actions/weekly
+  3. Create directory for adapted observers: adapted-observers
+  4. Create screenshots directory: /tmp/screenshots
+  5. Copy .goosehints file to the appropriate subdirectories
+  6. Log the setup completion to the activity log
+  
+  Use these commands:
+  - `mkdir -p ~/.local/share/goose-perception`
+  - `mkdir -p ~/.local/share/goose-perception/automated-actions/daily`
+  - `mkdir -p ~/.local/share/goose-perception/automated-actions/weekly` 
+  - `mkdir -p ~/.local/share/goose-perception/adapted-observers`
+  - `mkdir -p /tmp/screenshots`
+  
+  If observers/.goosehints exists, copy it to:
+  - ~/.local/share/goose-perception/automated-actions/daily/.goosehints
+  - ~/.local/share/goose-perception/automated-actions/weekly/.goosehints
+  - ~/.local/share/goose-perception/adapted-observers/.goosehints
+  
+  Log the completion with timestamp to ~/.local/share/goose-perception/ACTIVITY-LOG.md:
+  `echo "**$(date '+%Y-%m-%d %H:%M:%S')**: Directory setup completed" >> ~/.local/share/goose-perception/ACTIVITY-LOG.md`
+  
+  This recipe should run quickly and only log essential setup actions. 
