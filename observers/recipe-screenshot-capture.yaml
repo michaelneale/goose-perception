@@ -1,0 +1,33 @@
+version: 1.0.0
+title: Screenshot Capture
+author:
+  contact: system
+description: Continuous screenshot capture for goose-perception
+extensions:
+- type: builtin
+  name: developer
+  display_name: Developer
+  timeout: 300
+  bundled: true
+prompt: |
+  Take a screenshot and save it to the screenshots directory.
+  
+  Your task is to:
+  1. Create the screenshots directory if it doesn't exist: /tmp/screenshots
+  2. Take a screenshot of all displays using the screencapture command
+  3. Save with timestamp format: screen_YYYYMMDD_HHMMSS_displayN.png
+  4. Clean up old screenshots (older than 24 hours) periodically
+  5. Log activity to ~/.local/share/goose-perception/ACTIVITY-LOG.md
+  
+  Use these commands:
+  - `mkdir -p /tmp/screenshots` - ensure directory exists
+  - `screencapture -x -D 1 /tmp/screenshots/screen_$(date +%Y%m%d_%H%M%S)_display1.png` - capture display 1
+  - `screencapture -x -D 2 /tmp/screenshots/screen_$(date +%Y%m%d_%H%M%S)_display2.png` - capture display 2 (if exists)
+  - `find /tmp/screenshots -name "screen_*.png" -mtime +1 -delete` - cleanup old files
+  
+  Check how many displays exist first with: `system_profiler SPDisplaysDataType | grep -c "Resolution:"`
+  
+  Be efficient - this runs every 20 seconds, so keep output minimal.
+  Only log significant events (errors, cleanup actions) to the activity log.
+  
+  If screenshots fail due to permissions, log the issue and suggest the user grant screen recording permissions in System Preferences > Security & Privacy > Privacy > Screen Recording. 
