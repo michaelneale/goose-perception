@@ -252,20 +252,51 @@ run_scheduled_recipes() {
     done
   fi
   
+  # original recipes, running more frequently
   # Work summary recipe (every 20 minutes, weekdays only)
-  run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md" "weekday-only"  
+  #run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md" "weekday-only"  
+  #run_recipe_if_needed "recipe-contributions.yaml" "hourly" "CONTRIBUTIONS.md" "weekday-only"
+  #run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus" "weekday-only"
+  #run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
+
   
-  run_recipe_if_needed "recipe-contributions.yaml" "hourly" "CONTRIBUTIONS.md" "weekday-only"
-  run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus" "weekday-only"
+  #run_recipe_if_needed "recipe-garbage-collect.yaml" "weekly" ".garbage-collect" "weekday-only"
+  #run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md" "weekday-only"
+  #run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
+  #run_recipe_if_needed "recipe-interactions.yaml" "hourly" "INTERACTIONS.md"
+  #run_recipe_if_needed "recipe-chrome-history.yaml" "4h" "CHROME_HISTORY.md" "weekday-only"
+  #run_recipe_if_needed "recipe-important-attention-message.yaml" "hourly" ".important-messages" "weekday-only"
+  #run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
+  #run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention" "weekday-only"
+  #run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming" "weekday-only"
+  #run_recipe_if_needed "recipe-what-working-on.yaml" "evening" ".working-on" "weekday-only"
+  #run_recipe_if_needed "recipe-optimize.yaml" "weekly" ".optimize"
+  #run_recipe_if_needed "recipe-meetings-actions.yaml" "morning" ".meetings-afternoon" "weekday-only"
+  #run_recipe_if_needed "recipe-apps-preferences.yaml" "daily" ".apps-preferences" "weekday-only"
+  #run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening" "weekday-only"
+  #run_recipe_if_needed "recipe-start-fixing.yaml" "evening" ".fixing"
+  #run_recipe_if_needed "recipe-background-tasks.yaml" "15m" ".background-tasks"
+  #run_recipe_if_needed "recipe-background-technical.yaml" "15m" ".background-technical"
+  #run_recipe_if_needed "recipe-follow-up-content.yaml" "morning" ".follow-up-content" "weekday-only"
+  #run_recipe_if_needed "recipe-take-time-back.yaml" "weekly" ".give-time-back" "weekday-only"
+  #run_recipe_if_needed "../adapt-recipes.yaml" "weekly" ".adapting"
+  
+
+  # running less frequently for now: 
+
+  run_recipe_if_needed "recipe-work-daily.yaml" "daily" "WORK.md" "weekday-only"  
+  
+  run_recipe_if_needed "recipe-contributions.yaml" "weekly" "CONTRIBUTIONS.md" "weekday-only"
+  run_recipe_if_needed "recipe-focus.yaml" "weekly" ".focus" "weekday-only"
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
 
   
   run_recipe_if_needed "recipe-garbage-collect.yaml" "weekly" ".garbage-collect" "weekday-only"
-  run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md" "weekday-only"
-  run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
-  run_recipe_if_needed "recipe-interactions.yaml" "hourly" "INTERACTIONS.md"
-  run_recipe_if_needed "recipe-chrome-history.yaml" "4h" "CHROME_HISTORY.md" "weekday-only"
-  run_recipe_if_needed "recipe-important-attention-message.yaml" "hourly" ".important-messages" "weekday-only"
+  run_recipe_if_needed "recipe-projects.yaml" "weekly" "PROJECTS.md" "weekday-only"
+  run_recipe_if_needed "recipe-work-personal.yaml" "weekly" ".work-personal"
+  run_recipe_if_needed "recipe-interactions.yaml" "daily" "INTERACTIONS.md"
+  run_recipe_if_needed "recipe-chrome-history.yaml" "weekly" "CHROME_HISTORY.md" "weekday-only"
+  run_recipe_if_needed "recipe-important-attention-message.yaml" "daily" ".important-messages" "weekday-only"
   run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
   run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention" "weekday-only"
   run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming" "weekday-only"
@@ -275,13 +306,12 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-apps-preferences.yaml" "daily" ".apps-preferences" "weekday-only"
   run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening" "weekday-only"
   run_recipe_if_needed "recipe-start-fixing.yaml" "evening" ".fixing"
-  run_recipe_if_needed "recipe-background-tasks.yaml" "15m" ".background-tasks"
-  run_recipe_if_needed "recipe-background-technical.yaml" "15m" ".background-technical"
+  run_recipe_if_needed "recipe-background-tasks.yaml" "daily" ".background-tasks"
+  run_recipe_if_needed "recipe-background-technical.yaml" "daily" ".background-technical"
   run_recipe_if_needed "recipe-follow-up-content.yaml" "morning" ".follow-up-content" "weekday-only"
   run_recipe_if_needed "recipe-take-time-back.yaml" "weekly" ".give-time-back" "weekday-only"
   run_recipe_if_needed "../adapt-recipes.yaml" "weekly" ".adapting"
 
-  
   
   
   echo "$(date): Scheduled recipe check complete."

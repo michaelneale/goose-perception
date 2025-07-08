@@ -127,8 +127,42 @@ run-simple:
     cd observers 
     ./run-observations.sh
 
+# Display information message about Goose Work
+run:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo ""
+    echo "╔═══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║  ████████╗██╗  ██╗ █████╗ ███╗   ██╗██╗  ██╗███████╗    ███████╗ ██████╗ ██████╗ ║"
+    echo "║  ╚══██╔══╝██║  ██║██╔══██╗████╗  ██║██║ ██╔╝██╔════╝    ██╔════╝██╔═══██╗██╔══██╗║"
+    echo "║     ██║   ███████║███████║██╔██╗ ██║█████╔╝ ███████╗    █████╗  ██║   ██║██████╔╝║"
+    echo "║     ██║   ██╔══██║██╔══██║██║╚██╗██║██╔═██╗ ╚════██║    ██╔══╝  ██║   ██║██╔══██╗║"
+    echo "║     ██║   ██║  ██║██║  ██║██║ ╚████║██║  ██╗███████║    ██║     ╚██████╔╝██║  ██║║"
+    echo "║     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝    ╚═╝      ╚═════╝ ╚═╝  ╚═╝║"
+    echo "║                                                                                  ║"
+    echo "║  ████████╗██████╗ ██╗   ██╗██╗███╗   ██╗ ██████╗     ██╗                         ║"
+    echo "║  ╚══██╔══╝██╔══██╗╚██╗ ██╔╝██║████╗  ██║██╔════╝     ██║                         ║"
+    echo "║     ██║   ██████╔╝ ╚████╔╝ ██║██╔██╗ ██║██║  ███╗    ██║                         ║"
+    echo "║     ██║   ██╔══██╗  ╚██╔╝  ██║██║╚██╗██║██║   ██║    ╚═╝                         ║"
+    echo "║     ██║   ██║  ██║   ██║   ██║██║ ╚████║╚██████╔╝    ██╗                         ║"
+    echo "║     ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝  ╚═══╝ ╚═════╝     ╚═╝                         ║"
+    echo "╠══════════════════════════════════════════════════════════════════════════════════╣"
+    echo "║                                                                                  ║"
+    echo "║  We are working on Goose Work to run locally, but currently it consumes          ║"
+    echo "║  too many tokens to be practical to run full time.                               ║"
+    echo "║                                                                                  ║"
+    echo "║  If you want to try it out, you can run:                                         ║"
+    echo "║                                                                                  ║"
+    echo "║      just run-trial                                                              ║"
+    echo "║                                                                                  ║"
+    echo "║  please only run briefly, however                                                ║"
+    echo "║                                                                                  ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+
 # Run the full voice recognition system (observers + voice)
-run: 
+run-trial: 
     #!/usr/bin/env bash
     set -euo pipefail
     
