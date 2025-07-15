@@ -91,6 +91,42 @@ check-ffmpeg:
         echo "ℹ️  Not on macOS, skipping ffmpeg check"
     fi
 
+# Check for gocr on macOS and install if needed
+check-gocr:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    # Only check on macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "🔍 Checking for gocr on macOS..."
+        
+        # Check if gocr is available
+        if ! command -v gocr &> /dev/null; then
+            echo "⚠️  gocr not found. Installing via Homebrew..."
+            
+            # Check if brew is available
+            if ! command -v brew &> /dev/null; then
+                echo "❌ Homebrew not found. Please install Homebrew first:"
+                echo "   /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+                exit 1
+            fi
+            
+            # Install gocr
+            echo "📦 Installing gocr..."
+            if brew install gocr; then
+                echo "✅ gocr installed successfully!"
+            else
+                echo "❌ Failed to install gocr. Please install manually:"
+                echo "   brew install gocr"
+                exit 1
+            fi
+        else
+            echo "✅ gocr is already installed"
+        fi
+    else
+        echo "ℹ️  Not on macOS, skipping gocr check"
+    fi
+
 # Setup required dependencies and data
 setup:
     #!/usr/bin/env bash
@@ -99,6 +135,9 @@ setup:
     
     # Check for ffmpeg on macOS
     just check-ffmpeg
+    
+    # Check for gocr on macOS
+    just check-gocr
     
     echo "✅ Setup complete! (NLTK data will be downloaded automatically when needed)"
 
