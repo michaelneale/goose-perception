@@ -1,10 +1,8 @@
 # Goose Perception
 
-> [!NOTE]
-> This is experimental and very much a work in progress and showcase of async goose and recipes, use at own risk. This may consume tokens on your behalf, so run it sparingly.
-
-> [!TIP]
-> **🆕 NEW: AI-Powered Emotion Detection** - The emotion detection system has been completely rebuilt with modern neural networks, achieving 84-100% confidence scores and comprehensive calibration options. No more "always happy" emotions!
+> [!WARNING]
+> This is experimental and very much a work in progress and showcase of async goose and recipes, use at own risk.
+> This will use LLM tokens on your behalf and at your cost in some cases (we are attempting to move more and more processing to all local models over time for privacy and cost)
 
 
 What if you didn't have to learn how to use an agent, if it didn't wait for you to chat with it? That is this project. 
