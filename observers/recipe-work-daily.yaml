@@ -4,8 +4,7 @@ author:
   contact: mic
 description: processing screen vision
 instructions: |
-  Processing screenshots to track work being done, you will examine the screenshots to see what the user is working on and who they interact with.
-  you are running in the background so do not expect more information than you can gather or see and don't ask for more.  
+  Processing screenshots to track work being done, you will examine descirptions of what user has had on their screen throughout the day, which includes what apps they use, who they may communicate with, what they are working etc
 
 extensions:
 - type: builtin
@@ -14,11 +13,41 @@ extensions:
   timeout: 300
   bundled: true
 prompt: |
-  please look in /tmp/screenshots for screenshots of work activity which have veen taken every 20 seconds over the past day
-  you can sample throught the day, maybe once per hour, and look for some changes in that time.
+  please look in /tmp/screenshots for txt files which are timestamped descriptions of what the user was looking at on their ~/.local/share/goose-perception/INTERACTIONS.md
+
+  each timestamped txt file will contain: 
+    * "Open Windows" which is really a list of apps (names of apps and perhaps documents or projects) open
+    * "Screen N" sections
+      - each screen section may have an AI description of what it thinks was on the screen (just high level or a guess)
+      - each screen section will have "OCR Text" which is an approximate OCR of visible text. 
+
+  Screens may be large so you may see them in quarters. 
+
+  Content example of the file:
+
+
+    === Open Windows ===
+      app: doc, Other App: some info (more info) - thing, and so on
+
+    --- Screen 1 ---
+      Getting AI description for /tmp/screenshots/screen1.png...
+      AI Description (full screen):  The image shows a computer screen with several ...
+
+
+    --- Screen 1 Quarter 1 ---
+      Getting AI description for /tmp/screenshots/screen1_q1.png...
+      AI Description (quarter):  In the image provided...
+
+
+      OCR Text:
+          Post vibe code update from my repo (to email thread) - and proposal to apply to existing code, and al
+
+  There will be multiple files timestamped. You can look at most recent ones, go back looking for a sample of what apps, themes, projects, communication, people etc you can see
+  Note what changes throught the time, special attention to changes, and possibly what is recurring and in focus or important.
+
+  which are descriptions of what the user was looking at, these will be in chronological order, so you can see what they were doing at different times
+  you can sample throught the day, maybe once per hour if there are many files (if there are only less than 10, you can read them all), and look for some changes in that time.
   it is important you note the timestamp of the file
-  if the file is a picture of a desktop background only, and that is all you see, this is a failure and you should log it to FAILURES.md
-    - you can also prompt the user that they will need to give permission to this process to be able to look at the screen, which may involve openning their settings
   your aim is to form a picture of what they are working on, and pay attention to changes and note them down
   The user is working on various projects so you are to summarize work going on as best you can, you can try to guess the project names being worked on from the context as more is revealed.
   if any screens are for chat or email pay attention to the people being communicated with and topics
@@ -47,4 +76,4 @@ prompt: |
 
   Append the updated summary to ~/.local/share/goose-perception/WORK.md (don't over write) and also save (over write) just the update to LATEST_WORK.md in same dir.
 
-  also remove the screenshots from /tmp/screneshots so that directory is empty when you are done
+  also remove the txt files when you are done looking at them. 

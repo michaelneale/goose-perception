@@ -1,7 +1,7 @@
 # Goose Perception
 
 > [!NOTE]
-> This is experimental and very much a work in progress and showcase of async goose and recipes, use at own risk
+> This is experimental and very much a work in progress and showcase of async goose and recipes, use at own risk. This may consume tokens on your behalf, so run it sparingly.
 
 > [!TIP]
 > **🆕 NEW: AI-Powered Emotion Detection** - The emotion detection system has been completely rebuilt with modern neural networks, achieving 84-100% confidence scores and comprehensive calibration options. No more "always happy" emotions!

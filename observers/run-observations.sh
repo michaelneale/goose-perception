@@ -34,28 +34,17 @@ log_activity() {
   echo "$(date): $message"
 }
 
-# Function to capture screenshots of all displays
+# Function to run the comprehensive screenshotting script
 capture_screenshots() {
-  # Get current timestamp for unique filenames
-  TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-
-  # Get the number of displays
-  NUM_DISPLAYS=$(system_profiler SPDisplaysDataType | grep "Resolution" | wc -l | xargs)
-
-  echo "$(date): Capturing $NUM_DISPLAYS display(s)..."
-
-  if [ "$NUM_DISPLAYS" -eq 0 ]; then
-    echo "No displays detected. Skipping capture."
-    return 1
-  fi
-
-  # Take screenshots of each display individually
-  for (( i=1; i<=$NUM_DISPLAYS; i++ ))
-  do
-    screencapture -x -D $i "$SCREENSHOT_DIR/screen_${TIMESTAMP}_display$i.png"
-  done
-
-  echo "$(date): Screenshots saved to $SCREENSHOT_DIR"
+  echo "$(date): Running screenshot processing..."
+  
+  # Get the directory where this script is located
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  
+  # Run the screenshotting script
+  "$SCRIPT_DIR/run-screenshotting.sh"
+  
+  echo "$(date): Screenshot processing completed"
 }
 
 
@@ -204,21 +193,21 @@ run_recipe_if_needed() {
 
 # Function to run screenshot capture loop asynchronously
 run_screenshot_loop() {
-  echo "$(date): Starting screenshot capture loop (PID: $$)..."
+  echo "$(date): Starting screenshot processing loop (PID: $$)..."
   while true; do
     # Check for halt file
     if [ -f "/tmp/goose-perception-halt" ]; then
-      echo "$(date): Screenshot loop halting as requested."
+      echo "$(date): Screenshot processing loop halting as requested."
       break
     fi
     
-    # Capture screenshots
+    # Run comprehensive screenshot processing
     capture_screenshots
     
-    # Wait 20 seconds before next capture
-    sleep 20
+    # Wait 60 seconds before next capture
+    sleep 60
   done
-  echo "$(date): Screenshot loop stopped."
+  echo "$(date): Screenshot processing loop stopped."
 }
 
 # Function to check and run all recipes based on their frequencies
@@ -252,43 +241,16 @@ run_scheduled_recipes() {
     done
   fi
   
-  # original recipes, running more frequently
-  # Work summary recipe (every 20 minutes, weekdays only)
-  #run_recipe_if_needed "recipe-work.yaml" "20m" "WORK.md" "weekday-only"  
-  #run_recipe_if_needed "recipe-contributions.yaml" "hourly" "CONTRIBUTIONS.md" "weekday-only"
-  #run_recipe_if_needed "recipe-focus.yaml" "55m" ".focus" "weekday-only"
-  #run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
-
-  
-  #run_recipe_if_needed "recipe-garbage-collect.yaml" "weekly" ".garbage-collect" "weekday-only"
-  #run_recipe_if_needed "recipe-projects.yaml" "morning" "PROJECTS.md" "weekday-only"
-  #run_recipe_if_needed "recipe-work-personal.yaml" "evening" ".work-personal"
-  #run_recipe_if_needed "recipe-interactions.yaml" "hourly" "INTERACTIONS.md"
-  #run_recipe_if_needed "recipe-chrome-history.yaml" "4h" "CHROME_HISTORY.md" "weekday-only"
-  #run_recipe_if_needed "recipe-important-attention-message.yaml" "hourly" ".important-messages" "weekday-only"
-  #run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
-  #run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention" "weekday-only"
-  #run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming" "weekday-only"
-  #run_recipe_if_needed "recipe-what-working-on.yaml" "evening" ".working-on" "weekday-only"
-  #run_recipe_if_needed "recipe-optimize.yaml" "weekly" ".optimize"
-  #run_recipe_if_needed "recipe-meetings-actions.yaml" "morning" ".meetings-afternoon" "weekday-only"
-  #run_recipe_if_needed "recipe-apps-preferences.yaml" "daily" ".apps-preferences" "weekday-only"
-  #run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening" "weekday-only"
-  #run_recipe_if_needed "recipe-start-fixing.yaml" "evening" ".fixing"
-  #run_recipe_if_needed "recipe-background-tasks.yaml" "15m" ".background-tasks"
-  #run_recipe_if_needed "recipe-background-technical.yaml" "15m" ".background-technical"
-  #run_recipe_if_needed "recipe-follow-up-content.yaml" "morning" ".follow-up-content" "weekday-only"
-  #run_recipe_if_needed "recipe-take-time-back.yaml" "weekly" ".give-time-back" "weekday-only"
-  #run_recipe_if_needed "../adapt-recipes.yaml" "weekly" ".adapting"
-  
-
-  # running less frequently for now: 
-
-  run_recipe_if_needed "recipe-work-daily.yaml" "daily" "WORK.md" "weekday-only"  
+  run_recipe_if_needed "recipe-work-daily.yaml" "morning" "WORK.md" "weekday-only"  
+  run_recipe_if_needed "recipe-work-daily.yaml" "afternoon" "WORK.md" "weekday-only"  
   
   run_recipe_if_needed "recipe-contributions.yaml" "weekly" "CONTRIBUTIONS.md" "weekday-only"
   run_recipe_if_needed "recipe-focus.yaml" "weekly" ".focus" "weekday-only"
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
+  
+  run_recipe_if_needed "recipe-important-attention-message.yaml" "120m" ".important-messages" "weekday-only"
+  run_recipe_if_needed "recipe-background-tasks.yaml" "180m" ".background-tasks"  "weekday-only"
+  run_recipe_if_needed "recipe-background-technical.yaml" "180m" ".background-technical"  "weekday-only"
 
   
   run_recipe_if_needed "recipe-garbage-collect.yaml" "weekly" ".garbage-collect" "weekday-only"
@@ -296,7 +258,8 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-work-personal.yaml" "weekly" ".work-personal"
   run_recipe_if_needed "recipe-interactions.yaml" "daily" "INTERACTIONS.md"
   run_recipe_if_needed "recipe-chrome-history.yaml" "weekly" "CHROME_HISTORY.md" "weekday-only"
-  run_recipe_if_needed "recipe-important-attention-message.yaml" "daily" ".important-messages" "weekday-only"
+  
+  
   run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
   run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention" "weekday-only"
   run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming" "weekday-only"
@@ -306,8 +269,6 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-apps-preferences.yaml" "daily" ".apps-preferences" "weekday-only"
   run_recipe_if_needed "recipe-meetings-actions.yaml" "evening" ".meetings-evening" "weekday-only"
   run_recipe_if_needed "recipe-start-fixing.yaml" "evening" ".fixing"
-  run_recipe_if_needed "recipe-background-tasks.yaml" "daily" ".background-tasks"
-  run_recipe_if_needed "recipe-background-technical.yaml" "daily" ".background-technical"
   run_recipe_if_needed "recipe-follow-up-content.yaml" "morning" ".follow-up-content" "weekday-only"
   run_recipe_if_needed "recipe-take-time-back.yaml" "weekly" ".give-time-back" "weekday-only"
   run_recipe_if_needed "../adapt-recipes.yaml" "weekly" ".adapting"
@@ -318,7 +279,9 @@ run_scheduled_recipes() {
 }
 
 echo "Starting continuous screenshot and observation process..."
-echo "- Taking screenshots every 20 seconds (async)"
+echo "- Running comprehensive screenshot processing (OCR + AI analysis) every 20 seconds (async)"
+echo "- Screenshot images are automatically cleaned up after processing"
+echo "- Processed results saved to timestamped files in /tmp/screenshots/"
 echo "- Checking and running recipes based on their frequencies every 1 minute"
 echo "- Recipes can be: hourly, daily, weekly, or custom (e.g., 20m, 2h, 3d)"
 echo "Press Ctrl+C to stop"

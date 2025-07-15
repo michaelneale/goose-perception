@@ -3,6 +3,10 @@
 # Create screenshots directory
 mkdir -p /tmp/screenshots
 
+# Generate timestamp for the output file
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+OUTPUT_FILE="/tmp/screenshots/screens_${TIMESTAMP}.txt"
+
 # Sleep for 5 seconds
 sleep 5
 
@@ -37,9 +41,9 @@ screencapture -x -D 2 /tmp/screenshots/screen2.png 2>/dev/null || true
 screencapture -x -D 3 /tmp/screenshots/screen3.png 2>/dev/null || true
 
 # Start screens.txt with window listing
-echo "=== Open Windows ===" > /tmp/screenshots/screens.txt
-echo "$WINDOW_LIST" >> /tmp/screenshots/screens.txt
-echo "" >> /tmp/screenshots/screens.txt
+echo "=== Open Windows ===" > "$OUTPUT_FILE"
+echo "$WINDOW_LIST" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
 
 # Function to get image dimensions
 get_image_size() {
@@ -143,54 +147,54 @@ ocr_image() {
         sips --cropToHeightWidth $half_height $half_width --cropOffset $half_height $half_width "$img_path" --out "/tmp/screenshots/screen${screen_num}_q4.png" >/dev/null 2>&1
         
         # Get AI description of full screen first
-        echo "--- Screen $screen_num ---" >> /tmp/screenshots/screens.txt
+        echo "--- Screen $screen_num ---" >> "$OUTPUT_FILE"
         ai_desc=$(get_ai_description "$img_path" "full screen")
         if [ $? -eq 0 ]; then
-            echo "$ai_desc" >> /tmp/screenshots/screens.txt
-            echo "" >> /tmp/screenshots/screens.txt
+            echo "$ai_desc" >> "$OUTPUT_FILE"
+            echo "" >> "$OUTPUT_FILE"
         fi
         
         # OCR each quarter
         for q in 1 2 3 4; do
             if [ -f "/tmp/screenshots/screen${screen_num}_q${q}.png" ]; then
-                echo "--- Screen $screen_num Quarter $q ---" >> /tmp/screenshots/screens.txt
+                echo "--- Screen $screen_num Quarter $q ---" >> "$OUTPUT_FILE"
                 
                 # Get AI description for quarter
                 ai_desc=$(get_ai_description "/tmp/screenshots/screen${screen_num}_q${q}.png" "quarter")
                 if [ $? -eq 0 ]; then
-                    echo "$ai_desc" >> /tmp/screenshots/screens.txt
-                    echo "" >> /tmp/screenshots/screens.txt
+                    echo "$ai_desc" >> "$OUTPUT_FILE"
+                    echo "" >> "$OUTPUT_FILE"
                 fi
                 
                 # OCR the quarter
                 raw_ocr=$(gocr "/tmp/screenshots/screen${screen_num}_q${q}.png" 2>/dev/null || echo "OCR failed for screen${screen_num}_q${q}.png")
                 filtered_ocr=$(filter_ocr_text "$raw_ocr")
                 if [ -n "$filtered_ocr" ]; then
-                    echo "OCR Text:" >> /tmp/screenshots/screens.txt
-                    echo "$filtered_ocr" >> /tmp/screenshots/screens.txt
+                    echo "OCR Text:" >> "$OUTPUT_FILE"
+                    echo "$filtered_ocr" >> "$OUTPUT_FILE"
                 fi
-                echo "" >> /tmp/screenshots/screens.txt
+                echo "" >> "$OUTPUT_FILE"
             fi
         done
     else
         # Regular OCR for smaller images
-        echo "=== Screen $screen_num ===" >> /tmp/screenshots/screens.txt
+        echo "=== Screen $screen_num ===" >> "$OUTPUT_FILE"
         
         # Get AI description
         ai_desc=$(get_ai_description "$img_path" "screen")
         if [ $? -eq 0 ]; then
-            echo "$ai_desc" >> /tmp/screenshots/screens.txt
-            echo "" >> /tmp/screenshots/screens.txt
+            echo "$ai_desc" >> "$OUTPUT_FILE"
+            echo "" >> "$OUTPUT_FILE"
         fi
         
         # OCR the image
         raw_ocr=$(gocr "$img_path" 2>/dev/null || echo "OCR failed for screen$screen_num.png")
         filtered_ocr=$(filter_ocr_text "$raw_ocr")
         if [ -n "$filtered_ocr" ]; then
-            echo "OCR Text:" >> /tmp/screenshots/screens.txt
-            echo "$filtered_ocr" >> /tmp/screenshots/screens.txt
+            echo "OCR Text:" >> "$OUTPUT_FILE"
+            echo "$filtered_ocr" >> "$OUTPUT_FILE"
         fi
-        echo "" >> /tmp/screenshots/screens.txt
+        echo "" >> "$OUTPUT_FILE"
     fi
 }
 
@@ -201,3 +205,12 @@ for i in 1 2 3; do
         ocr_image "/tmp/screenshots/screen$i.png" "$i"
     fi
 done
+
+# Print completion message with output file location
+echo "Screenshot processing complete!"
+echo "Output saved to: $OUTPUT_FILE"
+
+# Clean up screenshot images after processing
+echo "Cleaning up screenshot images..."
+rm -f /tmp/screenshots/screen*.png
+echo "Screenshot images cleaned up."
