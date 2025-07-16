@@ -88,8 +88,19 @@ perform_ocr() {
     local img_path="$1"
     local script_dir="$(dirname "$0")"
     
+    # Find the project root directory (one level up from observers)
+    local project_root="$(cd "$script_dir/.." && pwd)"
+    
+    # Use the virtual environment's Python interpreter
+    local python_path="$project_root/.venv/bin/python3"
+    
+    # Fall back to system python3 if venv doesn't exist
+    if [ ! -f "$python_path" ]; then
+        python_path="python3"
+    fi
+    
     # Use Python helper script for OCR
-    python3 "$script_dir/ocr_helper.py" "$img_path"
+    "$python_path" "$script_dir/ocr_helper.py" "$img_path"
 }
 
 # Function to split large image into quarters and OCR each
