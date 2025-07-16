@@ -83,42 +83,13 @@ get_ai_description() {
     fi
 }
 
-# Function to filter OCR garbage and keep readable text
-filter_ocr_text() {
-    local input_text="$1"
+# Function to perform OCR using ocrmac (Apple Vision Framework)
+perform_ocr() {
+    local img_path="$1"
+    local script_dir="$(dirname "$0")"
     
-    # Filter out lines that are mostly garbage
-    echo "$input_text" | while IFS= read -r line; do
-        # Skip empty lines
-        [ -z "$line" ] && continue
-        
-        # Skip lines that are mostly symbols/numbers/single characters
-        if echo "$line" | grep -qE '^[^a-zA-Z]*$'; then
-            continue
-        fi
-        
-        # Skip lines with too many underscores, random symbols
-        if echo "$line" | grep -qE '_{5,}|[_]{3,}[^a-zA-Z ]{3,}'; then
-            continue
-        fi
-        
-        # Skip lines that are mostly fragmented (lots of single chars with spaces)
-        if echo "$line" | grep -qE '^([a-zA-Z]_? ){5,}$'; then
-            continue
-        fi
-        
-        # Keep lines that have reasonable word patterns
-        # At least 3 characters in a row that form word-like patterns
-        if echo "$line" | grep -qE '[a-zA-Z]{3,}'; then
-            # Clean up the line - remove excessive underscores and weird chars
-            cleaned_line=$(echo "$line" | sed 's/_/ /g' | sed 's/[^a-zA-Z0-9 .,!?:;()-]//g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
-            
-            # Only output if it still has meaningful content after cleaning
-            if echo "$cleaned_line" | grep -qE '[a-zA-Z]{2,}.*[a-zA-Z]{2,}|[a-zA-Z]{4,}'; then
-                echo "$cleaned_line"
-            fi
-        fi
-    done
+    # Use Python helper script for OCR
+    python3 "$script_dir/ocr_helper.py" "$img_path"
 }
 
 # Function to split large image into quarters and OCR each
@@ -167,11 +138,10 @@ ocr_image() {
                 fi
                 
                 # OCR the quarter
-                raw_ocr=$(gocr "/tmp/screenshots/screen${screen_num}_q${q}.png" 2>/dev/null || echo "OCR failed for screen${screen_num}_q${q}.png")
-                filtered_ocr=$(filter_ocr_text "$raw_ocr")
-                if [ -n "$filtered_ocr" ]; then
+                ocr_result=$(perform_ocr "/tmp/screenshots/screen${screen_num}_q${q}.png")
+                if [ -n "$ocr_result" ] && [ "$ocr_result" != "No text detected in image" ]; then
                     echo "OCR Text:" >> "$OUTPUT_FILE"
-                    echo "$filtered_ocr" >> "$OUTPUT_FILE"
+                    echo "$ocr_result" >> "$OUTPUT_FILE"
                 fi
                 echo "" >> "$OUTPUT_FILE"
             fi
@@ -188,11 +158,10 @@ ocr_image() {
         fi
         
         # OCR the image
-        raw_ocr=$(gocr "$img_path" 2>/dev/null || echo "OCR failed for screen$screen_num.png")
-        filtered_ocr=$(filter_ocr_text "$raw_ocr")
-        if [ -n "$filtered_ocr" ]; then
+        ocr_result=$(perform_ocr "$img_path")
+        if [ -n "$ocr_result" ] && [ "$ocr_result" != "No text detected in image" ]; then
             echo "OCR Text:" >> "$OUTPUT_FILE"
-            echo "$filtered_ocr" >> "$OUTPUT_FILE"
+            echo "$ocr_result" >> "$OUTPUT_FILE"
         fi
         echo "" >> "$OUTPUT_FILE"
     fi
