@@ -7,7 +7,7 @@ set -euo pipefail
 # Function for logging
 log() {
     local MESSAGE="$1"
-    echo "$(date +'%Y-%m-%d %H:%M:%S') - $MESSAGE" >&2
+    echo "$(date +'%Y-%m-%d %H:%M:%S') - $MESSAGE"
 }
 
 # Trap errors and log them before exiting

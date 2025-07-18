@@ -1,0 +1,37 @@
+# github pr_review follow_up action_items
+Follow-up Analysis Completed - July 18, 2025:
+
+KEY FINDINGS:
+1. **PR #3493 (High Priority)**: Feature/diff viewer sidecar missing window resize logic - Max acknowledged bug lost during rebase, needs to re-implement main.ts changes for window expansion
+2. **PR #28 (High Priority)**: OCR Mac implementation broken by hermit script integration - merged but functionality broken, may need follow-up fix
+3. **PR #26 (Medium Priority)**: Major scheduling refactor (574 lines removed) awaiting review since July 7th
+4. **Issue #3508 (Medium Priority)**: listSchedules performance issue - excessive calls (7x) suggesting missing React hook dependencies
+5. **PR #3515 (Ready)**: Already approved by zanesq, just needs merge action
+
+ACTIONABLE ITEMS IDENTIFIED:
+- Immediate: Fix window resize logic in PR #3493
+- Immediate: Investigate hermit script issue in merged PR #28  
+- This week: Review large scheduling refactor PR #26
+- This week: Fix React hook dependencies causing listSchedules performance issue
+- Quick action: Merge already-approved PR #3515
+
+Generated comprehensive HTML report with direct links to all items requiring attention.
+
+# github pr_analysis action_items
+Follow-up Analysis Completed - July 18, 2025:
+KEY FINDINGS:
+1. **PR #3493 (High Priority)**: Feature/diff viewer sidecar missing window resize logic - Max acknowledged bug lost during rebase, needs to re-implement main.ts changes for window expansion
+2. **PR #28 (High Priority)**: OCR Mac implementation broken by hermit script integration - merged but functionality broken, may need follow-up fix
+3. **PR #26 (Medium Priority)**: Major scheduling refactor (574 lines removed) awaiting review since July 7th
+4. **Issue #3508 (Medium Priority)**: listSchedules performance issue - excessive calls (7x) suggesting missing React hook dependencies
+5. **PR #3515 (Ready)**: Already approved by zanesq, just needs merge action
+
+ACTIONABLE ITEMS IDENTIFIED:
+- Immediate: Fix window resize logic in PR #3493
+- Immediate: Investigate hermit script issue in merged PR #28  
+- This week: Review large scheduling refactor PR #26
+- This week: Fix React hook dependencies causing listSchedules performance issue
+- Quick action: Merge already-approved PR #3515
+
+Generated comprehensive HTML report with direct links to all items requiring attention.
+

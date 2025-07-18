@@ -15,12 +15,16 @@ SCRIPT_DIR="$(dirname "$0")"
 # Find the project root directory (one level up from observers)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Use the virtual environment's Python interpreter
-PYTHON_PATH="$PROJECT_ROOT/.venv/bin/python3"
-
-# Fall back to system python3 if venv doesn't exist
-if [ ! -f "$PYTHON_PATH" ]; then
-    PYTHON_PATH="python3"
+# Use hermit environment if available, otherwise fall back to venv or system python
+if [ -f "$PROJECT_ROOT/.use-hermit" ]; then
+    # Use hermit environment
+    PYTHON_CMD="$PROJECT_ROOT/.use-hermit python3"
+elif [ -f "$PROJECT_ROOT/.venv/bin/python3" ]; then
+    # Use virtual environment's Python interpreter
+    PYTHON_CMD="$PROJECT_ROOT/.venv/bin/python3"
+else
+    # Fall back to system python3
+    PYTHON_CMD="python3"
 fi
 
 # Function to get image dimensions
@@ -65,7 +69,7 @@ perform_ocr() {
     local img_path="$1"
     
     # Use Python helper script for OCR
-    "$PYTHON_PATH" "$SCRIPT_DIR/ocr_helper.py" "$img_path"
+    $PYTHON_CMD "$SCRIPT_DIR/ocr_helper.py" "$img_path" 2>/dev/null
 }
 
 # Function to create safe filename from app and window name
@@ -136,7 +140,7 @@ process_window_screenshot() {
 
 # Get window information using Python script
 echo "Getting window information..."
-WINDOW_JSON=$("$PYTHON_PATH" "$SCRIPT_DIR/get_windows.py" --json)
+WINDOW_JSON=$($PYTHON_CMD "$SCRIPT_DIR/get_windows.py" --json 2>/dev/null)
 
 # Create summary file
 SUMMARY_FILE="/tmp/screenshots/${TIMESTAMP}_SUMMARY.txt"

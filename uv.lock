@@ -608,6 +608,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "nltk" },
     { name = "numpy" },
+    { name = "ocrmac" },
     { name = "opencv-python" },
     { name = "pandas" },
     { name = "pathlib" },
@@ -636,6 +637,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.2" },
     { name = "nltk", specifier = ">=3.9.1" },
     { name = "numpy", specifier = ">=1.24.0" },
+    { name = "ocrmac", specifier = ">=1.0.0" },
     { name = "opencv-python", specifier = ">=4.8.0" },
     { name = "pandas", specifier = ">=1.5.0" },
     { name = "pathlib", specifier = ">=1.0.1" },
@@ -1268,6 +1270,20 @@ wheels = [
 ]
 
 [[package]]
+name = "ocrmac"
+version = "1.0.0"
+source = { registry = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "pillow" },
+    { name = "pyobjc-framework-vision" },
+]
+sdist = { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/dd/dc/de3e9635774b97d9766f6815bbb3f5ec9bce347115f10d9abbf2733a9316/ocrmac-1.0.0.tar.gz", hash = "sha256:5b299e9030c973d1f60f82db000d6c2e5ff271601878c7db0885e850597d1d2e" }
+wheels = [
+    { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/e5/f4/eef75cb750ff3e40240c8cbc713d68f8fc12b10eef016f7d4966eb05b065/ocrmac-1.0.0-py2.py3-none-any.whl", hash = "sha256:0b5a072aa23a9ead48132cb2d595b680aa6c3c5a6cb69525155e35ca95610c3a" },
+]
+
+[[package]]
 name = "onnx"
 version = "1.18.0"
 source = { registry = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/simple" }
@@ -1586,11 +1602,11 @@ wheels = [
 
 [[package]]
 name = "pyobjc-core"
-version = "11.0"
+version = "11.1"
 source = { registry = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/simple" }
-sdist = { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/5c/94/a111239b98260869780a5767e5d74bfd3a8c13a40457f479c28dcd91f89d/pyobjc_core-11.0.tar.gz", hash = "sha256:63bced211cb8a8fb5c8ff46473603da30e51112861bd02c438fbbbc8578d9a70" }
+sdist = { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/e8/e9/0b85c81e2b441267bca707b5d89f56c2f02578ef8f3eafddf0e0c0b8848c/pyobjc_core-11.1.tar.gz", hash = "sha256:b63d4d90c5df7e762f34739b39cc55bc63dbcf9fb2fb3f2671e528488c7a87fe" }
 wheels = [
-    { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/56/ce/bf3ff9a9347721a398c3dfb83e29b43fb166b7ef590f3f7b7ddcd283df39/pyobjc_core-11.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:a03061d4955c62ddd7754224a80cdadfdf17b6b5f60df1d9169a3b1b02923f0b" },
+    { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/c0/09/e83228e878e73bf756749939f906a872da54488f18d75658afa7f1abbab1/pyobjc_core-11.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:765b97dea6b87ec4612b3212258024d8496ea23517c95a1c5f0735f96b7fd529" },
 ]
 
 [[package]]
@@ -1610,14 +1626,27 @@ wheels = [
 
 [[package]]
 name = "pyobjc-framework-cocoa"
-version = "11.0"
+version = "11.1"
 source = { registry = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin'" },
+    { name = "pyobjc-core" },
 ]
-sdist = { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/c5/32/53809096ad5fc3e7a2c5ddea642590a5f2cb5b81d0ad6ea67fdb2263d9f9/pyobjc_framework_cocoa-11.0.tar.gz", hash = "sha256:00346a8cb81ad7b017b32ff7bf596000f9faa905807b1bd234644ebd47f692c5" }
+sdist = { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/4b/c5/7a866d24bc026f79239b74d05e2cf3088b03263da66d53d1b4cf5207f5ae/pyobjc_framework_cocoa-11.1.tar.gz", hash = "sha256:87df76b9b73e7ca699a828ff112564b59251bb9bbe72e610e670a4dc9940d038" }
 wheels = [
-    { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/5b/8d/0e2558447c26b3ba64f7c9776a5a6c9d2ae8abf9d34308b174ae0934402e/pyobjc_framework_Cocoa-11.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:280a577b83c68175a28b2b7138d1d2d3111f2b2b66c30e86f81a19c2b02eae71" },
+    { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/68/da/41c0f7edc92ead461cced7e67813e27fa17da3c5da428afdb4086c69d7ba/pyobjc_framework_cocoa-11.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:806de56f06dfba8f301a244cce289d54877c36b4b19818e3b53150eb7c2424d0" },
+]
+
+[[package]]
+name = "pyobjc-framework-coreml"
+version = "11.1"
+source = { registry = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/simple" }
+dependencies = [
+    { name = "pyobjc-core" },
+    { name = "pyobjc-framework-cocoa" },
+]
+sdist = { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/0d/5d/4309f220981d769b1a2f0dcb2c5c104490d31389a8ebea67e5595ce1cb74/pyobjc_framework_coreml-11.1.tar.gz", hash = "sha256:775923eefb9eac2e389c0821b10564372de8057cea89f1ea1cdaf04996c970a7" }
+wheels = [
+    { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/3e/9e/a1b6d30b4f91c7cc4780e745e1e73a322bd3524a773f66f5eac0b1600d85/pyobjc_framework_coreml-11.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:c768b03d72488b964d753392e9c587684961d8237b69cca848b3a5a00aea79c9" },
 ]
 
 [[package]]
@@ -1636,15 +1665,30 @@ wheels = [
 
 [[package]]
 name = "pyobjc-framework-quartz"
-version = "11.0"
+version = "11.1"
 source = { registry = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin'" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'" },
+    { name = "pyobjc-core" },
+    { name = "pyobjc-framework-cocoa" },
 ]
-sdist = { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/a5/ad/f00f3f53387c23bbf4e0bb1410e11978cbf87c82fa6baff0ee86f74c5fb6/pyobjc_framework_quartz-11.0.tar.gz", hash = "sha256:3205bf7795fb9ae34747f701486b3db6dfac71924894d1f372977c4d70c3c619" }
+sdist = { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/c7/ac/6308fec6c9ffeda9942fef72724f4094c6df4933560f512e63eac37ebd30/pyobjc_framework_quartz-11.1.tar.gz", hash = "sha256:a57f35ccfc22ad48c87c5932818e583777ff7276605fef6afad0ac0741169f75" }
 wheels = [
-    { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/60/5d/df827b78dcb5140652ad08af8038c9ddd7e01e6bdf84462bfee644e6e661/pyobjc_framework_Quartz-11.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:cb4a9f2d9d580ea15e25e6b270f47681afb5689cafc9e25712445ce715bcd18e" },
+    { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/9b/37/ee6e0bdd31b3b277fec00e5ee84d30eb1b5b8b0e025095e24ddc561697d0/pyobjc_framework_quartz-11.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:9ac806067541917d6119b98d90390a6944e7d9bd737f5c0a79884202327c9204" },
+]
+
+[[package]]
+name = "pyobjc-framework-vision"
+version = "11.1"
+source = { registry = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/simple" }
+dependencies = [
+    { name = "pyobjc-core" },
+    { name = "pyobjc-framework-cocoa" },
+    { name = "pyobjc-framework-coreml" },
+    { name = "pyobjc-framework-quartz" },
+]
+sdist = { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/40/a8/7128da4d0a0103cabe58910a7233e2f98d18c590b1d36d4b3efaaedba6b9/pyobjc_framework_vision-11.1.tar.gz", hash = "sha256:26590512ee7758da3056499062a344b8a351b178be66d4b719327884dde4216b" }
+wheels = [
+    { url = "https://artifactory.global.square/artifactory/api/pypi/block-pypi/packages/packages/a2/b5/54c0227a695557ea3065bc035b20a5c256f6f3b861e095eee1ec4b4d8cee/pyobjc_framework_vision-11.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:df076c3e3e672887182953efc934c1f9683304737e792ec09a29bfee90d2e26a" },
 ]
 
 [[package]]
