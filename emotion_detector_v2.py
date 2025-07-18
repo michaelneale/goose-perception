@@ -606,15 +606,14 @@ class LightweightEmotionDetector:
             return
         
         try:
-            log_file = self.data_dir / "emotions_v2.log"
+            log_file = self.data_dir / "emotions.log"
             
             timestamp = emotion_data.get('timestamp', datetime.now().isoformat())
             emotion = emotion_data.get('emotion', 'unknown')
-            confidence = emotion_data.get('confidence', 0.0)
-            method = emotion_data.get('method', 'unknown')
+            face_id = emotion_data.get('face_id', 1)  # Default to 1 for compatibility
             
-            # Create detailed log line
-            log_line = f"{timestamp},{emotion},{confidence:.3f},{method}\n"
+            # Create log line compatible with original format (timestamp,emotion,face_id)
+            log_line = f"{timestamp},{emotion},{face_id}\n"
             
             with open(log_file, 'a') as f:
                 f.write(log_line)
@@ -628,7 +627,9 @@ class LightweightEmotionDetector:
                     with open(log_file, 'w') as f:
                         f.writelines(lines[-1000:])
             
-            print(f"🎭 Emotion: {emotion} ({confidence:.2f} confidence, {method})")
+            confidence = emotion_data.get('confidence', 0.0)
+            method = emotion_data.get('method', 'unknown')
+            print(f"🎭 Emotion: {emotion} ({confidence:.2f} confidence, {method}) - Face ID: {face_id}")
             
         except Exception as e:
             print(f"❌ Error logging emotion: {e}")
@@ -667,7 +668,7 @@ class LightweightEmotionDetector:
     def get_recent_emotions(self, minutes=10):
         """Get recent emotion history"""
         try:
-            log_file = self.data_dir / "emotions_v2.log"
+            log_file = self.data_dir / "emotions.log"
             if not log_file.exists():
                 return []
             
