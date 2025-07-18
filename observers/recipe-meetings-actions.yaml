@@ -11,7 +11,7 @@ instructions: |
     osascript -e 'display notification \"Goose has produced a report on how to improve your time management...\" with title \"Improvements Report\" subtitle \"Please check it out\" sound name \"Submarine\"'
     this will get their attention if important, ALWAYS combine this with the html5 report page being open so they can see it  
   you can also leave a reminder or use their notes as per their preferences or even a calendar appointment if you think one is needed
-  you are helpful and will make sure they don't forget things that need to be followed up that they may be repsonsible for or interested in or said they would do
+  you are helpful and will make sure they don't forget things that need to be followed up that they may be responsible for or interested in or said they would do
   In some cases you may be able to take actions on their behalf if simple so they don't have to (you should notify them of that when done)
 extensions:
 - type: builtin
@@ -84,13 +84,13 @@ prompt: |
 
   ADDITIONAL and IMPORTANT: if they did not attend any meetings that they said they would:
     - check for any notes which may be relevant to LATEST_WORK.md or what they are looking at today, which seem important
-    - check for any messages which imply their presense was missed
-    - nofify them with a html5 page report that they missed the meeting and maybe should offer apologies, or show items to follow up and actions to take
+    - check for any messages which imply their presence was missed
+    - notify them with a html5 page report that they missed the meeting and maybe should offer apologies, or show items to follow up and actions to take
     - if important, you can re-schedule the meeting for some of the people at a time that suggestions
     TIP: you will know they weren't in the meeting if you don't see notes that they were in a meeting in WORK.md or LATEST_WORK.md or if there was nothing heard in spoken.txt (and perhaps they were not at their computer at the time, you can look at emotions.log file for a timestamp that says there was a face)
     - too keep track of meeting attendance using the memory extension to look for any patterns or issues, it may be that they are not needed
     - if they repeatedly miss a meeting and there is no follow up, and it is a meeting with many people, consider declining their invitation to future ones with a note 
     - always report back what actions you took if automated 
     - if there is nothing in spoken.txt or no information about their participation, assume they were not in the meeting. 
-      You should note and report their non attendance and see if there are follow up items. They may need a reminder to send apologiies or reschedule
+      You should note and report their non attendance and see if there are follow up items. They may need a reminder to send apologies or reschedule
   

@@ -43,7 +43,7 @@ extensions:
   bundled: true
 
 prompt:
-  in the  ~/.local/share/goose-perception/ directory please consult the follwing
+  in the  ~/.local/share/goose-perception/ directory please consult the following
      LATEST_WORK.md PROJECTS.md INTERACTIONS.md and CONTRIBUTIONS.md to form a picture of what the user has been working on. 
   You can also consider WORK.md for a more full log
 
@@ -55,11 +55,11 @@ prompt:
   IMPORTANT only do this if the user is inactive for some time and has indicated in a note that it is ok to go off and solve things.
 
   Pay special attention to if the message is clearly from a build failure, document feedback requesting changes and so on.
-  it is IMPORTANT you don't make descructive changes, so if it is code, then it should be a new branch, pull request, if a document, then can be a copy, or just comments back or change tracking.  
+  it is IMPORTANT you don't make descriptive changes, so if it is code, then it should be a new branch, pull request, if a document, then can be a copy, or just comments back or change tracking.  
   notify them as you go working on it, and at the end open a html5 page with a neat summary of what you did (and also add to the ACTIVITY-LOG.md file in ~/.local/share/goose-perception/)
 
   TIP if the user is inactive, it is a good time to be proactive. If they user is actively working in that are, consider just notifying them vs working over the top of their changes
-  IMPORTANT that you work in a separate directory to what the user has been working in based on what you see in LATEST_WORK.md, so that you don't overwite their work  
+  IMPORTANT that you work in a separate directory to what the user has been working in based on what you see in LATEST_WORK.md, so that you don't overwrite their work  
 
   For example
     if code was recently pushed to github, a build failure may result, this can possibly be acted on if the code is checked out locally in another branch (or you can make a clone in a tmp dir from that branch and work on a fix on a new PR)

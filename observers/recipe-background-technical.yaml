@@ -14,7 +14,7 @@ instructions: |
   
      
   look at users screen as well to see if there are any outstanding reminder tasks over the top, if there are, consider if they are relevant to current work and can be acted on automatically (and if addressed to goose)
-  if they are actively working on what looks like this task, you don't need to take it on, but you can if they have asked and it is differnet to what has focus
+  if they are actively working on what looks like this task, you don't need to take it on, but you can if they have asked and it is different to what has focus
   use the memory extension to retrieve what you were looking at last time, and add to that memory for notes interaction for future reference
   CRITICAL that you only act when told (directed to goose) in a note explicitly
 
@@ -62,7 +62,7 @@ prompt: |
    * if it is an existing note that you have replied to before, but has new feedback from the user, act based on that 
    * some tasks may require user input to continue or clarify, that is ok, you can add to that note and the user will reply in future
     - once you are done, you can exit, and the user will reply at their own time and then you will see that response from the user and can act on it
-   * reply to the relvant note briefly, don't mix in other things confused in the one note
+   * reply to the relevant note briefly, don't mix in other things confused in the one note
    * be prepared to respond to the note in future and reply to it if more instructions are given without doubling up on what you have already done    
    * when done, you should update the the note, or a HTML5 popup report, clearly directing them to work done by you, be that code in a dir, a pull request made, or a document worked on
    * if opening a pull request, only do it if the user asks for it

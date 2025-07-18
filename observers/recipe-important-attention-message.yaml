@@ -39,7 +39,7 @@ extensions:
   description: google calendar access 
 
 prompt:
-  in the  ~/.local/share/goose-perception/ directory please consult the follwing
+  in the  ~/.local/share/goose-perception/ directory please consult the following
      LATEST_WORK.md PROJECTS.md INTERACTIONS.md and CONTRIBUTIONS.md to form a picture of what the user has been working on. 
   You can also consider WORK.md for a more full log and INTERESTS.md for any interests.
   

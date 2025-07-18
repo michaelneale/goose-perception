@@ -23,14 +23,14 @@ extensions:
 
 
 prompt: |
-  look in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md and use glean to clarify what project names or initivives are being worked on. 
+  look in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md and use glean to clarify what project names or initiatives are being worked on. 
   You can update WORK.md with clarifications for this in the last paragraph if needed. You should also consult and update the PROJECTS.md file with any new projects or initiatives that are being worked on.
   update PROJECTS.md with any new projects or initiatives that are being worked on you can see. 
 
   You can supplement this information with ~/.local/share/goose/sessions which has jsonl files of users agent sessions (look at just recent ones and look at last few 1000 chars or first few to get a sense of what they may have been working on, can be large files be careful)
 
   Your aim should be to build a picture of their inflight projects, with descriptions and names (brief of course, as it will change). The user will be working on various things throughout the day and week, that is ok. 
-  it isn't exhaustive, but the idea is to be helpful so things noted in the PROJECTS.md file can be referred to later if needed and not forgetten.
+  it isn't exhaustive, but the idea is to be helpful so things noted in the PROJECTS.md file can be referred to later if needed and not forgotten.
 
   you should edit the PROJECTS.md file to be current, it shouldn't get too large, limit old entries in it.
   you can append to it and keep some limited log of when a project was being worked on. 

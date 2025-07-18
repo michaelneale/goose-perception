@@ -31,5 +31,5 @@ prompt: |
   Save this report to ~/.local/share/goose-perception/INTERACTIONS.md - if you are having technical issues, don't over write what is there with useless info.
   Glean can return old data or too much so be careful to cross reference it with other sources
 
-  You must also include a brief section at the end which summarizes their communication preferences, do they use email, slack, will they email to larger groupd or slack to a room with status updates, or are they more private
-  you should learn their style and summarize it briefly so we can refer to that later, especialy when they are formally communicating, are they wordy or brief, funny or not etc.
+  You must also include a brief section at the end which summarizes their communication preferences, do they use email, slack, will they email to larger groups or slack to a room with status updates, or are they more private
+  you should learn their style and summarize it briefly so we can refer to that later, especially when they are formally communicating, are they wordy or brief, funny or not etc.

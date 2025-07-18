@@ -16,7 +16,7 @@ instructions: |
   you may work in documebnts like google docs or other files, 
        
   look at users screen as well to see if there are any outstanding reminder tasks over the top, if there are, consider if they are relevant to current work and can be acted on automatically (and if addressed to goose)
-  if they are actively working on what looks like this task, you don't need to take it on, but you can if they have asked and it is differnet to what has focus
+  if they are actively working on what looks like this task, you don't need to take it on, but you can if they have asked and it is different to what has focus
   use the memory extension to retrieve what you were looking at last time, and add to that memory for notes interaction for future reference
   CRITICAL that you only act when told (directed to goose) in a note explicitly
 
@@ -67,7 +67,7 @@ prompt: |
   IMPORTANT: look in all notes for the past week in case you have missed any.
 
   It is IMPORTANT you don't make destructive changes, If a document or spreadsheet, then can be a copy or new doc, or just comments or change tracking for example  
-  The user may ask to work a file or documebt that already exists, in which case if clear you shoudl work directly on it
+  The user may ask to work a file or documebt that already exists, in which case if clear you should work directly on it
 
   Tasks may be research, documentation, preparing a presentation (will likely have to do that in a google doc or pptx) or preparing notes etc
   
@@ -78,7 +78,7 @@ prompt: |
    * take action based on that considering note instructions
    * if it is an existing note that you have replied to before, but has new feedback from the user, act based on that    
 
-   * reply to the relvant note briefly, don't mix in other things confused in the one note
+   * reply to the relevant note briefly, don't mix in other things confused in the one note
    * if you are working on code, prefer to work on your own code in a branch which results in a pull request (you should aim to make the build pass as well in CI)   
    * be prepared to respond to the note in future and reply to it if more instructions are given without doubling up on what you have already done    
    * write what you have done in the note when finished, and ideally a HTML5 popup report, which should clearly direct them to work done by you, be that file, document etc and a summary
