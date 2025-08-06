@@ -71,6 +71,12 @@ except ImportError as e:
         print(f"⚠️ No emotion detection available: {e2}")
         EMOTION_DETECTION_AVAILABLE = False
 
+# Import configuration manager
+from config_manager import get_config_manager
+
+# Load configuration once at startup
+config = get_config_manager()
+
 # Initialize the Whisper models
 def load_models():
     print(f"Loading Whisper models...")
@@ -104,11 +110,11 @@ PROXIMITY_THRESHOLD = 0.02  # Very low signal level for proximity detection
 DISTANT_SPEECH_THRESHOLD = 0.005  # Extremely low threshold for distant speech
 
 # Default configuration - these can be overridden by command line arguments
-# and should match the defaults in run.sh
-DEFAULT_CONTEXT_DURATION = 30  # Duration in seconds to keep before wake word
-DEFAULT_SILENCE_DURATION = 3   # Duration of silence to end active listening
-DEFAULT_FUZZY_THRESHOLD = 80   # Fuzzy matching threshold (0-100)
-DEFAULT_CLASSIFIER_THRESHOLD = 0.6  # Confidence threshold for classifier (0-1)
+# Load from config if available, otherwise use defaults
+DEFAULT_CONTEXT_DURATION = config.get_voice_context_seconds()
+DEFAULT_SILENCE_DURATION = config.get_voice_silence_seconds()
+DEFAULT_FUZZY_THRESHOLD = config.get_voice_fuzzy_threshold()
+DEFAULT_CLASSIFIER_THRESHOLD = config.get_voice_confidence_threshold()
 
 # Queue for audio chunks
 audio_queue = queue.Queue()
