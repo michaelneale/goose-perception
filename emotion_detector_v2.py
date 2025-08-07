@@ -40,16 +40,23 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
+# Import configuration manager
+from config_manager import get_config_manager
+
 class LightweightEmotionDetector:
     """
     Lightweight emotion detection system using modern efficient models
     """
     
     def __init__(self):
+        # Get config manager instance
+        self.config = get_config_manager()
+        
         self.is_initialized = False
         self.camera = None
         self.last_detection_time = 0
-        self.detection_interval = 60  # 1 minute
+        # Get detection interval from config (defaults to 60 seconds)
+        self.detection_interval = self.config.get_emotion_interval()
         self.data_dir = Path.home() / ".local" / "share" / "goose-perception"
         
         # Lightweight emotion model configuration

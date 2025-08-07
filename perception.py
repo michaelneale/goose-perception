@@ -84,30 +84,36 @@ def load_models():
     import warnings
     warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
     
+    # Get model settings from config
+    main_model_name = config.get_whisper_main_model()
+    wake_word_model_name = config.get_whisper_wake_word_model()
+    device = config.get_whisper_device()
+    compute_type = config.get_whisper_compute_type()
+    
     # Load the main model for full transcription
-    print(f"Loading main transcription model ...")
-    main_model = WhisperModel("small", device="cpu", compute_type="int8")
+    print(f"Loading main transcription model: {main_model_name} on {device} with {compute_type}")
+    main_model = WhisperModel(main_model_name, device=device, compute_type=compute_type)
     
-    print(f"Loading lightweight model for wake word detection...")
-    wake_word_model = WhisperModel("base", device="cpu", compute_type="int8")
+    print(f"Loading lightweight model for wake word detection: {wake_word_model_name}")
+    wake_word_model = WhisperModel(wake_word_model_name, device=device, compute_type=compute_type)
     
-    print("Using CPU for Whisper models with int8 quantization for better performance")
+    print(f"Using {device} for Whisper models with {compute_type} quantization")
     return main_model, wake_word_model
 
-# Audio parameters - technical settings that rarely need changing
-SAMPLE_RATE = 16000  # Whisper expects 16kHz audio
-CHANNELS = 1  # Mono audio
+# Audio parameters - load from config
+SAMPLE_RATE = config.get_audio_sample_rate()
+CHANNELS = config.get_audio_channels()
 DTYPE = 'float32'
-BUFFER_DURATION = 2  # Duration in seconds for each audio chunk
-LONG_BUFFER_DURATION = 60  # Duration in seconds for the longer context (1 minute)
+BUFFER_DURATION = config.get_audio_buffer_duration()
+LONG_BUFFER_DURATION = config.get_audio_long_buffer_duration()
 
-# Audio threshold settings - very sensitive, catch almost everything
-SILENCE_THRESHOLD = 0.008  # Lower silence threshold
-NOISE_FLOOR_THRESHOLD = 0.003  # Lower noise floor
-SPEECH_ACTIVITY_THRESHOLD = 0.01  # Very sensitive - catch very quiet speech
-MAX_NOISE_RATIO = 0.9  # Almost no noise filtering
-PROXIMITY_THRESHOLD = 0.02  # Very low signal level for proximity detection
-DISTANT_SPEECH_THRESHOLD = 0.005  # Extremely low threshold for distant speech
+# Audio threshold settings - load from config
+SILENCE_THRESHOLD = config.get_audio_silence_threshold()
+NOISE_FLOOR_THRESHOLD = config.get_audio_noise_floor_threshold()
+SPEECH_ACTIVITY_THRESHOLD = config.get_audio_speech_activity_threshold()
+MAX_NOISE_RATIO = config.get_audio_max_noise_ratio()
+PROXIMITY_THRESHOLD = config.get_audio_proximity_threshold()
+DISTANT_SPEECH_THRESHOLD = config.get_audio_distant_speech_threshold()
 
 # Default configuration - these can be overridden by command line arguments
 # Load from config if available, otherwise use defaults
@@ -531,9 +537,14 @@ def contains_wake_word(text, classifier=None, fuzzy_threshold=80, classifier_thr
     detected_word = ""
     normalized_text = text
     
-    # Define wake word variations to check
-    wake_words = ["goose", "gus"]
-    wake_phrases = ["hey goose", "hey gus"]
+    # Get wake word from config
+    primary_wake_word = config.get_voice_wake_word()
+    
+    # Define wake word variations to check (primary from config + common variations)
+    wake_words = [primary_wake_word]
+    if primary_wake_word == "goose":
+        wake_words.append("gus")  # Add common variation
+    wake_phrases = [f"hey {word}" for word in wake_words]
     
     # First check: exact match for any wake word
     for word in wake_words:
@@ -901,9 +912,11 @@ def is_silence(audio_data, threshold=SILENCE_THRESHOLD):
     return np.mean(np.abs(audio_data)) < threshold
 
 def notify_user(message):
-    subprocess.call(f"""
-                    osascript -e 'display notification "{message} " with title "Goose"'
-                    """, shell=True)
+    """Send notification to user if notifications are enabled"""
+    if config.is_notifications_enabled():
+        subprocess.call(f"""
+                        osascript -e 'display notification "{message} " with title "Goose"'
+                        """, shell=True)
 
 def analyze_audio(audio_data):
     """
@@ -1051,7 +1064,10 @@ def main():
     # Load the Whisper model
     main_model, wake_word_model = load_models()
     print(f"Models loaded. Using {'default' if args.device is None else f'device {args.device}'} for audio input.")
-    print(f"Listening for wake word: 'goose' (fuzzy threshold: {args.fuzzy_threshold}, classifier threshold: {args.classifier_threshold})")
+    
+    # Get wake word from config
+    wake_word = config.get_voice_wake_word()
+    print(f"Listening for wake word: '{wake_word}' (fuzzy threshold: {args.fuzzy_threshold}, classifier threshold: {args.classifier_threshold})")
     
     # Initialize the wake word classifier
     print("Initializing wake word classifier...")
@@ -1088,17 +1104,23 @@ def main():
     transcription_in_progress = False
 
     try:
-        # Start the avatar system
-        print("🤖 Starting Goose Avatar system...")
-        avatar_display.start_avatar_system()
-        avatar_display.show_message("👁️ Goose is always here, watching and listening...")
+        # Start the avatar system if enabled
+        if config.is_avatar_enabled():
+            print("🤖 Starting Goose Avatar system...")
+            avatar_display.start_avatar_system()
+            avatar_display.show_message("👁️ Goose is always here, watching and listening...")
+            
+            # Start the observer-avatar bridge
+            print("🔗 Starting Observer-Avatar bridge...")
+            observer_avatar_bridge.start_observer_bridge()
+        else:
+            print("🤖 Avatar system disabled in config")
         
-        # Start the observer-avatar bridge
-        print("🔗 Starting Observer-Avatar bridge...")
-        observer_avatar_bridge.start_observer_bridge()
-        
-        # Start the hotkey listener
-        start_hotkey_listener()
+        # Start the hotkey listener if enabled
+        if config.is_hotkeys_enabled():
+            start_hotkey_listener()
+        else:
+            print("🔥 Hotkeys disabled in config")
         
         # Start the audio stream
         try:
@@ -1134,8 +1156,8 @@ def main():
             except:
                 pass
             
-            # Run emotion detection cycle if available (every 1 minute)
-            if EMOTION_DETECTION_AVAILABLE:
+            # Run emotion detection cycle if available and enabled
+            if EMOTION_DETECTION_AVAILABLE and config.is_emotion_enabled():
                 try:
                     run_emotion_detection_cycle()
                 except Exception as e:

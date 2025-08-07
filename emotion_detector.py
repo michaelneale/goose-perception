@@ -25,6 +25,9 @@ except ImportError:
     INSIGHTFACE_AVAILABLE = False
     print("⚠️ InsightFace not available. Emotion detection will be disabled.")
 
+# Import configuration manager
+from config_manager import get_config_manager
+
 class EmotionDetector:
     """
     Handles facial emotion detection using camera feed
@@ -35,7 +38,9 @@ class EmotionDetector:
         self.camera = None
         self.is_initialized = False
         self.last_detection_time = 0
-        self.detection_interval = 60   # 1 minute for responsive emotion-aware features
+        # Load detection interval from config
+        self.config = get_config_manager()
+        self.detection_interval = self.config.get_emotion_interval()  # Already in seconds
         self.data_dir = Path.home() / ".local" / "share" / "goose-perception"
         
         # Ensure data directory exists
