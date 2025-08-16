@@ -12,25 +12,6 @@ extensions:
   display_name: Developer
   timeout: 300
   bundled: true
-- type: builtin
-  name: googledrive
-  display_name: Google Drive
-  timeout: 300
-  bundled: true
-- type: stdio
-  name: gcal
-  cmd: uvx
-  args:
-  - mcp_gcal@latest
-  envs: {}
-  env_keys: []
-  timeout: null
-  description: google calendar access 
-- type: builtin
-  name: computercontroller
-  display_name: Computer Controller
-  timeout: 300
-  bundled: true   
 
 prompt: |
   
@@ -39,6 +20,6 @@ prompt: |
   looking in ~/.local/share/goose-perception/ for WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
   Use calendar to also consider any booked time.
 
-  always Make a fresh note in apple notes for this day and make it clear and brief what they are working on, be sure to format it nicely with spacing and make sure to format with linebreaks as markdown may not always come across nicely BE CONCISE AND USE PLAIN TEXT WHERE POSSIBLE IN NOTES
+  Write a summary to ~/.local/share/goose-perception/LATEST_WORK.md of what you think they are working on.
 
   

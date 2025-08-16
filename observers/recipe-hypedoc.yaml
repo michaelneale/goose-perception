@@ -17,15 +17,6 @@ extensions:
   timeout: 300
   bundled: true
 - type: stdio
-  name: glean
-  cmd: uvx
-  args:
-  - mcp_glean@latest
-  envs: {}
-  env_keys: []
-  timeout: null
-  description: Glean search of company knowledge with personal perspective
-- type: stdio
   name: gcal
   cmd: uvx
   args:
@@ -41,7 +32,7 @@ prompt: |
   Make a hype doc for the current user (use $USER var for ldap name) based on their contributions, interactions, interests and projects.
   You can look in ~/.local/share/goose-perception/WORK.md for the past week for what some of their achievements have been.
   There is also CONTRIBUTIONS.md and INTERACTIONS.md which will give you a sense of what they have been working on and who they have been interacting with.
-  You can also look up glean if you need to find out what they have been up to, gcal and more. 
+  
   You have other tools you can use as well, such as gh cli to look at broad github contributions (not just code), google drive and so on.
 
   Your task is to make a "hype doc" celebrating the last week or so's contributions in a broad sense, so the user doesn't have to. 

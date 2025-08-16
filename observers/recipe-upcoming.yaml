@@ -4,7 +4,7 @@ author:
   contact: mic
 description: Any upcoming things to prepare for 
 instructions: |
-  will be using extensions like gcal to look for upcoming things which need to be prepared for. only use glean if you need clarification what something is upcoming if you don't know and need to do company research in preparation
+  will be using extensions like gcal to look for upcoming things which need to be prepared for.
   use the memory extension to remember actions you have taken and check it
 extensions:
 - type: builtin
@@ -31,15 +31,6 @@ extensions:
   display_name: Computer Controller
   timeout: 300
   bundled: true
-- type: stdio
-  name: glean
-  cmd: uvx
-  args:
-  - mcp_glean@latest
-  envs: {}
-  env_keys: []
-  timeout: null
-  description: Glean search of company knowledge with personal perspective
 - type: builtin
   name: memory
   display_name: memory
@@ -54,8 +45,8 @@ prompt: |
 
   Consult below to get work context:  
   Consider their calendar, their contributions to code and documents, and their interactions with others.
-  You can look in email (via glean) for any travel/vacation plans upcoming too and consider that (be careful with time and timezones, note users current timezone)
-  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources
+  
+  
   looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, and PROJECTS.md to form a picture of what is going on in the users work world. 
 
   WORK.md is also useful as a longer running work log.
