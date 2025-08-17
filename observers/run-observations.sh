@@ -248,7 +248,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
   
   run_recipe_if_needed "recipe-important-attention-message.yaml" "120m" ".important-messages" "weekday-only"
-  run_recipe_if_needed "recipe-background-tasks.yaml" "180m" ".background-tasks"  "weekday-only"
+  run_recipe_if_needed "recipe-background-tasks.yaml" "20m" ".background-tasks"  "weekday-only"
   run_recipe_if_needed "recipe-background-technical.yaml" "180m" ".background-technical"  "weekday-only"
 
   run_recipe_if_needed "recipe-projects.yaml" "weekly" "PROJECTS.md" "weekday-only"
