@@ -7,7 +7,7 @@ set shell := ["bash", "-c"]
 # Goose configuration - set these to your preferred provider and model
 export GOOSE_PROVIDER := "ollama"
 export GOOSE_MODEL := "gpt-oss:20b"
-export GOOSE_EXPERIMENTAL_SUB_RECIPES=true 
+export GOOSE_EXPERIMENTAL_SUB_RECIPES := "true"
 
 # Default recipe (runs when you just type 'just')
 default:
