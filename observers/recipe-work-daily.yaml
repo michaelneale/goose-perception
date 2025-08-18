@@ -1,79 +1,20 @@
 version: 1.0.0
-title: analyise work from screens
+title: analyze work from screens
 author:
   contact: mic
 description: processing screen vision
 instructions: |
-  Processing screenshots to track work being done, you will examine descirptions of what user has had on their screen throughout the day, which includes what apps they use, who they may communicate with, what they are working etc
+  prepare a report on what the users work has been
 
 extensions:
-- type: builtin
-  name: developer
-  display_name: Developer
-  timeout: 300
-  bundled: true
+
+sub_recipes:
+  - name: "anaylize_screen_apps"
+    path: "./work-tracking/analyse-screenshots.yaml"
+
 prompt: |
-  please look in /tmp/screenshots for txt files which are timestamped descriptions of what the user was looking at on their ~/.local/share/goose-perception/INTERACTIONS.md
+  use anaylize_screen_apps tool to get a report on what the user has been up to
 
-  each timestamped txt file will contain: 
-    * "Open Windows" which is really a list of apps (names of apps and perhaps documents or projects) open
-    * "Screen N" sections
-      - each screen section may have an AI description of what it thinks was on the screen (just high level or a guess)
-      - each screen section will have "OCR Text" which is an approximate OCR of visible text. 
+  Write the report to ~/.local/share/goose-perception/LATEST_WORK.md
 
-  Screens may be large so you may see them in quarters. 
-
-  Content example of the file:
-
-
-    === Open Windows ===
-      app: doc, Other App: some info (more info) - thing, and so on
-
-    --- Screen 1 ---
-      Getting AI description for /tmp/screenshots/screen1.png...
-      AI Description (full screen):  The image shows a computer screen with several ...
-
-
-    --- Screen 1 Quarter 1 ---
-      Getting AI description for /tmp/screenshots/screen1_q1.png...
-      AI Description (quarter):  In the image provided...
-
-
-      OCR Text:
-          Post vibe code update from my repo (to email thread) - and proposal to apply to existing code, and al
-
-  There will be multiple files timestamped. You can look at most recent ones, go back looking for a sample of what apps, themes, projects, communication, people etc you can see
-  Note what changes throughout the time, special attention to changes, and possibly what is recurring and in focus or important.
-
-  which are descriptions of what the user was looking at, these will be in chronological order, so you can see what they were doing at different times
-  you can sample throughout the day, maybe once per hour if there are many files (if there are only less than 10, you can read them all), and look for some changes in that time.
-  it is important you note the timestamp of the file
-  your aim is to form a picture of what they are working on, and pay attention to changes and note them down
-  The user is working on various projects so you are to summarize work going on as best you can, you can try to guess the project names being worked on from the context as more is revealed.
-  if any screens are for chat or email pay attention to the people being communicated with and topics
-  note what documents or files, directories, docs etc  they are working on 
-  a document, or an editor, will typically be associated with a project or some past work you can look up. 
-  note any interesting objects/visuals you see in case they are need to be searched for later
-  any key phrases or terms you see can also be noted.
-  Note down any people interacted with you can see
-  If in a meeting, consider who they are meeting with and note that down too. 
-  ~/.local/share/goose-perception/spoken.txt has a log of recently heard conversation, which may help you understand the context of the work being done, consider it, but it may be background chatter.
-
-  IMPORTANT: never mention this goose-perception project in any of your reporting, it should not appear in work done, do not consider automation done by it as something work reporting out. 
-  ALWAYS check attribution before giving the user credit for something. This needs to be cross checked with code, docs, interactions that they really did it, do not confuse email lists or slack broadcasts with activity being undertaken.
-  If you see what you know as irrelevant things in LATEST_WORK.md, you can remove it
-
-
-  Please also look at windows that are open titles to consider things.
-
-  ~/.local/share/goose-perception/WORK.md is a record of work done, you should be appending to it. If it is over 2000 lines, truncate the older (earlier) lines. 
-
-  Look at ~/.local/share/goose-perception/WORK.md last paragraph or so if there is one to get an idea of how to classify/improve, and write a fresh summary and add to that file. 
-
-  
-  Include time in summary and and also make it clear what changes are being made since last time. 
-  The LATEST_WORK.md should also have a summary of what sequence of apps or screens they went between (very brief) 
-
-  Append the updated summary to ~/.local/share/goose-perception/WORK.md (don't over write) and also save (over write) just the update to LATEST_WORK.md in same dir.
-
-  also remove the txt files when you are done looking at them. 
+  Remove .txt files from /tmp/screenshots 
