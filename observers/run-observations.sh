@@ -47,7 +47,18 @@ capture_screenshots() {
   echo "$(date): Screenshot processing completed"
 }
 
-
+# Function to check Apple Notes for items requiring attention
+check_notes() {
+  echo "$(date): Checking Apple Notes..."
+  
+  # Get the directory where this script is located
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  
+  # Run the notes checking script
+  "$SCRIPT_DIR/run-notes.sh"
+  
+  echo "$(date): Notes check completed"
+}
 
 # Function to run a recipe if needed based on frequency
 run_recipe_if_needed() {
@@ -249,6 +260,7 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
   
   run_recipe_if_needed "recipe-important-attention-message.yaml" "120m" ".important-messages" "weekday-only"
+  
   run_recipe_if_needed "recipe-background-tasks.yaml" "180m" ".background-tasks"  "weekday-only"
   run_recipe_if_needed "recipe-background-technical.yaml" "180m" ".background-technical"  "weekday-only"
 
@@ -327,12 +339,23 @@ trap cleanup SIGINT SIGTERM
 echo "$(date): Running scheduled recipes at startup..."
 run_scheduled_recipes
 
+# Initialize notes check tracking
+LAST_NOTES_CHECK=$(date +%s)
+
 # Main loop - focus on recipe management
 while true; do
   # Check if /tmp/goose-perception-halt exists and exit if it does
   if [ -f "/tmp/goose-perception-halt" ]; then
     echo "$(date): Halting observation script as requested."
     cleanup
+  fi
+  
+  # Check Apple Notes every 5 minutes (300 seconds)
+  CURRENT_TIME=$(date +%s)
+  TIME_SINCE_NOTES_CHECK=$((CURRENT_TIME - LAST_NOTES_CHECK))
+  if [ $TIME_SINCE_NOTES_CHECK -ge 300 ]; then
+    check_notes
+    LAST_NOTES_CHECK=$CURRENT_TIME
   fi
   
   # Run scheduled recipes (this can block when recipes need to be run)

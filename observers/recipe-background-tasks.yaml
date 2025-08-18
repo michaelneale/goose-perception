@@ -53,10 +53,20 @@ extensions:
 
 
 prompt: |
-  use apple notes (or whatever you see the user use based on what you discover below) to see if there is any request of goose to take on a task it hasn't addressed. 
+  FIRST, check ~/.local/share/goose-perception/notes-todo.txt for any Apple Notes that require attention.
+  This file is automatically updated every 10 minutes with notes that have "goose" in the title and haven't been processed yet.
+  
+  If there are notes in notes-todo.txt that need processing:
+  1. Process each note listed
+  2. When you update an Apple Note after processing, ALWAYS end your response with "-- goose" on a new line
+  3. This "-- goose" marker indicates the note has been processed
+  
+  Then, use apple notes (or whatever you see the user use based on what you discover below) to see if there is any request of goose to take on a task it hasn't addressed. 
   Read and reply to the note with what you did and what you are doing.
   Don't double up - check the for existing notes or the note you are looking, that you haven't already addressed what the user has asked previously.
   The user will likely have asked you to do something, but also you may have done something before (check the note) and there may be more ask to follow on to it.
+  
+  IMPORTANT: When updating any Apple Note with your response, ALWAYS end with "-- goose" on a new line to mark it as processed.
 
   Consult below to get work context:  
   
@@ -75,6 +85,7 @@ prompt: |
    * look in notes app for something addressed to goose, it may be a new note or a comment fresh from the user on an existing note
       tip: if using apple notes, you can use applescript/osacript to find notes and read them.
    * When replying in notes app use clear responses and time stamped and be brief, mention when you start, what you are doing, and what you did
+   * ALWAYS end your note response with "-- goose" on a new line to mark it as processed
    * take action based on that considering note instructions
    * if it is an existing note that you have replied to before, but has new feedback from the user, act based on that    
 
@@ -87,4 +98,3 @@ prompt: |
   
 
 
-  

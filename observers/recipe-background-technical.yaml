@@ -36,9 +36,19 @@ extensions:
   bundled: true
 
 prompt: |
-  use apple notes (or whateve notes solution you see the user use based on what you discover below, may be reminders or tasks) to see if there is any request of goose to take on a technical task it hasn't addressed. 
+  FIRST, check ~/.local/share/goose-perception/notes-todo.txt for any Apple Notes that require attention.
+  This file is automatically updated every 10 minutes with notes that have "goose" in the title and haven't been processed yet.
+  
+  If there are notes in notes-todo.txt that need processing:
+  1. Process each technical note listed
+  2. When you update an Apple Note after processing, ALWAYS end your response with "-- goose" on a new line
+  3. This "-- goose" marker indicates the note has been processed
+  
+  Then, use apple notes (or whateve notes solution you see the user use based on what you discover below, may be reminders or tasks) to see if there is any request of goose to take on a technical task it hasn't addressed. 
   The user will likely have asked you to do something, but also you may have done something before (check the note) and there may be more ask to follow on to it.
   This will involve working with devleopment tools most likely.
+  
+  IMPORTANT: When updating any Apple Note with your response, ALWAYS end with "-- goose" on a new line to mark it as processed.
 
   first, consult below to get work context:  
   
@@ -57,7 +67,8 @@ prompt: |
   what to do 
    * look in notes app for something addressed to goose, it may be a new note or a comment fresh from the user on an existing note
       tip: if using apple notes, you can use applescript/osacript to find notes and read them
-      - if you are starting work, add a note to the app when you start working on it, and when you are finished as well, clearly. 
+       - if you are starting work, add a note to the app when you start working on it, and when you are finished as well, clearly.
+       - ALWAYS end your note response with "-- goose" on a new line to mark it as processed
    * take action based on that considering note instructions
    * if it is an existing note that you have replied to before, but has new feedback from the user, act based on that 
    * some tasks may require user input to continue or clarify, that is ok, you can add to that note and the user will reply in future
@@ -71,4 +82,3 @@ prompt: |
 
 
 
-  

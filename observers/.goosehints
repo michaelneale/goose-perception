@@ -59,6 +59,7 @@ Some important tips and tricks if on macos (you don't have to use these all the 
   * if using apple notes as the notes app use this to limit the amount of data returned, and only look for notes that mention goose in the name to consider them further as relevant when looking up notes:
           - osascript -e 'tell application "Notes" to get name of notes 1 thru 10'
           - osascript -e 'tell application "Notes" to get modification  date of note 1'
+          - apple notes are usually HTML text under the covers
   * if interacting with notes apps, make sure to format clearly as needed using markup like <p> and <br> etc.
   * you can add reminders for users that will notify them if you need to, for example:
     `osascript -e 'tell application "Reminders" to make new reminder in list "Reminders" with properties {name:"Team meeting", remind me date:date "06/23/2025 10:00 AM"}'` but don't swamp them with reminders, only things you really need them to follow up that they may have forgotten about

@@ -194,6 +194,36 @@ echo ""
 echo "Files created:"
 ls -la /tmp/screenshots/${TIMESTAMP}_*.txt
 
+# Run notes.py to check for notes requiring attention
+# This runs alongside the screenshot processing
+PERCEPTION_DIR="$HOME/.local/share/goose-perception"
+mkdir -p "$PERCEPTION_DIR"
+
+if [ -f "$SCRIPT_DIR/notes.py" ]; then
+    last_notes_check="$PERCEPTION_DIR/.last-notes-check"
+    current_time=$(date +%s)
+    should_run=false
+    
+    if [ ! -f "$last_notes_check" ]; then
+        should_run=true
+    else
+        last_run=$(cat "$last_notes_check")
+        time_diff=$((current_time - last_run))
+        # Run every 10 minutes (600 seconds)
+        if [ $time_diff -ge 600 ]; then
+            should_run=true
+        fi
+    fi
+    
+    if [ "$should_run" = true ]; then
+        echo ""
+        echo "Checking Apple Notes for items requiring attention..."
+        "$PYTHON_PATH" "$SCRIPT_DIR/notes.py"
+        echo "$current_time" > "$last_notes_check"
+        echo "Notes check completed."
+    fi
+fi
+
 # Clean up any remaining screenshot images
 echo ""
 echo "Cleaning up any remaining screenshot images..."
