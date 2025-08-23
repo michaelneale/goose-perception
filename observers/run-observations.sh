@@ -13,6 +13,92 @@ mkdir -p "$SCREENSHOT_DIR"
 PERCEPTION_DIR="$HOME/.local/share/goose-perception"
 mkdir -p "$PERCEPTION_DIR"
 
+ensure_observer_config() {
+  local cfg="$PERCEPTION_DIR/observer-config.json"
+  mkdir -p "$PERCEPTION_DIR"
+  if [ -f "$cfg" ]; then
+    return 0
+  fi
+  cat > "$cfg" <<'JSON'
+{
+  "globals": {
+    "goose_provider": "ollama",
+    "goose_model": "qwen3:14b",
+    "goose_context_strategy": "truncate",
+
+    "notes_check_interval_sec": 300,          // run-observations.sh cadence
+    "screenshot_loop_interval_sec": 60,       // run-observations.sh cadence (comment said 20s, was 60s in code)
+    "local_screenshot_loop_interval_sec": 20, // local-observations.sh cadence
+    "local_work_analysis_interval_sec": 1200, // 20 minutes (local)
+    "local_other_recipes_interval_sec": 300   // 5 minutes (local)
+  },
+
+  "paths": {
+    "screenshot_dir": "/tmp/screenshots",
+    "screenshot_descriptions_dir": "/tmp/screenshot-descriptions",
+    "perception_dir": "~/.local/share/goose-perception",
+    "adapted_observers_dir": "~/.local/share/goose-perception/adapted-observers",
+    "automated_actions_daily_dir": "~/.local/share/goose-perception/automated-actions/daily",
+    "automated_actions_weekly_dir": "~/.local/share/goose-perception/automated-actions/weekly"
+  },
+
+  "observers": [
+    { "id": "recipe-work-daily",                 "freq": "morning",  "weekday_only": true,  "output": "WORK.md" },
+    { "id": "recipe-work-daily",                 "freq": "afternoon","weekday_only": true,  "output": "WORK.md" },
+
+    { "id": "recipe-contributions",              "freq": "weekly",   "weekday_only": true,  "output": "CONTRIBUTIONS.md" },
+    { "id": "recipe-focus",                      "freq": "weekly",   "weekday_only": true,  "output": ".focus" },
+    { "id": "recipe-hypedoc",                    "freq": "weekly",   "weekday_only": false, "output": ".hypedoc" },
+
+    { "id": "recipe-important-attention-message","freq": "120m",     "weekday_only": true,  "output": ".important-messages" },
+
+    { "id": "recipe-background-tasks",           "freq": "180m",     "weekday_only": true,  "output": ".background-tasks" },
+    { "id": "recipe-background-technical",       "freq": "180m",     "weekday_only": true,  "output": ".background-technical" },
+
+    { "id": "recipe-garbage-collect",            "freq": "weekly",   "weekday_only": true,  "output": ".garbage-collect" },
+    { "id": "recipe-projects",                   "freq": "weekly",   "weekday_only": true,  "output": "PROJECTS.md" },
+    { "id": "recipe-work-personal",              "freq": "weekly",   "weekday_only": false, "output": ".work-personal" },
+
+    { "id": "recipe-interactions",               "freq": "daily",    "weekday_only": false, "output": "INTERACTIONS.md" },
+    { "id": "recipe-chrome-history",             "freq": "weekly",   "weekday_only": true,  "output": "CHROME_HISTORY.md" },
+
+    { "id": "recipe-interests",                  "freq": "daily",    "weekday_only": false, "output": "INTERESTS.md" },
+    { "id": "recipe-morning-attention",          "freq": "morning",  "weekday_only": true,  "output": ".morning-attention" },
+    { "id": "recipe-upcoming",                   "freq": "afternoon","weekday_only": true,  "output": ".upcoming" },
+    { "id": "recipe-what-working-on",            "freq": "evening",  "weekday_only": true,  "output": ".working-on" },
+
+    { "id": "recipe-optimize",                   "freq": "weekly",   "weekday_only": false, "output": ".optimize" },
+    { "id": "recipe-meetings-actions",           "freq": "morning",  "weekday_only": true,  "output": ".meetings-afternoon" },
+    { "id": "recipe-apps-preferences",           "freq": "daily",    "weekday_only": true,  "output": ".apps-preferences" },
+    { "id": "recipe-meetings-actions",           "freq": "evening",  "weekday_only": true,  "output": ".meetings-evening" },
+
+    { "id": "recipe-start-fixing",               "freq": "evening",  "weekday_only": false, "output": ".fixing" },
+    { "id": "recipe-follow-up-content",          "freq": "morning",  "weekday_only": true,  "output": ".follow-up-content" },
+
+    { "id": "recipe-take-time-back",             "freq": "weekly",   "weekday_only": true,  "output": ".give-time-back" },
+
+    { "id": "../adapt-recipes",                  "freq": "weekly",   "weekday_only": false, "output": ".adapting" }
+  ]
+
+}
+JSON
+  echo "$(date): Created default observer-config.json at $cfg"
+}
+
+cfg() { jq -r "$1" "$PERCEPTION_DIR/observer-config.json"; }
+cfg_int() { jq -r "$1" "$PERCEPTION_DIR/observer-config.json" | awk '{print int($0)}'; }
+
+ensure_observer_config
+
+# Export model/provider/context from config (available to all goose runs)
+export GOOSE_MODEL="$(cfg '.globals.goose_model')"
+export GOOSE_PROVIDER="$(cfg '.globals.goose_provider')"
+export GOOSE_CONTEXT_STRATEGY_DEFAULT="$(cfg '.globals.goose_context_strategy')"
+
+# Loop tunables from config
+NOTES_CHECK_INTERVAL_SEC=$(cfg_int '.globals.notes_check_interval_sec')
+SCREENSHOT_LOOP_INTERVAL_SEC=$(cfg_int '.globals.screenshot_loop_interval_sec')
+
 # Create automated-actions and adapted-observers directories
 mkdir -p "$PERCEPTION_DIR/automated-actions/daily"
 mkdir -p "$PERCEPTION_DIR/automated-actions/weekly"
@@ -20,9 +106,9 @@ mkdir -p "$PERCEPTION_DIR/adapted-observers"
 
 # Copy .goosehints file to each directory
 GOOSEHINTS_FILE="./observers/.goosehints"
-cp "$GOOSEHINTS_FILE" "$PERCEPTION_DIR/automated-actions/daily/.goosehints"
-cp "$GOOSEHINTS_FILE" "$PERCEPTION_DIR/automated-actions/weekly/.goosehints"
-cp "$GOOSEHINTS_FILE" "$PERCEPTION_DIR/adapted-observers/.goosehints"
+cp "$GOOSEHINTS_FILE" "$PERCEPTION_DIR/automated-actions/daily/.goosehints" 2>/dev/null || true
+cp "$GOOSEHINTS_FILE" "$PERCEPTION_DIR/automated-actions/weekly/.goosehints" 2>/dev/null || true
+cp "$GOOSEHINTS_FILE" "$PERCEPTION_DIR/adapted-observers/.goosehints" 2>/dev/null || true
 
 rm -f /tmp/goose-perception-halt
 
@@ -37,26 +123,26 @@ log_activity() {
 # Function to run the comprehensive screenshotting script
 capture_screenshots() {
   echo "$(date): Running screenshot processing..."
-  
+
   # Get the directory where this script is located
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  
+
   # Run the screenshotting script
   "$SCRIPT_DIR/run-screenshotting.sh"
-  
+
   echo "$(date): Screenshot processing completed"
 }
 
 # Function to check Apple Notes for items requiring attention
 check_notes() {
   echo "$(date): Checking Apple Notes..."
-  
+
   # Get the directory where this script is located
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  
+
   # Run the notes checking script
   "$SCRIPT_DIR/run-notes.sh"
-  
+
   echo "$(date): Notes check completed"
 }
 
@@ -68,11 +154,11 @@ run_recipe_if_needed() {
   local weekday_only="${4:-false}"  # Optional 4th parameter, defaults to false
   local marker_file="$PERCEPTION_DIR/.recipe-last-run-$(basename "$recipe" .yaml)"
   local full_output_path="$PERCEPTION_DIR/$output_file"
-  
+
   # Check for adapted recipe first
   local adapted_recipe_path="$PERCEPTION_DIR/adapted-observers/$(basename "$recipe")"
   local recipe_to_run="$recipe"
-  
+
   if [ -f "$adapted_recipe_path" ]; then
     echo "$(date): Found adapted recipe: $adapted_recipe_path"
     # Validate the adapted recipe. If valid, use it.
@@ -82,7 +168,7 @@ run_recipe_if_needed() {
       echo "$(date): Adapted recipe $adapted_recipe_path is invalid. Sticking with original recipe"
     fi
   fi
-  
+
   # Check if weekday_only is enabled and today is weekend
   if [ "$weekday_only" = "weekday-only" ]; then
     local day_of_week=$(date +%u)  # 1=Monday, 7=Sunday
@@ -91,11 +177,11 @@ run_recipe_if_needed() {
       return 0
     fi
   fi
-  
+
   # Handle time-of-day frequencies (morning, afternoon, evening)
   if [[ "$frequency" =~ ^(morning|afternoon|evening)$ ]]; then
     local current_hour=$(date +%H)
-    
+
     # Check if we've already run today
     if [ -f "$marker_file" ]; then
       local marker_date=$(date -r "$marker_file" +%Y-%m-%d)
@@ -105,7 +191,7 @@ run_recipe_if_needed() {
         return 0
       fi
     fi
-    
+
     # Check if it's the right time to run
     case "$frequency" in
       "morning")
@@ -124,15 +210,16 @@ run_recipe_if_needed() {
         fi
         ;;
     esac
-    
+
     # Run the recipe
     echo "$(date): Running $recipe_to_run recipe ($frequency)..."
     log_activity "Starting $recipe_to_run ($frequency)"
-    GOOSE_CONTEXT_STRATEGY="truncate" goose run --no-session --recipe "$recipe_to_run" && {
+    # Use default context strategy from config unless overridden in environment
+    GOOSE_CONTEXT_STRATEGY="${GOOSE_CONTEXT_STRATEGY:-$GOOSE_CONTEXT_STRATEGY_DEFAULT}" goose run --no-session --recipe "$recipe_to_run" && {
       touch "$marker_file"
       [ -n "$output_file" ] && touch "$full_output_path"
       log_activity "Completed $recipe_to_run"
-      
+
       # Clear /tmp/screenshots after recipe-work.yaml completes successfully
       if [[ "$(basename "$recipe_to_run")" == "recipe-work.yaml" ]]; then
         echo "$(date): Clearing /tmp/screenshots after recipe-work.yaml completion..."
@@ -141,7 +228,7 @@ run_recipe_if_needed() {
     } || log_activity "Failed $recipe_to_run"
     return 0
   fi
-  
+
   # Handle regular frequencies (hourly, daily, weekly, custom)
   local find_time=""
   case "$frequency" in
@@ -175,7 +262,7 @@ run_recipe_if_needed() {
       return 1
       ;;
   esac
-  
+
   # Check if marker file doesn't exist or is older than frequency
   if [ ! -f "$marker_file" ] || [ $(find "$marker_file" $find_time -print | wc -l) -gt 0 ]; then
     echo "$(date): Running $recipe_to_run recipe ($frequency)..."
@@ -183,13 +270,13 @@ run_recipe_if_needed() {
     # Run recipe and wait for completion
     local current_hour=$(date +%H)
     local session_name="${recipe_to_run}-${current_hour}"
-    goose run --no-session --recipe "$recipe_to_run" && {
+    GOOSE_CONTEXT_STRATEGY="${GOOSE_CONTEXT_STRATEGY:-$GOOSE_CONTEXT_STRATEGY_DEFAULT}" goose run --no-session --recipe "$recipe_to_run" && {
       # Update marker file on success
       touch "$marker_file"
       # Touch the output file to update its timestamp even if the recipe didn't modify it
       [ -n "$output_file" ] && touch "$full_output_path"
       log_activity "Completed $recipe_to_run"
-      
+
       # Clear /tmp/screenshots after recipe-work.yaml completes successfully
       if [[ "$(basename "$recipe_to_run")" == "recipe-work.yaml" ]]; then
         echo "$(date): Clearing /tmp/screenshots after recipe-work.yaml completion..."
@@ -211,12 +298,12 @@ run_screenshot_loop() {
       echo "$(date): Screenshot processing loop halting as requested."
       break
     fi
-    
+
     # Run comprehensive screenshot processing
     capture_screenshots
-    
-    # Wait 60 seconds before next capture
-    sleep 60
+
+    # Wait N seconds before next capture (from config)
+    sleep "${SCREENSHOT_LOOP_INTERVAL_SEC:-60}"
   done
   echo "$(date): Screenshot processing loop stopped."
 }
@@ -224,10 +311,10 @@ run_screenshot_loop() {
 # Function to check and run all recipes based on their frequencies
 run_scheduled_recipes() {
   echo "$(date): Checking scheduled recipes..."
-  
+
   # Check for automated recipes in ~/.local/share/goose-perception/automated-actions/
   local automated_dir="$HOME/.local/share/goose-perception/automated-actions"
-  
+
   # Check daily recipes
   if [ -d "$automated_dir/daily" ]; then
     echo "$(date): Checking daily automated recipes..."
@@ -239,7 +326,7 @@ run_scheduled_recipes() {
       fi
     done
   fi
-  
+
   # Check weekly recipes
   if [ -d "$automated_dir/weekly" ]; then
     echo "$(date): Checking weekly automated recipes..."
@@ -251,27 +338,25 @@ run_scheduled_recipes() {
       fi
     done
   fi
-  
+
   run_recipe_if_needed "recipe-work-daily.yaml" "morning" "WORK.md" "weekday-only"  
   run_recipe_if_needed "recipe-work-daily.yaml" "afternoon" "WORK.md" "weekday-only"  
-  
+
   run_recipe_if_needed "recipe-contributions.yaml" "weekly" "CONTRIBUTIONS.md" "weekday-only"
   run_recipe_if_needed "recipe-focus.yaml" "weekly" ".focus" "weekday-only"
   run_recipe_if_needed "recipe-hypedoc.yaml" "weekly" ".hypedoc"
-  
+
   run_recipe_if_needed "recipe-important-attention-message.yaml" "120m" ".important-messages" "weekday-only"
-  
+
   run_recipe_if_needed "recipe-background-tasks.yaml" "180m" ".background-tasks"  "weekday-only"
   run_recipe_if_needed "recipe-background-technical.yaml" "180m" ".background-technical"  "weekday-only"
 
-  
   run_recipe_if_needed "recipe-garbage-collect.yaml" "weekly" ".garbage-collect" "weekday-only"
   run_recipe_if_needed "recipe-projects.yaml" "weekly" "PROJECTS.md" "weekday-only"
   run_recipe_if_needed "recipe-work-personal.yaml" "weekly" ".work-personal"
   run_recipe_if_needed "recipe-interactions.yaml" "daily" "INTERACTIONS.md"
   run_recipe_if_needed "recipe-chrome-history.yaml" "weekly" "CHROME_HISTORY.md" "weekday-only"
-  
-  
+
   run_recipe_if_needed "recipe-interests.yaml" "daily" "INTERESTS.md"
   run_recipe_if_needed "recipe-morning-attention.yaml" "morning" ".morning-attention" "weekday-only"
   run_recipe_if_needed "recipe-upcoming.yaml" "afternoon" ".upcoming" "weekday-only"
@@ -285,13 +370,11 @@ run_scheduled_recipes() {
   run_recipe_if_needed "recipe-take-time-back.yaml" "weekly" ".give-time-back" "weekday-only"
   run_recipe_if_needed "../adapt-recipes.yaml" "weekly" ".adapting"
 
-  
-  
   echo "$(date): Scheduled recipe check complete."
 }
 
 echo "Starting continuous screenshot and observation process..."
-echo "- Running comprehensive screenshot processing (OCR + AI analysis) every 20 seconds (async)"
+echo "- Running comprehensive screenshot processing (OCR + AI analysis) every ${SCREENSHOT_LOOP_INTERVAL_SEC:-60}s (async)"
 echo "- Screenshot images are automatically cleaned up after processing"
 echo "- Processed results saved to timestamped files in /tmp/screenshots/"
 echo "- Checking and running recipes based on their frequencies every 1 minute"
@@ -310,24 +393,24 @@ echo "$(date): Screenshot loop started in background (PID: $SCREENSHOT_PID)"
 cleanup() {
   echo "$(date): Observer cleanup starting..."
   log_activity "Observation system stopping"
-  
+
   # Create halt file to stop screenshot loop
   touch /tmp/goose-perception-halt
-  
+
   # Kill any running recipe processes
   echo "$(date): Stopping recipe processes..."
   pkill -KILL -f "goose run" 2>/dev/null || true
   pkill -KILL -f "python.*goose" 2>/dev/null || true
-  
+
   # Kill screenshot loop if it's still running
   if kill -0 $SCREENSHOT_PID 2>/dev/null; then
     echo "$(date): Stopping screenshot loop (PID: $SCREENSHOT_PID)..."
     kill -KILL $SCREENSHOT_PID 2>/dev/null || true
   fi
-  
+
   # Clean up files
   rm -f /tmp/goose-perception-halt
-  
+
   echo "$(date): Observer cleanup complete."
   exit 0
 }
@@ -339,7 +422,7 @@ trap cleanup SIGINT SIGTERM
 echo "$(date): Running scheduled recipes at startup..."
 run_scheduled_recipes
 
-# Initialize notes check tracking
+# Initialize notes check tracking (from config)
 LAST_NOTES_CHECK=$(date +%s)
 
 # Main loop - focus on recipe management
@@ -349,18 +432,18 @@ while true; do
     echo "$(date): Halting observation script as requested."
     cleanup
   fi
-  
-  # Check Apple Notes every 5 minutes (300 seconds)
+
+  # Check Apple Notes per configured cadence (default 300s)
   CURRENT_TIME=$(date +%s)
   TIME_SINCE_NOTES_CHECK=$((CURRENT_TIME - LAST_NOTES_CHECK))
-  if [ $TIME_SINCE_NOTES_CHECK -ge 300 ]; then
+  if [ $TIME_SINCE_NOTES_CHECK -ge ${NOTES_CHECK_INTERVAL_SEC:-300} ]; then
     check_notes
     LAST_NOTES_CHECK=$CURRENT_TIME
   fi
-  
+
   # Run scheduled recipes (this can block when recipes need to be run)
   run_scheduled_recipes
-  
+
   # Wait 1 minute before next recipe check
   sleep 60  # 1 minute
 done
