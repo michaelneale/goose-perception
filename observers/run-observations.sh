@@ -228,6 +228,33 @@ run_recipe_if_needed() {
 }
 # Function to run all observers from config
 run_all_config_observers() {
+  # Check for automated recipes in ~/.local/share/goose-perception/automated-actions/
+  local automated_dir="$HOME/.local/share/goose-perception/automated-actions"
+
+  # Check daily recipes
+  if [ -d "$automated_dir/daily" ]; then
+    echo "$(date): Checking daily automated recipes..."
+    for recipe in "$automated_dir/daily"/*.yaml; do
+      if [ -f "$recipe" ]; then
+        local recipe_name=$(basename "$recipe")
+        echo "$(date): Found daily recipe: $recipe_name"
+        run_recipe_if_needed "$recipe" "daily" ""
+      fi
+    done
+  fi
+
+  # Check weekly recipes
+  if [ -d "$automated_dir/weekly" ]; then
+    echo "$(date): Checking weekly automated recipes..."
+    for recipe in "$automated_dir/weekly"/*.yaml; do
+      if [ -f "$recipe" ]; then
+        local recipe_name=$(basename "$recipe")
+        echo "$(date): Found weekly recipe: $recipe_name"
+        run_recipe_if_needed "$recipe" "weekly" ""
+      fi
+    done
+  fi
+  
   # Each item: id, freq, output, weekday_only
   jq -c '.observers[] | [ .id, .freq, (.output // ""), (if .weekday_only then "weekday-only" else "" end) ]' \
      "$PERCEPTION_DIR/observer-config.json" |
@@ -238,6 +265,7 @@ run_all_config_observers() {
     wk=$(echo "$row" | jq -r '.[3]')
     run_recipe_if_needed "$id.yaml" "$freq" "$out" "$wk"
   done
+  
   echo "$(date): Scheduled recipe check complete."
 }
 

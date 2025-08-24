@@ -3,11 +3,9 @@
     "goose_provider": "ollama",
     "goose_model": "qwen3-coder:latest",
     "goose_context_strategy": "truncate",
-
     "notes_check_interval_sec": 300,
-    "screenshot_loop_interval_sec": 60,
+    "screenshot_loop_interval_sec": 60
   },
- 
   "paths": {
     "screenshot_dir": "/tmp/screenshots",
     "screenshot_descriptions_dir": "/tmp/screenshot-descriptions",
@@ -16,7 +14,6 @@
     "automated_actions_daily_dir": "~/.local/share/goose-perception/automated-actions/daily",
     "automated_actions_weekly_dir": "~/.local/share/goose-perception/automated-actions/weekly"
   },
-
   "observers": [
     { "id": "recipe-work-daily",                 "freq": "morning",  "weekday_only": true,  "output": "WORK.md" },
     { "id": "recipe-work-daily",                 "freq": "afternoon","weekday_only": true,  "output": "WORK.md" },
