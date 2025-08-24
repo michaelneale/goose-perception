@@ -14,76 +14,14 @@ PERCEPTION_DIR="$HOME/.local/share/goose-perception"
 mkdir -p "$PERCEPTION_DIR"
 
 ensure_observer_config() {
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   local cfg="$PERCEPTION_DIR/observer-config.json"
-  mkdir -p "$PERCEPTION_DIR"
-  if [ -f "$cfg" ]; then
-    return 0
+  if [ ! -f "$cfg" ]; then
+    cp "$SCRIPT_DIR/observer-config.default.json" "$cfg"
+    echo "$(date): Created $cfg from default"
   fi
-  cat > "$cfg" <<'JSON'
-{
-  "globals": {
-    "goose_provider": "ollama",
-    "goose_model": "qwen3:14b",
-    "goose_context_strategy": "truncate",
-
-    "notes_check_interval_sec": 300,          // run-observations.sh cadence
-    "screenshot_loop_interval_sec": 60,       // run-observations.sh cadence (comment said 20s, was 60s in code)
-    "local_screenshot_loop_interval_sec": 20, // local-observations.sh cadence
-    "local_work_analysis_interval_sec": 1200, // 20 minutes (local)
-    "local_other_recipes_interval_sec": 300   // 5 minutes (local)
-  },
-
-  "paths": {
-    "screenshot_dir": "/tmp/screenshots",
-    "screenshot_descriptions_dir": "/tmp/screenshot-descriptions",
-    "perception_dir": "~/.local/share/goose-perception",
-    "adapted_observers_dir": "~/.local/share/goose-perception/adapted-observers",
-    "automated_actions_daily_dir": "~/.local/share/goose-perception/automated-actions/daily",
-    "automated_actions_weekly_dir": "~/.local/share/goose-perception/automated-actions/weekly"
-  },
-
-  "observers": [
-    { "id": "recipe-work-daily",                 "freq": "morning",  "weekday_only": true,  "output": "WORK.md" },
-    { "id": "recipe-work-daily",                 "freq": "afternoon","weekday_only": true,  "output": "WORK.md" },
-
-    { "id": "recipe-contributions",              "freq": "weekly",   "weekday_only": true,  "output": "CONTRIBUTIONS.md" },
-    { "id": "recipe-focus",                      "freq": "weekly",   "weekday_only": true,  "output": ".focus" },
-    { "id": "recipe-hypedoc",                    "freq": "weekly",   "weekday_only": false, "output": ".hypedoc" },
-
-    { "id": "recipe-important-attention-message","freq": "120m",     "weekday_only": true,  "output": ".important-messages" },
-
-    { "id": "recipe-background-tasks",           "freq": "180m",     "weekday_only": true,  "output": ".background-tasks" },
-    { "id": "recipe-background-technical",       "freq": "180m",     "weekday_only": true,  "output": ".background-technical" },
-
-    { "id": "recipe-garbage-collect",            "freq": "weekly",   "weekday_only": true,  "output": ".garbage-collect" },
-    { "id": "recipe-projects",                   "freq": "weekly",   "weekday_only": true,  "output": "PROJECTS.md" },
-    { "id": "recipe-work-personal",              "freq": "weekly",   "weekday_only": false, "output": ".work-personal" },
-
-    { "id": "recipe-interactions",               "freq": "daily",    "weekday_only": false, "output": "INTERACTIONS.md" },
-    { "id": "recipe-chrome-history",             "freq": "weekly",   "weekday_only": true,  "output": "CHROME_HISTORY.md" },
-
-    { "id": "recipe-interests",                  "freq": "daily",    "weekday_only": false, "output": "INTERESTS.md" },
-    { "id": "recipe-morning-attention",          "freq": "morning",  "weekday_only": true,  "output": ".morning-attention" },
-    { "id": "recipe-upcoming",                   "freq": "afternoon","weekday_only": true,  "output": ".upcoming" },
-    { "id": "recipe-what-working-on",            "freq": "evening",  "weekday_only": true,  "output": ".working-on" },
-
-    { "id": "recipe-optimize",                   "freq": "weekly",   "weekday_only": false, "output": ".optimize" },
-    { "id": "recipe-meetings-actions",           "freq": "morning",  "weekday_only": true,  "output": ".meetings-afternoon" },
-    { "id": "recipe-apps-preferences",           "freq": "daily",    "weekday_only": true,  "output": ".apps-preferences" },
-    { "id": "recipe-meetings-actions",           "freq": "evening",  "weekday_only": true,  "output": ".meetings-evening" },
-
-    { "id": "recipe-start-fixing",               "freq": "evening",  "weekday_only": false, "output": ".fixing" },
-    { "id": "recipe-follow-up-content",          "freq": "morning",  "weekday_only": true,  "output": ".follow-up-content" },
-
-    { "id": "recipe-take-time-back",             "freq": "weekly",   "weekday_only": true,  "output": ".give-time-back" },
-
-    { "id": "../adapt-recipes",                  "freq": "weekly",   "weekday_only": false, "output": ".adapting" }
-  ]
-
 }
-JSON
-  echo "$(date): Created default observer-config.json at $cfg"
-}
+
 
 cfg() { jq -r "$1" "$PERCEPTION_DIR/observer-config.json"; }
 cfg_int() { jq -r "$1" "$PERCEPTION_DIR/observer-config.json" | awk '{print int($0)}'; }
