@@ -226,6 +226,21 @@ run_recipe_if_needed() {
     echo "$(date): Skipping $recipe, ran recently (frequency: $frequency)."
   fi
 }
+# Function to run all observers from config
+run_all_config_observers() {
+  # Each item: id, freq, output, weekday_only
+  jq -c '.observers[] | [ .id, .freq, (.output // ""), (if .weekday_only then "weekday-only" else "" end) ]' \
+     "$PERCEPTION_DIR/observer-config.json" |
+  while IFS= read -r row; do
+    id=$(echo "$row" | jq -r '.[0]')
+    freq=$(echo "$row" | jq -r '.[1]')
+    out=$(echo "$row" | jq -r '.[2]')
+    wk=$(echo "$row" | jq -r '.[3]')
+    run_recipe_if_needed "$id.yaml" "$freq" "$out" "$wk"
+  done
+  echo "$(date): Scheduled recipe check complete."
+}
+
 
 # Function to run screenshot capture loop asynchronously
 run_screenshot_loop() {
@@ -358,7 +373,6 @@ trap cleanup SIGINT SIGTERM
 
 # Run scheduled recipes once at startup
 echo "$(date): Running scheduled recipes at startup..."
-run_scheduled_recipes
 
 # Initialize notes check tracking (from config)
 LAST_NOTES_CHECK=$(date +%s)
@@ -380,7 +394,7 @@ while true; do
   fi
 
   # Run scheduled recipes (this can block when recipes need to be run)
-  run_scheduled_recipes
+  run_all_config_observers
 
   # Wait 1 minute before next recipe check
   sleep 60  # 1 minute
