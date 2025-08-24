@@ -6,9 +6,6 @@
 
     "notes_check_interval_sec": 300,
     "screenshot_loop_interval_sec": 60,
-    "local_screenshot_loop_interval_sec": 20,
-    "local_work_analysis_interval_sec": 1200,
-    "local_other_recipes_interval_sec": 300
   },
  
   "paths": {
