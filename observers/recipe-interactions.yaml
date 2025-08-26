@@ -4,17 +4,9 @@ author:
   contact: mic
 description: Who has the user interacted with in the past 2 days
 instructions: |
-  use the glean extension but be careful to not fetch too much data
+  Analyze user interactions from available sources, being careful not to fetch too much data
 extensions:
-- type: stdio
-  name: glean
-  cmd: uvx
-  args:
-  - mcp_glean@latest
-  envs: {}
-  env_keys: []
-  timeout: null
-  description: Glean search of company knowledge with personal perspective
+
 - type: builtin
   name: developer
   display_name: Developer
@@ -29,7 +21,7 @@ prompt: |
   extract themes and project names
 
   Save this report to ~/.local/share/goose-perception/INTERACTIONS.md - if you are having technical issues, don't over write what is there with useless info.
-  Glean can return old data or too much so be careful to cross reference it with other sources
+  Be careful to cross reference data with other sources for accuracy
 
   You must also include a brief section at the end which summarizes their communication preferences, do they use email, slack, will they email to larger groups or slack to a room with status updates, or are they more private
   you should learn their style and summarize it briefly so we can refer to that later, especially when they are formally communicating, are they wordy or brief, funny or not etc.

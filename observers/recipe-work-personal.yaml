@@ -19,15 +19,7 @@ extensions:
   display_name: Google Drive
   timeout: 300
   bundled: true
-- type: stdio
-  name: glean
-  cmd: uvx
-  args:
-  - mcp_glean@latest
-  envs: {}
-  env_keys: []
-  timeout: null
-  description: Glean search of company knowledge with personal perspective  
+  
 
 
 prompt: |
@@ -35,9 +27,9 @@ prompt: |
   your task is to work out what the user is working on and what is work related or not. 
   If there is a confusing mixture of work and non-work related tasks, you can report to the user what you see and suggest they focus on work related tasks (or tell them they can clarify what is work or not but speaking to goose out loud)
   looking in ~/.local/share/goose-perception/ for LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, PROJECTS.md and INTERESTS.md and PROJECTS.md to form a picture of what is going on in the users work world. 
-  you can use glean to look at their recent slack and email interactions to work out what projects may be work related. 
+  Look at their recent communications and interactions to work out what projects may be work related. 
   They will often research varied subjects as a creative person, so that is ok, but should be noted.
-  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources
+  Be careful to cross reference data with other sources for accuracy
 
   Produce a beautiful report if you think the balance is not right with suggestions as html5 page, and open it with a command like: 
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."

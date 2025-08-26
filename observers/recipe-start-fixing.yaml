@@ -4,23 +4,15 @@ author:
   contact: mic
 description: start fixing in response to a message
 instructions: |
-  use glean to look at unread slack or email message that is new, perhaps help is needed or a failure
+  Look at unread messages that are new, perhaps help is needed or a failure
   for leaving a note for the user - you can create a HTML5 page and leave it open as a report of actions to take and open it with "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."  
   If they are a notes app user you can leave notes for them there with what you are working on (make it clear and brief)
   if actions are required from the user, you can leave reminders as well 
   there may be large quantities of data in notes or files so be careful what you include 
   use the memory extension to remember what you have been working on the past (add to it, and look it up) as you have worked on it and before starting something new, important you use that to keep track
-  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources
+  Be careful to cross reference data with other sources for accuracy
 extensions:
-- type: stdio
-  name: glean
-  cmd: uvx
-  args:
-  - mcp_glean@latest
-  envs: {}
-  env_keys: []
-  timeout: null
-  description: Glean search of company knowledge with personal perspective
+
 - type: builtin
   name: computercontroller
   display_name: Computer Controller
@@ -47,7 +39,7 @@ prompt:
      LATEST_WORK.md PROJECTS.md INTERACTIONS.md and CONTRIBUTIONS.md to form a picture of what the user has been working on. 
   You can also consider WORK.md for a more full log
 
-  based on this, if there is any messages you can see in glean (email or slack) which are are clearly requiring some change to recent submitted work, and the user has recently worked on in WORK.md (but are not currently working on in LATEST_WORK.md)
+  based on this, if there are any messages which are clearly requiring some change to recent submitted work, and the user has recently worked on in WORK.md (but are not currently working on in LATEST_WORK.md)
   
   Consider LATEST_WORK.md if they are actually working on it now notify them that there is something relevant. 
   If it is something not active but has been worked on, you can notify them but if you can act on it, do so, go and make the corrections, make notes (propose changes) 
