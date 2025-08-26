@@ -1,7 +1,7 @@
 {
   "globals": {
     "goose_provider": "ollama",
-    "goose_model": "qwen3-coder:latest",
+    "goose_model": "gpt-oss:20b",
     "goose_context_strategy": "truncate",
     "notes_check_interval_sec": 300,
     "screenshot_loop_interval_sec": 60
@@ -51,5 +51,4 @@
 
     { "id": "../adapt-recipes",                  "freq": "weekly",   "weekday_only": false, "output": ".adapting" }
   ]
-
 }
