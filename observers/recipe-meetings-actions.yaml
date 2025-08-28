@@ -33,15 +33,7 @@ extensions:
   env_keys: []
   timeout: null
   description: google calendar access 
-- type: stdio
-  name: glean
-  cmd: uvx
-  args:
-  - mcp_glean@latest
-  envs: {}
-  env_keys: []
-  timeout: null
-  description: Glean search of company knowledge with personal perspective  
+  
 - type: builtin
   name: computercontroller
   display_name: Computer Controller
@@ -68,8 +60,7 @@ prompt: |
   once you have that, detect if there are any follow up actions that the user indicated or were assigned to do, ensure they are noted in the meeting notes or a notes app, or future follow up in the calendar. 
   Also append in ~/.local/share/goose-perception/MEETING_ACTIONS.md any actions to take (look there to ensure not already noted previously, if the file is large, trim early lines to keep it under 5kb).
 
-  you can use glean to look at their recent slack and email interactions to work out what may be important if you can related to that meeting, only if needed. Some interaction may actually be the actions taken.
-  NOTE: Glean can return old data or too much so be careful to cross reference it with other sources  
+  Consider checking their recent interactions and communications to work out what may be important related to that meeting, only if needed. Some interaction may actually be the actions taken.  
 
   If you believe there is an action being neglected, or is newly important, you can: 
 
@@ -90,6 +81,7 @@ prompt: |
     TIP: you will know they weren't in the meeting if you don't see notes that they were in a meeting in WORK.md or LATEST_WORK.md or if there was nothing heard in spoken.txt (and perhaps they were not at their computer at the time, you can look at emotions.log file for a timestamp that says there was a face)
     - too keep track of meeting attendance using the memory extension to look for any patterns or issues, it may be that they are not needed
     - if they repeatedly miss a meeting and there is no follow up, and it is a meeting with many people, consider declining their invitation to future ones with a note 
+    CRITICAL: you may not always know for sure if they missed a meeting, as you may not have been observing while they did, try to work out if they did. Be sure they missed it before you take action based on that fact.
     - always report back what actions you took if automated 
     - if there is nothing in spoken.txt or no information about their participation, assume they were not in the meeting. 
       You should note and report their non attendance and see if there are follow up items. They may need a reminder to send apologies or reschedule

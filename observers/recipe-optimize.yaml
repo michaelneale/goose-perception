@@ -16,15 +16,7 @@ extensions:
   display_name: Google Drive
   timeout: 300
   bundled: true
-- type: stdio
-  name: glean
-  cmd: uvx
-  args:
-  - mcp_glean@latest
-  envs: {}
-  env_keys: []
-  timeout: null
-  description: Glean search of company knowledge with personal perspective
+
 - type: stdio
   name: gcal
   cmd: uvx
@@ -41,7 +33,7 @@ prompt: |
   You are to think of ways the user is working that could possibly be automated with an agent like goose and suggest it.
   You can look in ~/.local/share/goose-perception/WORK.md, INTERACTIONS.md and other files in there. 
 
-  You can also look up glean if you need to find out what they have been up to, gcal and more. 
+  You can also use gcal and other tools to find out what they have been up to. 
   You have other tools you can use as well, such as gh cli to look at broad github contributions (not just code), google drive and so on.
 
   When you have this picture, consider if there are repetitive tasks that happen each day or each week, maybe they can be automated
