@@ -81,6 +81,7 @@ prompt: |
     TIP: you will know they weren't in the meeting if you don't see notes that they were in a meeting in WORK.md or LATEST_WORK.md or if there was nothing heard in spoken.txt (and perhaps they were not at their computer at the time, you can look at emotions.log file for a timestamp that says there was a face)
     - too keep track of meeting attendance using the memory extension to look for any patterns or issues, it may be that they are not needed
     - if they repeatedly miss a meeting and there is no follow up, and it is a meeting with many people, consider declining their invitation to future ones with a note 
+    CRITICAL: you may not always know for sure if they missed a meeting, as you may not have been observing while they did, try to work out if they did. Be sure they missed it before you take action based on that fact.
     - always report back what actions you took if automated 
     - if there is nothing in spoken.txt or no information about their participation, assume they were not in the meeting. 
       You should note and report their non attendance and see if there are follow up items. They may need a reminder to send apologies or reschedule
