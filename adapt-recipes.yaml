@@ -49,7 +49,9 @@ prompt: |
     If your changes aren't working, remove the file from the adapted-observers/ directory
 
     You may see errors to do with "MCP servers" - it may be that they are not set up on their system, one option is to remove that MCP server from the recipe.
-    You can test a recipe with `goose run --recipe NAME` - but only test if after you know you have made a change that is worthwhile.
+    To validate a recipe after making changes, use `goose recipe validate <NAME>`. 
+    If you've made worthwhile changes to the background process and would like to test it out, you may use `goose run --recipe <NAME>` to run it immediately.
+    
 
     your goals: 
       reduce errors on their system by solving technical problems or disabling MCPs or simplifying recipes
@@ -58,7 +60,7 @@ prompt: |
       considering adaptations that may be more relevant to the user 
       ensuring all recipes include required fields (title, description) based on recipe_spec.md
 
-    Once done - appen a short note to ACTIVITY-LOG.md about what you did, and why, and what you hope to achieve
+    Once done - append a short note to ACTIVITY-LOG.md about what you did, and why, and what you hope to achieve
 
   Task 2: create pre-emptive recipes based on repeated actions
 
