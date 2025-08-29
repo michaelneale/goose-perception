@@ -18,6 +18,29 @@ ensure_observer_config() {
   local cfg="$PERCEPTION_DIR/observer-config.json"
   if [ ! -f "$cfg" ]; then
     cp "$SCRIPT_DIR/observer-config.default.json" "$cfg"
+    
+    # Check for system Goose config and use those values if available
+    local goose_config="$HOME/.config/goose/config.yaml"
+    if [ -f "$goose_config" ]; then
+      # Extract GOOSE_MODEL and GOOSE_PROVIDER from system config
+      local system_model=$(grep "^GOOSE_MODEL:" "$goose_config" 2>/dev/null | cut -d: -f2- | xargs)
+      local system_provider=$(grep "^GOOSE_PROVIDER:" "$goose_config" 2>/dev/null | cut -d: -f2- | xargs)
+      
+      # Add model/provider fields to config if system values exist
+      if [ -n "$system_model" ]; then
+        jq ".globals.goose_model = \"$system_model\"" "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+        echo "$(date): Using system GOOSE_MODEL: $system_model"
+      fi
+      
+      if [ -n "$system_provider" ]; then
+        jq ".globals.goose_provider = \"$system_provider\"" "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"
+        echo "$(date): Using system GOOSE_PROVIDER: $system_provider"
+      fi
+    else
+      echo "$(date): WARNING: No system Goose config found at $goose_config"
+      echo "$(date): Model and provider will need to be configured in observer-config.json or via environment variables"
+    fi
+    
     echo "$(date): Created $cfg from default"
   fi
 }
@@ -29,8 +52,21 @@ cfg_int() { jq -r "$1" "$PERCEPTION_DIR/observer-config.json" | awk '{print int(
 ensure_observer_config
 
 # Export model/provider/context from config (available to all goose runs)
-export GOOSE_MODEL="$(cfg '.globals.goose_model')"
-export GOOSE_PROVIDER="$(cfg '.globals.goose_provider')"
+# Only export if values exist in config, otherwise goose will use system defaults
+model_value="$(cfg '.globals.goose_model')"
+provider_value="$(cfg '.globals.goose_provider')"
+
+if [ "$model_value" != "null" ] && [ -n "$model_value" ]; then
+  export GOOSE_MODEL="$model_value"
+  echo "$(date): Using GOOSE_MODEL from config: $model_value"
+fi
+
+if [ "$provider_value" != "null" ] && [ -n "$provider_value" ]; then
+  export GOOSE_PROVIDER="$provider_value"
+  echo "$(date): Using GOOSE_PROVIDER from config: $provider_value"
+fi
+
+# Always export context strategy as it has a default
 export GOOSE_CONTEXT_STRATEGY_DEFAULT="$(cfg '.globals.goose_context_strategy')"
 
 # Loop tunables from config

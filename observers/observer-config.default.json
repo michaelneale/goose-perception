@@ -1,7 +1,5 @@
 {
   "globals": {
-    "goose_provider": "ollama",
-    "goose_model": "gpt-oss:20b",
     "goose_context_strategy": "truncate",
     "notes_check_interval_sec": 300,
     "screenshot_loop_interval_sec": 60
