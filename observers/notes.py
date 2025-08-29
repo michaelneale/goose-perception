@@ -52,49 +52,39 @@ def get_note_modification_date(note_index):
     script = f'tell application "Notes" to get modification date of note {note_index}'
     result = run_osascript(script)
     
-    if result:
-        # Parse the date string returned by AppleScript
-        # Format is like "date Saturday, 16 August 2025 at 9:04:47 pm"
-        try:
-            # Clean up the string
-            date_str = result
-            
-            # Remove "date " prefix if present
-            if date_str.startswith('date '):
-                date_str = date_str[5:]
-            
-            # Remove the day name (e.g., "Saturday, ")
-            date_str = re.sub(r'^[A-Za-z]+, ', '', date_str)
-            
-            # Replace "at" with space and handle non-breaking spaces
-            date_str = date_str.replace(' at ', ' ')
-            date_str = date_str.replace('\u202f', ' ')  # Replace non-breaking space
-            date_str = date_str.replace('\xa0', ' ')    # Replace another type of non-breaking space
-            
-            # Normalize multiple spaces to single space
-            date_str = ' '.join(date_str.split())
-            
-            # Store original for debugging
-            original_date_str = date_str
-            
-            # Parse the date - try different formats
-            # Format could be "16 August 2025 9:04:47 pm" or "August 28, 2025 7:53:17 AM"
+    if not result:
+        return None
+    
+    try:
+        # Clean AppleScript date format: "date Thursday, August 28, 2025 at 7:53:17 AM"
+        date_str = result
+        if date_str.startswith('date '):
+            date_str = date_str[5:]
+        
+        # Remove day name and normalize spaces
+        date_str = re.sub(r'^[A-Za-z]+, ', '', date_str)
+        date_str = date_str.replace(' at ', ' ').replace('\u202f', ' ').replace('\xa0', ' ')
+        date_str = ' '.join(date_str.split())
+        
+        # Try common AppleScript date formats
+        formats = [
+            '%d %B %Y %I:%M:%S %p',      # "16 August 2025 9:04:47 pm"
+            '%B %d, %Y %I:%M:%S %p',     # "August 28, 2025 7:53:17 AM"
+            '%B %d %Y %I:%M:%S %p'       # "August 28 2025 7:53:17 AM"
+        ]
+        
+        for fmt in formats:
             try:
-                # Try format: "August 28, 2025 7:53:17 AM" (most common from error log)
-                date_obj = datetime.strptime(date_str, '%B %d, %Y %I:%M:%S %p')
+                return datetime.strptime(date_str, fmt)
             except ValueError:
-                try:
-                    # Try format: "16 August 2025 9:04:47 pm"
-                    date_obj = datetime.strptime(date_str, '%d %B %Y %I:%M:%S %p')
-                except ValueError:
-                    # If both fail, try without comma
-                    date_obj = datetime.strptime(date_str, '%B %d %Y %I:%M:%S %p')
-            return date_obj
-        except ValueError as e:
-            print(f"Error parsing date '{result}': {e}")
-            print(f"Cleaned string: '{original_date_str}'")
-            return None
-    return None
+                continue
+                
+        print(f"Failed to parse date format: '{result}'")
+        return None
+        
+    except Exception as e:
+        print(f"Error parsing date '{result}': {e}")
+        return None
 
 
 def get_note_content(note_index):
