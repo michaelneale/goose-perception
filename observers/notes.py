@@ -74,12 +74,25 @@ def get_note_modification_date(note_index):
             # Normalize multiple spaces to single space
             date_str = ' '.join(date_str.split())
             
-            # Parse the date - format: "16 August 2025 9:04:47 pm"
-            date_obj = datetime.strptime(date_str, '%d %B %Y %I:%M:%S %p')
+            # Store original for debugging
+            original_date_str = date_str
+            
+            # Parse the date - try different formats
+            # Format could be "16 August 2025 9:04:47 pm" or "August 28, 2025 7:53:17 AM"
+            try:
+                # Try format: "August 28, 2025 7:53:17 AM" (most common from error log)
+                date_obj = datetime.strptime(date_str, '%B %d, %Y %I:%M:%S %p')
+            except ValueError:
+                try:
+                    # Try format: "16 August 2025 9:04:47 pm"
+                    date_obj = datetime.strptime(date_str, '%d %B %Y %I:%M:%S %p')
+                except ValueError:
+                    # If both fail, try without comma
+                    date_obj = datetime.strptime(date_str, '%B %d %Y %I:%M:%S %p')
             return date_obj
         except ValueError as e:
             print(f"Error parsing date '{result}': {e}")
-            print(f"Cleaned string: '{date_str}'")
+            print(f"Cleaned string: '{original_date_str}'")
             return None
     return None
 
