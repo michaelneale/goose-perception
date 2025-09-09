@@ -330,6 +330,19 @@ Goose recipes running in the background are key to how perception works.
 <img src="meetings.png"/>
 * a recipe is recalling meeting information, and looking for any spoken content during that time
 
+### Observer System
+
+The observer system is now configured via a JSON configuration file `~/.local/share/goose-perception/observer-config.json` that defines:
+
+- **Globals**: Set default provider, model, and context strategy for Goose, along with intervals for various checks
+- **Paths**: Define directories for screenshots, perception data, and observer outputs
+- **Observers**: Configure individual observer recipes with their frequencies, schedules, and output files
+
+The system dynamically loads configurations from this file, enabling flexible and customizable observation workflows. Observer frequencies can be specified in various formats:
+- Time-based intervals (e.g., "120m" for every 120 minutes)
+- Named schedules (e.g., "morning", "afternoon", "evening")
+- Periodic schedules (e.g., "daily", "weekly")
+
 ### Screen watching
 
 The `work` recipe looks at your screen content and will summarise, learn and note what you are working on, who you interact with, and what has changed. It will even work out when you are asleep (well not at your computer).
