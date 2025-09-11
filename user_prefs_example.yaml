@@ -1,0 +1,84 @@
+# Goose Perception User Preferences Example
+# ==========================================
+# This file shows all available configuration options with their default values.
+# Copy this to ~/.local/share/goose-perception/user_prefs.yaml and modify as needed.
+# You only need to include the settings you want to change - defaults will be used for everything else.
+
+# Interface settings
+interface_mode: floating  # Options: floating, menubar
+
+# Feature toggles - turn features on/off
+features:
+  voice: true          # Voice recognition and wake word detection
+  avatar: true         # Visual avatar display
+  emotions: true       # Facial emotion detection
+  notifications: true  # System notifications
+  hotkeys: true        # Keyboard shortcuts (Cmd+Shift+G, Cmd+Shift+R)
+  observers: true      # Background observation recipes
+
+# Voice settings
+voice:
+  wake_word: goose           # What word activates voice commands
+  context_seconds: 30        # How many seconds before wake word to include
+  silence_seconds: 3         # How long silence means "done talking"
+  fuzzy_threshold: 80        # How fuzzy wake word matching can be (0-100)
+  confidence_threshold: 0.6  # How confident the AI needs to be (0.0-1.0)
+
+# Avatar personality and behavior
+avatar:
+  personality: comedian  # Options: comedian, zen, sarcastic, melancholic, joker, creepy, gossip, excited
+  timings:
+    idle_suggestion_chance: 0.15    # How often to show suggestions (0.0-1.0)
+    min_suggestion_minutes: 3       # Minimum minutes between suggestions
+
+# Emotion detection settings
+emotions:
+  interval: 60               # Seconds between emotion checks
+  confidence_threshold: 0.5  # Minimum confidence to log emotion
+
+# Whisper model settings (for voice recognition)
+whisper:
+  main_model: small       # Options: tiny, base, small, medium, large
+  wake_word_model: base   # Lightweight model for wake word detection
+  device: cpu             # Options: cpu, cuda (if you have GPU)
+  compute_type: int8      # Options: int8, float16, float32
+
+# Audio processing thresholds (advanced)
+audio:
+  thresholds:
+    silence: 0.008           # Volume level considered "silence"
+    speech_activity: 0.01    # Volume level considered "speech"
+    proximity: 0.02          # Volume level for "close" speech
+
+# Observer intervals (how often background tasks run)
+observers:
+  intervals:
+    suggestions_minutes: 10      # Generate new suggestions
+    idle_chatter_minutes: 12     # Generate idle chatter
+    actionable_show_minutes: 8   # Show actionable suggestions
+
+# Debug settings (for development/troubleshooting)
+debug:
+  enabled: false              # Enable debug mode
+  verbosity: 0                # 0=off, 1=basic, 2=detailed, 3=everything
+  save_failed_wake_words: true  # Save audio when wake word detection fails
+  show_confidence_scores: true  # Show AI confidence scores
+
+# Experimental features (use with caution)
+experimental:
+  test_mode: false           # Use smaller models and shorter timeouts
+  bypass_wake_word: false    # Skip wake word for testing
+  use_tiny_models: false     # Force tiny Whisper models (faster but less accurate)
+
+# Slack integration (if using Goose with Slack)
+team_channel: ""            # Your team's Slack channel
+announcement_channel: ""    # Channel for announcements
+notification_urgency: ""    # What events trigger immediate notifications
+
+# Email settings
+send_email_updates: false   # Enable email updates
+email_recipients: ""        # Comma-separated email addresses
+
+# Reminders
+reminders_enabled: true     # Enable task/PR reminders
+preferred_update_time: ""   # When to send updates (e.g., "09:00")

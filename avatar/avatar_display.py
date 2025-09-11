@@ -17,6 +17,9 @@ import time
 import yaml
 import subprocess
 
+# Import configuration manager
+from config_manager import get_config_manager
+
 # Define the persistent path for user preferences
 PERCEPTION_DIR = Path("~/.local/share/goose-perception").expanduser()
 PREFS_PATH = PERCEPTION_DIR / "user_prefs.yaml"
@@ -2548,9 +2551,9 @@ def start_avatar_system():
     # Create the thread-safe communicator
     avatar_communicator = AvatarCommunicator()
     
-    # Check user preferences for interface mode
-    user_prefs = get_user_prefs()
-    interface_mode = user_prefs.get('interface_mode', 'floating')
+    # Get config manager and check interface mode
+    config = get_config_manager()
+    interface_mode = config.get_interface_mode()
     
     if interface_mode == 'menubar':
         # Menu bar mode - no floating avatar
