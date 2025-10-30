@@ -63,120 +63,55 @@ parameters:
   description: "Current stress level (high/medium/low)"
 
 prompt: |
-  CURRENT LOCAL TIME: $(date)
-  TIMEZONE: $(date +%Z)
+  TIME: $(date) | TZ: $(date +%Z) ⚠️ Use local time, not UTC
   
-  **PERSONALITY CONTEXT:**
-  {{ personality_name }} Avatar Personality
-  Style: {{ personality_style }}
-  Tone: {{ personality_tone }}
-  Key Priorities: {{ personality_priorities }}
-  Typical Phrases: {{ personality_phrases }}
+  **PERSONALITY:** {{ personality_name }}
+  Style: {{ personality_style }} | Tone: {{ personality_tone }}
+  Priorities: {{ personality_priorities }} | Phrases: {{ personality_phrases }}
   
-  **EMOTION-AWARE CONTEXT:**
+  **EMOTION STATE:**
   {{ emotion_context }}
-  Current Emotion: {{ recent_emotion }}
-  Energy Level: {{ energy_level }}
-  Stress Level: {{ stress_level }}
+  Emotion: {{ recent_emotion }} | Energy: {{ energy_level }} | Stress: {{ stress_level }}
   
-  Based on the current work context AND emotional state, analyze the following files in ~/.local/share/goose-perception/:
-  - LATEST_WORK.md (current focus)
-  - INTERACTIONS.md (recent collaborations)
-  - CONTRIBUTIONS.md (recent activity)
-  - WORK.md (detailed work log)
-  - ACTIVITY-LOG.md (recent system activity)
+  Analyze ~/.local/share/goose-perception/ (LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, WORK.md, ACTIVITY-LOG.md) for last 8 hours only. Ignore older unless relevant to current pattern/follow-up.
   
-  Generate 10-15 short, contextual suggestions or observations that reflect the {{ personality_name }} personality.
-  **IMPORTANT: Use the local time provided above, not UTC. All time references should be in the user's local timezone.**
+  Generate 10-15 short (<120 char), contextual suggestions reflecting {{ personality_name }} personality.
   
-  **PERSONALITY ADAPTATION:** 
-  - Adapt your language and suggestions to match the {{ personality_tone }} tone
-  - Focus on priorities like: {{ personality_priorities }}
-  - Use phrases similar to: {{ personality_phrases }}
-  - Maintain the personality consistently across all suggestions
+  **PERSONALITY ADAPTATION:**
+  Match {{ personality_tone }} tone, prioritize {{ personality_priorities }}, use phrases like {{ personality_phrases }}.
   
-  **EMOTION-AWARE SUGGESTION ADAPTATION:**
-  - **If recent_emotion is "happy" or "content"**: Suggest momentum-building activities, celebrating wins, sharing achievements
-  - **If recent_emotion is "tired" or "sad"**: Suggest gentler tasks, self-care, smaller wins, encouragement-focused activities
-  - **If recent_emotion is "serious" or "angry"**: Focus on practical problem-solving, concrete next steps, avoiding distractions
-  - **If stress_level is "high"**: Suggest stress-reducing activities, break tasks into smaller pieces, prioritization help
-  - **If energy_level is "low"**: Suggest routine tasks, documentation, planning rather than high-energy creative work
-  - **If energy_level is "high"**: Suggest tackling challenging problems, starting new initiatives, creative work
+  **EMOTION ADAPTATION:**
+  • happy/content → momentum, celebrate wins, share achievements
+  • tired/sad → gentle tasks, self-care, small wins, encouragement
+  • serious/angry → practical problem-solving, concrete steps, no distractions
+  • high stress → stress reduction, break into pieces, prioritization help
+  • low energy → routine tasks, docs, planning (not creative work)
+  • high energy → challenging problems, new initiatives, creative work
   
-  Each suggestion should be:
-  - Under 120 characters 
-  - Actionable, insightful, or encouraging
-  - Based on actual patterns in the data
-  - Appropriate for brief, non-intrusive display
-  - Varied in tone and purpose
+  **CATEGORIES (2-3 each):**
+  🎯 Productivity: Deep work/flow, context switching, energy observations, timing
+  🤝 Collaboration: Meeting follow-ups, team patterns, unfinished threads, engagement
+  ⚡ Momentum: Progress wins, completion nudges, next steps, priorities
+  🧘 Wellness: Breaks based on intensity, posture/movement, energy management, time awareness
+  🔍 Learning: Skill development, knowledge gaps, opportunities, best practices
   
-  **SUGGESTION CATEGORIES (aim for 2-3 from each):**
+  **THEMES:** "90 min flow on X - stretch soon?", "Discussion with [person] needs follow-up", "Commit frequency shows debugging rhythm", "[time] - your peak window!", "4+ projects - try time blocking?", "Great progress on [item] - finish line close", "Keyboard activity = deep thinking 🧠", "PR review from [person] waiting"
   
-  **🎯 PRODUCTIVITY & FOCUS:**
-  - Deep work sessions and flow states
-  - Context switching patterns
-  - Energy level observations
-  - Optimal timing suggestions
-  
-  **🤝 COLLABORATION & COMMUNICATION:**
-  - Follow-up reminders from meetings/conversations
-  - Team interaction patterns
-  - Unfinished communication threads
-  - Community engagement opportunities
-  
-  **⚡ WORK MOMENTUM:**
-  - Progress celebrations
-  - Completion encouragement
-  - Next logical steps
-  - Priority suggestions
-  
-  **🧘 WELLNESS & BALANCE:**
-  - Break reminders based on work intensity
-  - Posture and movement suggestions
-  - Energy management tips
-  - Time awareness
-  
-  **🔍 LEARNING & IMPROVEMENT:**
-  - Skill development observations
-  - Knowledge gaps spotted
-  - Learning opportunities
-  - Best practice suggestions
-  
-  Focus on themes like:
-  - "You've been in flow for 90 mins on X - amazing focus! Maybe stretch soon?"
-  - "That discussion with [person] yesterday might need a follow-up ping"
-  - "Your commit frequency shows you're in a great debugging rhythm"
-  - "It's [time] - your historical peak productivity window!"
-  - "I notice you're switching between 4+ projects - consider time blocking?"
-  - "Great progress on [specific item] - just need to push it over the finish line"
-  - "Your keyboard activity suggests deep thinking mode engaged 🧠"
-  - "That PR review from [person] deserves a thoughtful response"
-  
-  **OUTPUT FORMAT: Valid JSON only**
-  
-  Create a JSON object with a "suggestions" array containing 10-15 suggestion messages as strings.
-  Each string should be the complete suggestion message ready for display.
-  
-  Example JSON format:
+  **OUTPUT: Valid JSON only**
   {
     "suggestions": [
-      "You've been coding for 90 minutes straight - time for a 5-minute break?",
-      "That design discussion with Alice yesterday might need follow-up",
-      "It's 9:15 AM - your peak focus time! Tackle that complex refactor now.",
-      "I see 3 different repos active - consider focusing on one for deeper flow",
-      "Your commit messages show great progress - you're in the zone! 🚀",
-      "That code review from Bob has been waiting 2 days - quick response?",
-      "It's 2:30 PM - perfect time for routine tasks like docs or cleanup",
-      "Your typing rhythm suggests you're problem-solving something tricky",
-      "Great momentum on the user auth feature - almost there!",
-      "I notice you keep returning to that API design - trust your instincts"
+      "You've been coding 90 min straight - 5-min break?",
+      "Design discussion with Alice yesterday needs follow-up",
+      "9:15 AM - peak focus time! Tackle that complex refactor.",
+      "3 repos active - focus on one for deeper flow",
+      "Commit messages show progress - you're in the zone! 🚀",
+      "Code review from Bob waiting 2 days - quick response?",
+      "2:30 PM - perfect for routine tasks like docs/cleanup",
+      "Typing rhythm suggests tricky problem-solving",
+      "Great momentum on user auth - almost there!",
+      "Keep returning to API design - trust your instincts"
     ]
   }
   
-  Save the suggestions to ~/.local/share/goose-perception/AVATAR_SUGGESTIONS.json as valid JSON.
-  **Focus on being genuinely helpful - observe real patterns and suggest real value.**
-  Only include suggestions that are genuinely based on patterns you observe in the data.
-  If there's insufficient data for a category, generate fewer suggestions rather than generic ones.
-  Do not include any text outside the JSON object - output ONLY valid JSON.
-  
-  ONLY use the last 8 hours of data from each file (WORK.md, LATEST_WORK.md, INTERACTIONS.md, CONTRIBUTIONS.md, ACTIVITY-LOG.md). Ignore events older than 8 hours unless they are directly relevant to a current pattern or follow-up. Do not reference old history or stale events. 
+  Save: ~/.local/share/goose-perception/AVATAR_SUGGESTIONS.json
+  Be genuinely helpful. Real patterns only. Fewer quality > generic quantity. JSON ONLY - no extra text. 

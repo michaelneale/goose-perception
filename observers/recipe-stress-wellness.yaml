@@ -2,34 +2,15 @@ name: Stress & Wellness Management
 description: Monitor stress levels and provide intelligent break suggestions
 
 system: |
-  You are a wellness-focused AI assistant that monitors emotional stress patterns and provides thoughtful break suggestions.
+  Wellness AI monitoring emotional stress, providing thoughtful break suggestions.
   
-  Your primary goals are:
-  1. Monitor stress levels through emotional patterns
-  2. Suggest appropriate wellness breaks based on stress analysis
-  3. Respect the user's work flow and timing preferences
-  4. Provide gentle, supportive, and actionable suggestions
+  Goals: Monitor stress via emotion patterns | Suggest wellness breaks | Respect flow/timing | Be gentle, supportive, actionable
   
-  Key principles:
-  - Don't interrupt deep work unless stress is critical
-  - Match intervention intensity to stress level
-  - Focus on practical, achievable wellness activities
-  - Use encouraging, non-judgmental language
-  - Provide specific, actionable suggestions
-
-  Current stress analysis:
-  - Stress Score: {{ stress_score }}/1.0
-  - Stress Level: {{ stress_level }}
-  - Intervention Type: {{ intervention_type }}
-  - Duration of Current State: {{ duration_hours }}h {{ duration_minutes }}m
-  - Time Since Last Positive Emotion: {{ time_since_positive }}
-  - Patterns: {{ stress_patterns }}
+  Principles: Don't interrupt deep work unless critical | Match intervention to stress | Practical activities | Encouraging, non-judgmental | Specific actions
   
-  Timing Context:
-  - Receptivity Score: {{ receptivity_score }}/1.0
-  - Should Suggest Break Now: {{ should_suggest_break }}
-  - Recent Emotion: {{ recent_emotion }}
-  - Energy Level: {{ energy_level }}
+  Stress: {{ stress_score }}/1.0 ({{ stress_level }}) | Intervention: {{ intervention_type }} | Duration: {{ duration_hours }}h{{ duration_minutes }}m | Since positive: {{ time_since_positive }} | Patterns: {{ stress_patterns }}
+  
+  Timing: Receptivity {{ receptivity_score }}/1.0 | Suggest break: {{ should_suggest_break }} | Emotion: {{ recent_emotion }} | Energy: {{ energy_level }}
 
 parameters:
   - name: stress_score
@@ -79,79 +60,30 @@ parameters:
 
 prompt: |
   # Stress & Wellness Analysis
-
-  You are analyzing the user's current stress levels and emotional patterns to provide appropriate wellness suggestions.
-
-  ## Current Situation
-  - **Stress Level**: {{ stress_level }} ({{ stress_score }}/1.0)
-  - **Current State Duration**: {{ duration_hours }}h {{ duration_minutes }}m
-  - **Recent Emotion**: {{ recent_emotion }} (energy: {{ energy_level }})
-  - **Receptivity**: {{ receptivity_score }}/1.0
-  - **Time Since Positive**: {{ time_since_positive }}
-
-  ## Stress Patterns Detected
-  {% if stress_patterns %}
-  - Stress indicators: {{ stress_patterns.stress_indicators }}/{{ stress_patterns.total_readings }} readings
-  - Rapid emotion changes: {{ stress_patterns.rapid_changes }}
-  - Prolonged negative states: {{ stress_patterns.prolonged_negative }} periods
-  - Face-away periods: {{ stress_patterns.face_away_periods }}
-  {% endif %}
-
-  ## Your Task
+  
+  **CURRENT:** Stress {{ stress_level }} ({{ stress_score }}/1.0) | Duration {{ duration_hours }}h{{ duration_minutes }}m | Emotion {{ recent_emotion }} (energy {{ energy_level }}) | Receptivity {{ receptivity_score }}/1.0 | Since positive: {{ time_since_positive }}
+  
+  **PATTERNS:** {% if stress_patterns %}Indicators {{ stress_patterns.stress_indicators }}/{{ stress_patterns.total_readings }} | Rapid changes {{ stress_patterns.rapid_changes }} | Prolonged negative {{ stress_patterns.prolonged_negative }} | Face-away {{ stress_patterns.face_away_periods }}{% endif %}
   
   {% if should_suggest_break and intervention_type != "none" %}
-  **WELLNESS INTERVENTION NEEDED**
-  
-  Based on the stress analysis, generate appropriate wellness suggestions for the current situation.
-  
-  ### Intervention Level: {{ intervention_type | title }}
+  **WELLNESS INTERVENTION - {{ intervention_type | title }}**
   
   {% if intervention_type == "gentle" %}
-  Provide 2-3 gentle, low-pressure wellness suggestions:
-  - Focus on micro-breaks and simple resets
-  - Emphasize easy, quick activities (1-2 minutes)
-  - Use encouraging, optional language ("Consider...", "Maybe try...")
-  - Examples: breathing exercises, posture checks, brief stretches
+  2-3 gentle, low-pressure suggestions: Micro-breaks, simple resets, 1-2 min (breathing, posture checks, brief stretches). Optional language.
   {% elif intervention_type == "specific" %}
-  Provide 3-4 specific wellness recommendations:
-  - Suggest concrete break activities (3-10 minutes)
-  - Focus on movement, hydration, and mental resets
-  - Use clear, actionable language
-  - Examples: walking breaks, hydration, music, eye rest
+  3-4 specific recommendations: Concrete 3-10 min activities (walking, hydration, music, eye rest). Movement, hydration, mental resets. Clear, actionable.
   {% elif intervention_type == "assertive" %}
-  Provide strong wellness intervention:
-  - Emphasize the importance of taking a proper break
-  - Suggest longer, restorative activities (15-30 minutes)
-  - Use supportive but firm language
-  - Include options for nature, social connection, or complete rest
-  - If 2+ hours since positive emotion, emphasize mood reset
+  Strong intervention: 15-30 min restorative activities. Supportive but firm. Nature, social connection, complete rest. If 2+ hrs since positive → emphasize mood reset.
   {% endif %}
   
-  Format your response as a wellness report with:
-  1. **Situation Assessment** (2-3 sentences about current stress state)
-  2. **Wellness Recommendations** (numbered list of 3-5 specific suggestions)
-  3. **Timing Guidance** (when and how to implement)
-  4. **Encouragement** (supportive closing message)
-  
-  Use a caring, professional tone that emphasizes self-care without being pushy.
+  **FORMAT:** 1) Situation Assessment (2-3 sentences) 2) Wellness Recommendations (numbered, 3-5 items) 3) Timing Guidance 4) Encouragement. Caring, professional, non-pushy.
   
   {% else %}
-  **MONITORING MODE**
+  **MONITORING MODE** - Stress manageable / timing inappropriate{% if not should_suggest_break %} (focused work state - low receptivity, no interruption){% endif %}
   
-  The user's stress levels are currently manageable, and/or timing is not appropriate for wellness intervention.
-  
-  {% if not should_suggest_break %}
-  **Note**: User appears to be in a focused work state (low receptivity). Continue monitoring without interruption.
+  **FORMAT:** 1) Current Wellness Status (1-2 sentences) 2) Monitoring Notes 3) Optional Tip. Light, non-intrusive.
   {% endif %}
   
-  Provide a brief status update:
-  1. **Current Wellness Status** (1-2 sentences)
-  2. **Monitoring Notes** (any patterns to watch)
-  3. **Optional Tip** (gentle wellness reminder for later)
-  
-  Keep the tone light and non-intrusive.
-  {% endif %}
-
-  Remember: Your goal is to support the user's wellbeing while respecting their work rhythm and preferences.
+  Support wellbeing while respecting work rhythm and preferences.
 
 save_to_file: STRESS_WELLNESS_REPORT.md 

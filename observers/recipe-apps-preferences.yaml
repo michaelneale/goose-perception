@@ -10,16 +10,8 @@ extensions:
   display_name: Developer
   timeout: 300
   bundled: true  
-prompt:
-  you can look in in the  ~/.local/share/goose-perception/ directory consult the following
-     WORK.md and PROJECTS.md which may be large (look at end of it mainly)
-
-  your job is to work out what apps the user is using regularly, which will help learn their preferences.
-  you will make your notes in ~/.local/share/goose-perception/APP_PREFERENCES.md
-  you can use your tools to look at screens, windows and other ways to see what is installed, what has been used. 
-  Look in the APP_PREFERENCES.md to see what was noted previously, what has changed, keep it up to date and not too big. 
-  You are looking for what they may use for a note taking app, browsers, communications preferences and so on
-  Maybe they use tools like an AI assistant, note what it is, do they work in terminals, GUIs etc
-  you can also look in /tmp/screenshots in case there are some recent pre-taken screenshots you can glean information on. 
-
-  the APP_PREFERENCES.md should be a short summary of their preferences around apps at all times.
+prompt: |
+  Identify regularly used apps. Consult ~/.local/share/goose-perception/: WORK.md, PROJECTS.md (mainly end).
+  Use tools: screens, windows, installed/used apps. Check /tmp/screenshots for recent info.
+  Update APP_PREFERENCES.md: note taking apps, browsers, comms preferences, AI assistants, terminal vs GUI usage.
+  Consider prior notes, keep current, concise. Short summary of app preferences.
