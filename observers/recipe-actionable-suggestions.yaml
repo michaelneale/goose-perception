@@ -44,127 +44,49 @@ parameters:
   description: "Example phrases characteristic of the personality"
 
 prompt: |
-  IMPORTANT: Do NOT generate suggestions that reference the current time, 'right now', or the last few minutes. Suggestions can reference general time-of-day (morning, afternoon, evening), past events, or patterns, but must be robust to delayed delivery. Avoid anything that would only make sense in real-time.
+  ⚠️ CRITICAL: NO references to "current time", "right now", or "last few minutes". Use general time-of-day (morning/afternoon/evening), past events, or patterns. Must work with delayed delivery.
 
-  CURRENT LOCAL TIME: $(date)
-  TIMEZONE: $(date +%Z)
+  TIME: $(date) | TZ: $(date +%Z)
   
-  **PERSONALITY CONTEXT:**
-  {{ personality_name }} Avatar Personality
-  Style: {{ personality_style }}
-  Tone: {{ personality_tone }}
-  Key Priorities: {{ personality_priorities }}
-  Typical Phrases: {{ personality_phrases }}
+  **PERSONALITY:** {{ personality_name }}
+  Style: {{ personality_style }} | Tone: {{ personality_tone }}
+  Priorities: {{ personality_priorities }} | Phrases: {{ personality_phrases }}
   
-  **GOOSE MCP (MODEL CONTEXT PROTOCOL) CAPABILITIES:**
-  Goose integrates with MCP servers to provide external tool access:
-  - MCP servers provide tools, resources, and prompts for LLM interactions
-  - Common MCP servers available: Slack, GitHub, file systems, databases, APIs, etc.
-  - MCP servers are configured in Goose's configuration, not enabled via command line
-  - Actions should leverage available MCP tools when possible
-  - If MCP integration is needed, suggest configuring appropriate MCP servers
+  **MCP CAPABILITIES:**
+  Goose integrates MCP servers (Slack, GitHub, filesystems, DBs, APIs). Configured in Goose config, not CLI. Leverage MCP tools when possible; suggest appropriate server configs if needed.
   
-  Analyze work patterns in ~/.local/share/goose-perception/ and generate actionable suggestions that reflect the {{ personality_name }} personality.
-  Look for specific patterns that need action:
+  Analyze ~/.local/share/goose-perception/ for patterns needing action ({{ personality_name }} style):
   
-  **COMMUNICATION GAPS:**
-  - No updates sent to team/channels in X days
-  - Meetings scheduled but no follow-up
-  - Messages/emails that need responses
-  - Status not updated recently
+  **PATTERN TYPES:**
+  • Communication gaps: No updates X days, meetings without follow-up, pending responses, stale status
+  • Work patterns: Incomplete tasks, abrupt stops, approaching deadlines, recurring task timing
+  • Productivity: Optimal timing for work types, scheduling needs, organization/planning, cleanup time
   
-  **WORK PATTERNS:**
-  - Tasks started but not completed
-  - Work stopped abruptly on important items
-  - Deadlines approaching without progress
-  - Recurring tasks that might be due
+  **PERSONALITY ADAPTATION:**
+  Frame actions in {{ personality_tone }} tone matching {{ personality_priorities }} using phrases like {{ personality_phrases }}. Keep actions specific and executable.
   
-  **PRODUCTIVITY OPPORTUNITIES:**
-  - Good time for specific types of work
-  - Should schedule time for important tasks
-  - Need to organize or plan work
-  - Time to review/clean up work
+  **OUTPUT: Valid JSON only**
   
-  **PERSONALITY ADAPTATION FOR ACTIONABLE SUGGESTIONS:**
-  - Frame action messages using the {{ personality_tone }} tone
-  - Prioritize actions that align with: {{ personality_priorities }}
-  - Use language patterns like: {{ personality_phrases }}
-  - Maintain personality consistency while keeping actions specific and executable
+  JSON structure with "actionable_suggestions" array:
+  • action_type: email|slack|meeting|calendar|github|task|reminder|document|status|review|mcp
+  • observation_type: communication|follow_up|scheduling|code_review|completion|deadline|setup|etc
+  • message: User-facing suggestion text
+  • action_command: One of below commands
   
-  **OUTPUT FORMAT: Valid JSON only**
+  **COMMANDS (use only these):**
+  compose_team_update | create_follow_up_meeting | enable_slack_and_post | post_slack_update | review_pending_prs | setup_slack_mcp_and_post | update_project_status
   
-  Create a JSON object with an "actionable_suggestions" array. Each suggestion should have these fields:
-  - action_type: The type of action (email, slack, meeting, calendar, github, task, reminder, document, status, review, mcp)
-  - observation_type: What kind of pattern was observed (communication, follow_up, scheduling, code_review, completion, deadline, setup, etc.)
-  - message: The suggestion text to display to the user
-  - action_command: The command/action identifier for execution
-  
-  **AVAILABLE ACTION COMMANDS (only use these):**
-  - compose_team_update (email team update)
-  - create_follow_up_meeting (schedule meeting)
-  - enable_slack_and_post (setup and post to Slack)
-  - post_slack_update (post to Slack)
-  - review_pending_prs (review GitHub PRs)
-  - setup_slack_mcp_and_post (configure Slack MCP)
-  - update_project_status (update project status)
-  
-  **EXAMPLE JSON OUTPUT:**
+  **EXAMPLE:**
   {
     "actionable_suggestions": [
-      {
-        "action_type": "email",
-        "observation_type": "communication",
-        "message": "You haven't sent an update to the team in 3 days. Send status update?",
-        "action_command": "compose_team_update"
-      },
-      {
-        "action_type": "slack",
-        "observation_type": "communication", 
-        "message": "No Slack updates sent this week. Post team status to #engineering?",
-        "action_command": "post_slack_update"
-      },
-      {
-        "action_type": "meeting",
-        "observation_type": "follow_up",
-        "message": "Yesterday's design meeting needs follow-up. Schedule planning session?",
-        "action_command": "create_follow_up_meeting"
-      },
-      {
-        "action_type": "github",
-        "observation_type": "code_review",
-        "message": "Several PRs pending review - check what needs attention?",
-        "action_command": "review_pending_prs"
-      },
-      {
-        "action_type": "status",
-        "observation_type": "communication",
-        "message": "Project progress looks good - time to update the team on achievements?",
-        "action_command": "update_project_status"
-      }
+      {"action_type": "email", "observation_type": "communication", "message": "No team update in 3 days. Send status?", "action_command": "compose_team_update"},
+      {"action_type": "slack", "observation_type": "communication", "message": "No Slack updates this week. Post to #engineering?", "action_command": "post_slack_update"},
+      {"action_type": "meeting", "observation_type": "follow_up", "message": "Yesterday's design meeting needs follow-up. Schedule?", "action_command": "create_follow_up_meeting"},
+      {"action_type": "github", "observation_type": "code_review", "message": "Several PRs pending - review needed?", "action_command": "review_pending_prs"},
+      {"action_type": "status", "observation_type": "communication", "message": "Good progress - update team on wins?", "action_command": "update_project_status"}
     ]
   }
   
-  **ACTION TYPES:**
-  - email: Send an email
-  - slack: Send Slack message/update
-  - message: Send a message/update
-  - meeting: Create or schedule a meeting
-  - calendar: Schedule time/events
-  - github: GitHub actions (PR, issues, etc.)
-  - task: Create or update a task
-  - reminder: Set a reminder
-  - document: Create or update documentation
-  - status: Update status/progress
-  - review: Review or organize work
-  - mcp: Setup/configure required MCP servers
-  
-  Focus on:
-  - Recent patterns (last 1-3 days)
-  - Important/urgent items
-  - Communication responsibilities
-  - Work momentum and completion
-  
-  Save to ~/.local/share/goose-perception/ACTIONABLE_SUGGESTIONS.json as valid JSON.
-  Only suggest actions based on real patterns you observe in the data.
-  If there's insufficient data, generate fewer suggestions rather than generic ones.
-  Do not include any text outside the JSON object - output ONLY valid JSON. 
+  Focus: Recent (1-3 days), important/urgent, communication duties, work momentum.
+  Save: ~/.local/share/goose-perception/ACTIONABLE_SUGGESTIONS.json
+  Base on real observed patterns only. Fewer quality > generic quantity. JSON ONLY - no extra text. 

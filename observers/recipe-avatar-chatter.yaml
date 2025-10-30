@@ -64,105 +64,48 @@ parameters:
   description: "Current stress level (high/medium/low)"
 
 prompt: |
-  IMPORTANT: Do NOT generate chit-chat that references the current time, 'right now', or the last few minutes. Chit-chat can reference general time-of-day (morning, afternoon, evening), past events, or patterns, but must be robust to delayed delivery. Avoid anything that would only make sense in real-time.
-  IMPORTANT: avoid mentioning too much about the goose-perception project (this app) or the automation, not too often
+  ⚠️ NO "current time"/"right now"/"last few minutes". Use general time-of-day (morning/afternoon/evening), past events, patterns. Must work delayed. Avoid too much mention of goose-perception/automation.
 
-
-  CURRENT LOCAL TIME: $(date)
-  TIMEZONE: $(date +%Z)
+  TIME: $(date) | TZ: $(date +%Z)
   
-  **PERSONALITY CONTEXT:**
-  {{ personality_name }} Avatar Personality
-  Style: {{ personality_style }}
-  Tone: {{ personality_tone }}
-  Key Priorities: {{ personality_priorities }}
-  Typical Phrases: {{ personality_phrases }}
+  **PERSONALITY:** {{ personality_name }}
+  Style: {{ personality_style }} | Tone: {{ personality_tone }}
+  Priorities: {{ personality_priorities }} | Phrases: {{ personality_phrases }}
   
-  **EMOTION-AWARE CONTEXT:**
-  {{ emotion_context }}
-  Current Emotion: {{ recent_emotion }}
-  Energy Level: {{ energy_level }}
-  Stress Level: {{ stress_level }}
+  **EMOTION:** {{ emotion_context }}
+  {{ recent_emotion }} | Energy {{ energy_level }} | Stress {{ stress_level }}
   
-  Based on current activity from ~/.local/share/goose-perception/, generate 8-12 brief, casual chit-chat messages that reflect the {{ personality_name }} personality AND respond appropriately to the current emotional state.
+  Generate 8-12 brief (<80 char), casual chit-chat from ~/.local/share/goose-perception/ reflecting {{ personality_name }} + emotion state.
   
-  **CHIT-CHAT PRINCIPLES:**
-  - Super casual and conversational (like a friendly AI companion)
-  - Under 80 characters each
-  - Based on actual current context, time, or observable patterns
-  - NOT formal suggestions - just friendly observations and banter
-  - Use current time appropriately (morning energy, afternoon focus, evening wind-down)
-  - Mix of encouraging, observational, and gently humorous
-  - Avoid being pushy or directive - just companionable
+  **PRINCIPLES:** Super casual, friendly companion | Context/time/pattern-based | NOT formal - just observations/banter | Time-appropriate (morning/afternoon/evening) | Mix: encouraging, observational, gently humorous | Companionable, not pushy
   
-  **PERSONALITY ADAPTATION FOR CHIT-CHAT:**
-  - Use the {{ personality_tone }} tone consistently
-  - Incorporate language patterns like: {{ personality_phrases }}
-  - Focus on aspects that align with: {{ personality_priorities }}
-  - Keep the {{ personality_name }} personality evident but still casual and light
+  **PERSONALITY:** Use {{ personality_tone }} consistently | Incorporate {{ personality_phrases }} | Align with {{ personality_priorities }} | Keep {{ personality_name }} evident but light
   
-  **EMOTION-AWARE ADAPTATION:**
-  - **If recent_emotion is "happy" or "content"**: Match the positive energy, be more celebratory and enthusiastic
-  - **If recent_emotion is "tired" or "sad"**: Be more supportive, gentle, and encouraging; avoid overly energetic messages
-  - **If recent_emotion is "serious" or "angry"**: Be more respectful and focused; reduce humor and keep it practical
-  - **If stress_level is "high"**: Provide calming, supportive messages; avoid adding pressure
-  - **If energy_level is "low"**: Be understanding and gentle; suggest taking it easy
-  - **If energy_level is "high"**: Match the energy with enthusiasm and momentum-building messages
+  **EMOTION ADAPTATION:**
+  • happy/content → match energy, celebratory, enthusiastic
+  • tired/sad → supportive, gentle, encouraging, avoid high energy
+  • serious/angry → respectful, focused, practical, reduce humor
+  • high stress → calming, supportive, no pressure
+  • low energy → understanding, gentle, take it easy
+  • high energy → enthusiastic, momentum-building
   
-  **CHIT-CHAT CATEGORIES (aim for 2-3 from each):**
+  **CATEGORIES (2-3 each):**
+  ⏰ Time: Morning fresh starts, afternoon focus, evening wind-down, weekend/weekday vibes
+  🎯 Work: Focus intensity, multi-task vs deep, coding flow, research/thinking modes
+  💻 Technical: Git activity, file switching, browser tabs, tool habits
+  🧠 Mood: Productivity momentum, problem-solving, creative/analytical, energy observations
   
-  **⏰ TIME-AWARE OBSERVATIONS:**
-  - Morning energy and fresh starts
-  - Afternoon focus patterns
-  - Evening productivity or wind-down
-  - Weekend vs weekday vibes
+  **EXAMPLES:** "Grinding at 2:30? Nice focus! 🎯" | "Lots of git activity 📊" | "Coffee time? Typing rhythm shifted ☕" | "Friday vibes 🎉" | "Serious deep work" | "Switch tabs when thinking 🤔" | "Commit messages getting creative 😄" | "23 tabs = research mode 📚" | "Monday energy strong ⚡" | "4th time checking that function 🧐" | "Conquering code complexity 💪" | "Debugging dance 🕺"
   
-  **🎯 WORK PATTERN OBSERVATIONS:**
-  - Focus intensity levels
-  - Multi-tasking vs deep work
-  - Coding flow states
-  - Research and thinking modes
+  **OUTPUT:** 8-12 messages, one per line, no extra formatting. Based on real patterns. Light, supportive, companionable.
   
-  **💻 TECHNICAL ACTIVITY:**
-  - Git activity patterns
-  - File switching behavior
-  - Browser tab management
-  - Tool usage habits
+  Save: ~/.local/share/goose-perception/AVATAR_CHATTER.md
   
-  **🧠 MOOD & ENERGY:**
-  - Productivity momentum
-  - Problem-solving modes
-  - Creative vs analytical work
-  - Energy level observations
-  
-  Examples of good chit-chat:
-  - "Still grinding at 2:30 PM? Nice focus! 🎯"
-  - "I see lots of git activity today 📊" 
-  - "Coffee time? Your typing rhythm shifted ☕"
-  - "Friday afternoon vibes detected 🎉"
-  - "That's some serious deep work right there"
-  - "I notice you switch tabs a lot when thinking 🤔"
-  - "Your commit messages are getting more creative 😄"
-  - "Browser tabs: 23. Research mode activated! 📚"
-  - "Monday morning energy is strong with this one ⚡"
-  - "That's the 4th time you've checked that function 🧐"
-  - "I see you, quietly conquering code complexity 💪"
-  - "Debugging dance moves detected 🕺"
-  
-  **OUTPUT INSTRUCTIONS:**
-  Generate 8-12 casual messages, one per line, no extra formatting.
-  Make them genuinely based on observable patterns from the activity data.
-  Keep the tone light, supportive, and genuinely companionable.
-  
-  Save casual chit-chat to ~/.local/share/goose-perception/AVATAR_CHATTER.md
-  
-  Format as:
   # Avatar Chit-Chat Messages
   *Generated: [timestamp]*
   
   [message1]
   [message2]
-  [message3]
   ...
   
-  Keep it contextual but light - no pressure, just friendly AI companion vibes! 
+  Contextual, light, no pressure - friendly AI companion vibes! 

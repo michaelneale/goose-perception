@@ -22,15 +22,15 @@ extensions:
   display_name: Developer
   timeout: 300
   bundled: true  
-prompt:
-  Look up any currently unread messages that appear important and may warrant attention for the user
-   * if general important and unread news that is noteworthy, can notify them
-   * if specific and relevant to their work which you can see in ~/.local/share/goose-perception/WORK.md, PROJECTS.md, INTERACTIONS.md and CONTRIBUTIONS.md, you can notify them and leave a note for them to follow up on it  
-   * please do make a pretty html5 single page file and notify the user and show it to them with a command like   
-     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:.. fill path to single html page .."
-   * pay special attention for messages from senior company leadership, and if they are important, notify the user immediately  
-   * pay special attention for close collaborators who may have feedback or asks
-   * pay special attention to messages related to recent changes made in the previous day (were problems created that need to be resolved, were there regressions)
-   * emails directly to them or especially slack messages or threads that tag them that look like a problem that requires attention are important   
-   * They may get a lot of emails to mailing lists or messages to shared channels, these are rarely urgent unless some important company announcement, 
-       - focus on more direct messages or ones mentioning them and that are relevant to their current work 
+prompt: |
+  Find important unread messages needing attention. Check context: ~/.local/share/goose-perception/ WORK.md, PROJECTS.md, INTERACTIONS.md, CONTRIBUTIONS.md
+  
+  Create HTML5 report, notify & show: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:..path.."
+  
+  **PRIORITY ATTENTION:**
+  • Senior leadership messages → notify immediately if important
+  • Close collaborators → feedback/asks
+  • Recent changes (yesterday) → problems/regressions needing resolution
+  • Direct emails/Slack tags → problems requiring attention
+  
+  **FOCUS:** Direct messages or ones mentioning them + relevant to current work. Ignore mailing lists/shared channels unless urgent company announcements. 
