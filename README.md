@@ -29,6 +29,12 @@ This is the most personal way to build up a background assistant that can take a
 Run this via `just run` and let it observe how you work (watch and listen), in the background it will then learn, and start doing work for you (carefully!) and suggesting things, reminding you etc.
 Always watching, and listening and perceiving and then acting. If this is all to much `just run-simple` will run just the recipesd (no voice or other enhancements)
 
+### Setup Notes
+
+This project uses [Hermit](https://cashapp.github.io/hermit/) for reproducible environment management and `uv` for fast Python dependency management. The setup is designed to work out of the box for everyone, regardless of your local environment configuration.
+
+**Important:** The project is configured to always use public PyPI (https://pypi.org/simple) for package installation, overriding any corporate or internal package registry settings you may have. This ensures the project works consistently everywhere.
+
 
 ## 🎭 Avatar Personality System
 

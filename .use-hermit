@@ -26,6 +26,11 @@ export HERMIT_STATE_DIR="$(pwd)/.hermit-working/cache"
 # Update PATH to include our local hermit bin
 export PATH="$(pwd)/.hermit-working/bin:$PATH"
 
+# Force public PyPI usage (override any corporate/internal registry settings)
+# This ensures the project works for everyone, regardless of their environment
+export UV_INDEX_URL="https://pypi.org/simple"
+export PIP_INDEX_URL="https://pypi.org/simple"
+
 # Check if hermit binary exists and download if not
 if [ ! -f ".hermit-working/bin/hermit" ]; then
     log "Hermit binary not found. Downloading hermit binary."

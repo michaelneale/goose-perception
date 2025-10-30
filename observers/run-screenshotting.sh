@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Force public PyPI usage (override any corporate/internal registry settings)
+export UV_INDEX_URL="https://pypi.org/simple"
+export PIP_INDEX_URL="https://pypi.org/simple"
+
 # Create screenshots directory
 mkdir -p /tmp/screenshots
 
