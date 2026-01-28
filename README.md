@@ -1,6 +1,11 @@
-# GoosePerception
+# Goose Perception
+
+Listens to you always, watches your screen and watches you via camera to learn from you. 
 
 Totally local (really - all local models, all the time, no external LLMs)
+
+<img width="1024" height="1536" alt="image" src="https://github.com/user-attachments/assets/8d64aef1-29b5-4ae0-bc7c-b1e8a65c926e" />
+
 
 > **Experimental** - This project is actively evolving. The core capture and insight pipeline works, but the automated actions system (DSL-based macOS automation) is still being implemented and tested.
 
