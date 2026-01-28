@@ -1,0 +1,27 @@
+#!/bin/bash
+# Helper script to guide users through granting permissions
+
+echo "═══════════════════════════════════════════════════════════════"
+echo "  GoosePerception Permission Setup"
+echo "═══════════════════════════════════════════════════════════════"
+echo ""
+echo "This app requires the following permissions:"
+echo "  1. Screen Recording - to capture screenshots"
+echo "  2. Microphone - for voice transcription"
+echo "  3. Camera - for face detection"
+echo ""
+echo "Opening System Settings > Privacy & Security > Screen Recording..."
+echo ""
+open 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+echo ""
+echo "Please do the following:"
+echo "  1. Click the '+' button at the bottom of the list"
+echo "  2. Navigate to: $(cd "$(dirname "$0")" && pwd)/build/GoosePerception.app"
+echo "  3. Select GoosePerception.app and click 'Open'"
+echo "  4. Toggle the switch ON for GoosePerception"
+echo "  5. If prompted, click 'Quit & Reopen'"
+echo ""
+echo "After granting permission, run the test:"
+echo "  ./build/GoosePerception.app/Contents/MacOS/GoosePerception --test-harness --test-screen"
+echo ""
+echo "═══════════════════════════════════════════════════════════════"
