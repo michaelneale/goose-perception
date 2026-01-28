@@ -29,26 +29,35 @@ actor CameraCaptureService {
     private var captureSession: AVCaptureSession?
     private var videoOutput: AVCaptureVideoDataOutput?
     private var frameHandler: CameraFrameHandler?
-    private let faceDetector = FaceDetector()
+    private var faceDetector = FaceDetector()
     private let emotionSmoother = EmotionSmoother()
     private let database: Database
-    
+
     private(set) var isCapturing = false
     private var lastDetectionTime: Date?
     private var detectionInterval: TimeInterval = 2.0 // seconds between detections
-    
+    private var selectedDeviceID: String?
+
+    func updateCalibration(_ calibration: FaceCalibrationData?) {
+        faceDetector.calibrationData = calibration
+    }
+
     // Callbacks for presence changes
     private var presenceCallback: ((Bool) -> Void)?
     private var emotionCallback: ((String, Double) -> Void)?
-    
+
     // Serial queue for camera operations
     private let cameraQueue = DispatchQueue(label: "com.gooseperception.camera", qos: .userInitiated)
-    
+
     // Processing queue for face detection (separate from camera queue)
     private let processingQueue = DispatchQueue(label: "com.gooseperception.faceprocessing", qos: .utility)
-    
+
     init(database: Database) {
         self.database = database
+    }
+
+    func setVideoDevice(_ deviceID: String?) {
+        self.selectedDeviceID = deviceID
     }
     
     nonisolated func setPresenceCallback(_ callback: @escaping (Bool) -> Void) {
@@ -72,26 +81,36 @@ actor CameraCaptureService {
             logger.info("Camera already capturing, skipping start")
             return
         }
-        
+
         // Check camera permission
         let hasPermission = await checkCameraPermission()
         guard hasPermission else {
             logger.error("Camera permission denied")
             throw CameraError.permissionDenied
         }
-        
+
         logger.info("Starting camera capture...")
-        
+
         // Setup capture session
         do {
             let session = AVCaptureSession()
             session.sessionPreset = .low // Low resolution for privacy and performance
-            
-            // Get camera
-            guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
-                logger.error("No front camera available")
+
+            // Get camera - use selected device or fall back to default front camera
+            let camera: AVCaptureDevice?
+            if let deviceID = selectedDeviceID {
+                camera = AVCaptureDevice.devices(for: .video).first { $0.uniqueID == deviceID }
+            } else {
+                camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front)
+                    ?? AVCaptureDevice.default(for: .video)
+            }
+
+            guard let camera = camera else {
+                logger.error("No camera available")
                 throw CameraError.cameraNotAvailable
             }
+
+            logger.info("Using camera: \(camera.localizedName)")
             
             // Add input
             let input = try AVCaptureDeviceInput(device: camera)
@@ -235,7 +254,22 @@ actor CameraCaptureService {
         // Process face detection
         do {
             let detection = try await faceDetector.detectFace(in: cgImage)
-            
+
+            // Feed metrics to calibration if in progress
+            if let metrics = detection.rawMetrics {
+                await MainActor.run {
+                    let calibrationManager = FaceCalibrationManager.shared
+                    if calibrationManager.isCalibrating {
+                        calibrationManager.addCalibrationSample(
+                            mouthCurvature: metrics.mouthCurvature,
+                            mouthAspectRatio: metrics.mouthAspectRatio,
+                            eyeAspectRatio: metrics.eyeAspectRatio,
+                            browHeight: metrics.browHeight
+                        )
+                    }
+                }
+            }
+
             // Smooth emotion if present
             let finalEmotion: (emotion: String, confidence: Double)?
             if let emotion = detection.emotion {
@@ -243,7 +277,7 @@ actor CameraCaptureService {
             } else {
                 finalEmotion = nil
             }
-            
+
             // Store event in database
             let event = FaceEvent(
                 timestamp: now,
@@ -252,13 +286,13 @@ actor CameraCaptureService {
                 emotion: finalEmotion?.emotion,
                 confidence: finalEmotion?.confidence
             )
-            
+
             _ = try? await database.insertFaceEvent(event)
-            
+
             // Notify callbacks on main thread
             let presenceCb = presenceCallback
             let emotionCb = emotionCallback
-            
+
             await MainActor.run {
                 presenceCb?(detection.isPresent)
                 if let emotion = finalEmotion {

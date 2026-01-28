@@ -5,66 +5,210 @@ import CryptoKit
 
 /// Detects faces and analyzes emotions using Vision framework landmarks
 struct FaceDetector {
-    
+
     struct FaceDetection {
         let isPresent: Bool
         let userHash: String?
         let emotion: EmotionResult?
         let boundingBox: CGRect?
+        let rawMetrics: FaceMetrics?
     }
-    
+
     struct EmotionResult {
         let emotion: String
         let confidence: Double
     }
+
+    struct FaceMetrics {
+        let mouthCurvature: Double
+        let mouthAspectRatio: Double
+        let eyeAspectRatio: Double
+        let browHeight: Double
+    }
+
+    var calibrationData: FaceCalibrationData?
     
     /// Detect face and analyze emotion in an image
     func detectFace(in image: CGImage) async throws -> FaceDetection {
         // First detect face rectangles
         let faceRequest = VNDetectFaceRectanglesRequest()
         let landmarkRequest = VNDetectFaceLandmarksRequest()
-        
+
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
         try handler.perform([faceRequest, landmarkRequest])
-        
+
         guard let faceObservation = faceRequest.results?.first else {
-            return FaceDetection(isPresent: false, userHash: nil, emotion: nil, boundingBox: nil)
+            return FaceDetection(isPresent: false, userHash: nil, emotion: nil, boundingBox: nil, rawMetrics: nil)
         }
-        
+
         // Get landmarks for emotion analysis
-        let emotion: EmotionResult?
+        var emotion: EmotionResult?
+        var rawMetrics: FaceMetrics?
+
         if let landmarkObservation = landmarkRequest.results?.first,
            let landmarks = landmarkObservation.landmarks {
-            emotion = analyzeEmotion(from: landmarks)
-        } else {
-            emotion = nil
+            let metrics = extractMetrics(from: landmarks)
+            rawMetrics = metrics
+            emotion = classifyEmotionWithCalibration(metrics: metrics)
         }
-        
+
         // Generate anonymous hash from face bounding box (not truly identifying, just for session tracking)
         let userHash = generateUserHash(from: faceObservation.boundingBox)
-        
+
         return FaceDetection(
             isPresent: true,
             userHash: userHash,
             emotion: emotion,
-            boundingBox: faceObservation.boundingBox
+            boundingBox: faceObservation.boundingBox,
+            rawMetrics: rawMetrics
         )
     }
-    
-    // MARK: - Emotion Analysis
-    
-    private func analyzeEmotion(from landmarks: VNFaceLandmarks2D) -> EmotionResult {
-        // Extract key measurements
+
+    // MARK: - Metrics Extraction
+
+    private func extractMetrics(from landmarks: VNFaceLandmarks2D) -> FaceMetrics {
         let mouthMetrics = analyzeMouth(landmarks)
         let eyeMetrics = analyzeEyes(landmarks)
         let browMetrics = analyzeBrows(landmarks)
-        
-        // Classification based on geometric analysis
-        return classifyEmotion(
+
+        return FaceMetrics(
             mouthCurvature: mouthMetrics.curvature,
             mouthAspectRatio: mouthMetrics.aspectRatio,
-            eyeAR: eyeMetrics.aspectRatio,
+            eyeAspectRatio: eyeMetrics.aspectRatio,
             browHeight: browMetrics.height
+        )
+    }
+
+    // MARK: - Emotion Classification
+
+    private func classifyEmotionWithCalibration(metrics: FaceMetrics) -> EmotionResult {
+        if let calibration = calibrationData, calibration.isValid {
+            // Use relative deviation from calibrated baseline
+            let mouthDev = metrics.mouthCurvature - calibration.mouthCurvature
+            let mouthARDev = metrics.mouthAspectRatio - calibration.mouthAspectRatio
+            let eyeDev = metrics.eyeAspectRatio - calibration.eyeAspectRatio
+            let browDev = metrics.browHeight - calibration.browHeight
+
+            NSLog("🎭 Using CALIBRATED detection (baseline: mouth=%.2f, current=%.2f)",
+                  calibration.mouthCurvature, metrics.mouthCurvature)
+
+            return classifyEmotionRelative(
+                mouthCurvatureDev: mouthDev,
+                mouthAspectRatioDev: mouthARDev,
+                eyeARDev: eyeDev,
+                browHeightDev: browDev,
+                absoluteEyeAR: metrics.eyeAspectRatio
+            )
+        } else {
+            NSLog("🎭 Using UNCALIBRATED detection (no calibration data)")
+            // Fall back to absolute thresholds
+            return classifyEmotion(
+                mouthCurvature: metrics.mouthCurvature,
+                mouthAspectRatio: metrics.mouthAspectRatio,
+                eyeAR: metrics.eyeAspectRatio,
+                browHeight: metrics.browHeight
+            )
+        }
+    }
+
+    /// Classify emotion based on deviation from calibrated baseline
+    private func classifyEmotionRelative(
+        mouthCurvatureDev: Double,
+        mouthAspectRatioDev: Double,
+        eyeARDev: Double,
+        browHeightDev: Double,
+        absoluteEyeAR: Double
+    ) -> EmotionResult {
+        // Debug logging - crucial for tuning thresholds
+        NSLog("🎭 Emotion deviations: mouth=%.3f, mouthAR=%.3f, eye=%.3f, brow=%.3f",
+              mouthCurvatureDev, mouthAspectRatioDev, eyeARDev, browHeightDev)
+
+        // Check neutral FIRST - if close to baseline, it's neutral
+        // This prevents small fluctuations from triggering emotions
+        let isNearNeutral = abs(mouthCurvatureDev) < 2.0 &&
+                           abs(mouthAspectRatioDev) < 0.4 &&
+                           abs(eyeARDev) < 0.06 &&
+                           abs(browHeightDev) < 1.5
+
+        if isNearNeutral {
+            NSLog("🎭 -> NEUTRAL (in baseline zone)")
+            return EmotionResult(emotion: "neutral", confidence: 0.75)
+        }
+
+        // Now check for positive emotions
+        // When smiling:
+        //   - mouth curvature becomes more POSITIVE (corners go up in Vision coords)
+        //   - mouth gets wider (aspect ratio increases)
+
+        // Happy: Clear smile - need BOTH wider mouth AND corners up
+        if mouthAspectRatioDev > 0.5 && mouthCurvatureDev > 2.0 {
+            let confidence = min(0.6 + mouthAspectRatioDev / 2.0, 0.95)
+            NSLog("🎭 -> HAPPY (conf=%.2f)", confidence)
+            return EmotionResult(emotion: "happy", confidence: confidence)
+        }
+
+        // Content: Moderate smile - either significant width OR curvature
+        if mouthAspectRatioDev > 0.5 || mouthCurvatureDev > 2.5 {
+            NSLog("🎭 -> CONTENT")
+            return EmotionResult(emotion: "content", confidence: 0.7)
+        }
+
+        // Surprised: eyes wider + brows raised (brows move up = negative browDev)
+        if eyeARDev > 0.08 && browHeightDev < -1.5 {
+            NSLog("🎭 -> SURPRISED")
+            return EmotionResult(emotion: "surprised", confidence: 0.8)
+        }
+
+        // Sad: Frown - mouth curves down (NEGATIVE mouthCurvatureDev = corners drop)
+        if mouthCurvatureDev < -2.0 {
+            let confidence = min(0.5 + (-mouthCurvatureDev) / 4.0, 0.85)
+            NSLog("🎭 -> SAD (conf=%.2f)", confidence)
+            return EmotionResult(emotion: "sad", confidence: confidence)
+        }
+
+        // Angry: brows lowered (positive browDev), tense/narrow mouth
+        if browHeightDev > 1.5 && mouthAspectRatioDev < -0.1 {
+            NSLog("🎭 -> ANGRY")
+            return EmotionResult(emotion: "angry", confidence: 0.7)
+        }
+
+        // Frustrated: furrowed brows + slight frown (negative curvature = corners down)
+        if browHeightDev > 1.5 && mouthCurvatureDev < -1.5 {
+            NSLog("🎭 -> FRUSTRATED")
+            return EmotionResult(emotion: "frustrated", confidence: 0.65)
+        }
+
+        // Tired: eyes more closed than baseline
+        if eyeARDev < -0.04 || absoluteEyeAR < 0.15 {
+            NSLog("🎭 -> TIRED")
+            return EmotionResult(emotion: "tired", confidence: 0.7)
+        }
+
+        // Serious: furrowed brows, neutral mouth
+        if browHeightDev > 1.0 && abs(mouthCurvatureDev) < 1.0 && abs(mouthAspectRatioDev) < 0.2 {
+            NSLog("🎭 -> SERIOUS")
+            return EmotionResult(emotion: "serious", confidence: 0.6)
+        }
+
+        // Focused: mild concentration
+        if browHeightDev > 0.5 && browHeightDev < 1.5 && abs(mouthCurvatureDev) < 0.8 {
+            NSLog("🎭 -> FOCUSED")
+            return EmotionResult(emotion: "focused", confidence: 0.6)
+        }
+
+        // Default to neutral if nothing else matches
+        NSLog("🎭 -> NEUTRAL (default)")
+        return EmotionResult(emotion: "neutral", confidence: 0.55)
+    }
+
+    // Legacy method for non-calibrated detection
+    private func analyzeEmotion(from landmarks: VNFaceLandmarks2D) -> EmotionResult {
+        let metrics = extractMetrics(from: landmarks)
+        return classifyEmotion(
+            mouthCurvature: metrics.mouthCurvature,
+            mouthAspectRatio: metrics.mouthAspectRatio,
+            eyeAR: metrics.eyeAspectRatio,
+            browHeight: metrics.browHeight
         )
     }
     
@@ -247,48 +391,41 @@ struct FaceDetector {
 
 // MARK: - Temporal Smoothing
 
-/// Smooths emotion detection over time to reduce noise
+/// Minimal smoothing - just prevents single-frame glitches
 actor EmotionSmoother {
-    private var recentDetections: [(emotion: String, confidence: Double, timestamp: Date)] = []
-    private let windowSize = 5
-    private let maxAge: TimeInterval = 10.0 // seconds
-    
+    private var currentEmotion: String = "neutral"
+    private var pendingEmotion: String?
+
     func addDetection(_ emotion: String, confidence: Double) -> (emotion: String, confidence: Double) {
-        let now = Date()
-        
-        // Add new detection
-        recentDetections.append((emotion, confidence, now))
-        
-        // Remove old detections
-        recentDetections = recentDetections.filter { now.timeIntervalSince($0.timestamp) < maxAge }
-        
-        // Keep only recent window
-        if recentDetections.count > windowSize {
-            recentDetections = Array(recentDetections.suffix(windowSize))
-        }
-        
-        // If high confidence, return immediately
+        // High confidence always wins immediately
         if confidence > 0.8 {
+            currentEmotion = emotion
+            pendingEmotion = nil
             return (emotion, confidence)
         }
-        
-        // Otherwise, vote among recent detections
-        var emotionCounts: [String: (count: Int, totalConfidence: Double)] = [:]
-        for detection in recentDetections {
-            let existing = emotionCounts[detection.emotion] ?? (0, 0)
-            emotionCounts[detection.emotion] = (existing.count + 1, existing.totalConfidence + detection.confidence)
+
+        // If same as current, just return it
+        if emotion == currentEmotion {
+            pendingEmotion = nil
+            return (emotion, confidence)
         }
-        
-        // Return most common emotion with averaged confidence
-        if let (bestEmotion, stats) = emotionCounts.max(by: { $0.value.count < $1.value.count }) {
-            let avgConfidence = stats.totalConfidence / Double(stats.count)
-            return (bestEmotion, avgConfidence)
+
+        // Different emotion - need to see it twice to switch (prevents glitches)
+        if emotion == pendingEmotion {
+            // Seen twice, switch to it
+            currentEmotion = emotion
+            pendingEmotion = nil
+            return (emotion, confidence)
+        } else {
+            // First time seeing this different emotion, mark as pending
+            pendingEmotion = emotion
+            // Return current emotion for now
+            return (currentEmotion, confidence * 0.8)
         }
-        
-        return (emotion, confidence)
     }
-    
+
     func reset() {
-        recentDetections = []
+        currentEmotion = "neutral"
+        pendingEmotion = nil
     }
 }

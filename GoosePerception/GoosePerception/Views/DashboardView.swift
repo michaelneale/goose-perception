@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct DashboardView: View {
     let database: Database?
@@ -510,7 +511,8 @@ struct LLMCallCard: View {
 
 struct SimpleServicesView: View {
     @ObservedObject private var state = ServiceStateManager.shared
-    
+    @ObservedObject private var deviceManager = DeviceManager.shared
+
     var body: some View {
         VStack(spacing: 24) {
             HStack {
@@ -523,11 +525,11 @@ struct SimpleServicesView: View {
             }
             .padding(.horizontal, 32)
             .padding(.top, 24)
-            
+
             VStack(spacing: 16) {
                 ServiceCard(title: "Screen Capture", subtitle: "Screenshots every 20s with OCR", icon: "camera.fill", color: .blue, isEnabled: screenBinding, isReady: state.servicesReady)
-                VoiceServiceCard(isEnabled: voiceBinding, isReady: state.servicesReady, audioLevel: state.audioLevel, lastTranscription: state.lastTranscription)
-                FaceServiceCard(isEnabled: faceBinding, isReady: state.servicesReady, isPresent: state.isFacePresent, emotion: state.currentEmotion, confidence: state.emotionConfidence)
+                VoiceServiceCard(isEnabled: voiceBinding, isReady: state.servicesReady, audioLevel: state.audioLevel, lastTranscription: state.lastTranscription, deviceManager: deviceManager)
+                FaceServiceCard(isEnabled: faceBinding, isReady: state.servicesReady, isPresent: state.isFacePresent, emotion: state.currentEmotion, confidence: state.emotionConfidence, deviceManager: deviceManager)
             }
             .padding(.horizontal, 32)
             
@@ -630,9 +632,10 @@ struct VoiceServiceCard: View {
     var isReady: Bool
     var audioLevel: Float
     var lastTranscription: String
-    
+    @ObservedObject var deviceManager: DeviceManager
+
     private let color = Color.green
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 16) {
@@ -645,7 +648,7 @@ struct VoiceServiceCard: View {
                     Text("Speech-to-text transcription").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                
+
                 // Audio level indicator - always show when enabled
                 if isEnabled {
                     HStack(spacing: 2) {
@@ -658,10 +661,24 @@ struct VoiceServiceCard: View {
                     .frame(height: 20)
                     .animation(.easeOut(duration: 0.1), value: audioLevel)
                 }
-                
+
                 Toggle("", isOn: $isEnabled).toggleStyle(.switch).labelsHidden().disabled(!isReady)
             }
-            
+
+            // Device picker
+            HStack {
+                Text("Microphone:").font(.caption).foregroundStyle(.secondary)
+                Picker("", selection: $deviceManager.selectedAudioDeviceID) {
+                    ForEach(deviceManager.audioInputDevices, id: \.uniqueID) { device in
+                        Text(device.localizedName).tag(device.uniqueID as String?)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 200)
+                .disabled(isEnabled)
+            }
+            .padding(.leading, 60)
+
             // Show last transcription if voice is active
             if isEnabled && !lastTranscription.isEmpty {
                 Text(lastTranscription)
@@ -684,9 +701,11 @@ struct FaceServiceCard: View {
     var isPresent: Bool
     var emotion: String
     var confidence: Double
-    
+    @ObservedObject var deviceManager: DeviceManager
+    @ObservedObject var calibrationManager = FaceCalibrationManager.shared
+
     private let color = Color.orange
-    
+
     private var emotionIcon: String {
         switch emotion.lowercased() {
         case "happy": return "😊"
@@ -702,7 +721,7 @@ struct FaceServiceCard: View {
         default: return "😶"
         }
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 16) {
@@ -715,7 +734,7 @@ struct FaceServiceCard: View {
                     Text("Presence & emotion tracking").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                
+
                 // Mood indicator when face is detected
                 if isEnabled && isPresent && !emotion.isEmpty {
                     HStack(spacing: 4) {
@@ -738,9 +757,69 @@ struct FaceServiceCard: View {
                         .background(Color.secondary.opacity(0.1))
                         .cornerRadius(8)
                 }
-                
+
                 Toggle("", isOn: $isEnabled).toggleStyle(.switch).labelsHidden().disabled(!isReady)
             }
+
+            // Device picker
+            HStack {
+                Text("Camera:").font(.caption).foregroundStyle(.secondary)
+                Picker("", selection: $deviceManager.selectedVideoDeviceID) {
+                    ForEach(deviceManager.videoInputDevices, id: \.uniqueID) { device in
+                        Text(device.localizedName).tag(device.uniqueID as String?)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 200)
+                .disabled(isEnabled)
+            }
+            .padding(.leading, 60)
+
+            // Calibration section
+            HStack {
+                if calibrationManager.isCalibrating {
+                    ProgressView(value: calibrationManager.calibrationProgress)
+                        .frame(width: 100)
+                    Text(calibrationManager.calibrationStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Cancel") {
+                        calibrationManager.cancelCalibration()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                } else {
+                    if calibrationManager.isCalibrated {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Calibrated")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let age = calibrationManager.calibrationAge {
+                            Text("(\(age))")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    } else {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.yellow)
+                        Text("Not calibrated")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button(calibrationManager.isCalibrated ? "Recalibrate" : "Calibrate") {
+                        calibrationManager.startCalibration()
+                        // Notify to update camera service
+                        NotificationCenter.default.post(name: .startFaceCalibration, object: nil)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(!isEnabled || !isPresent)
+                }
+            }
+            .padding(.leading, 60)
         }
         .padding(16)
         .background(isEnabled ? color.opacity(0.05) : Color.clear)
@@ -1174,6 +1253,8 @@ extension Notification.Name {
     static let toggleVoiceCapture = Notification.Name("toggleVoiceCapture")
     static let toggleFaceCapture = Notification.Name("toggleFaceCapture")
     static let runAnalysisNow = Notification.Name("runAnalysisNow")
+    static let startFaceCalibration = Notification.Name("startFaceCalibration")
+    static let updateFaceCalibration = Notification.Name("updateFaceCalibration")
 }
 
 #Preview {

@@ -9,11 +9,27 @@ BUILD_DIR="$SCRIPT_DIR/build"
 APP_NAME="GoosePerception"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 
-# Signing identity - use Developer ID for stable permissions
-SIGNING_IDENTITY="Developer ID Application: Michael Neale (W2L75AE9HQ)"
+# Signing identity - prefer self-signed cert for stable local development permissions
+# Falls back to ad-hoc if not found
+SIGNING_IDENTITY="GoosePerception Development"
 
-# MLX metallib location (from LM Studio or can be built separately)
-MLX_METALLIB="$HOME/.lmstudio/extensions/backends/vendor/_amphibian/app-mlx-generate-mac-arm64@69/lib/python3.11/site-packages/mlx/lib/mlx.metallib"
+# MLX metallib location - check multiple locations
+MLX_METALLIB=""
+for loc in \
+    "$HOME/.lmstudio/extensions/backends/vendor/_amphibian/app-mlx-generate-mac-arm64@69/lib/python3.11/site-packages/mlx/lib/mlx.metallib" \
+    "/tmp/mlx-venv/lib/python3.13/site-packages/mlx/lib/mlx.metallib" \
+    "/tmp/mlx-venv/lib/python3.12/site-packages/mlx/lib/mlx.metallib" \
+    "/tmp/mlx-venv/lib/python3.11/site-packages/mlx/lib/mlx.metallib" \
+    "$HOME/Library/Python/3.13/lib/python/site-packages/mlx/lib/mlx.metallib" \
+    "$HOME/Library/Python/3.12/lib/python/site-packages/mlx/lib/mlx.metallib" \
+    "$HOME/Library/Python/3.11/lib/python/site-packages/mlx/lib/mlx.metallib" \
+    "$(python3 -c 'import mlx; import os; print(os.path.join(os.path.dirname(mlx.__file__), "lib", "mlx.metallib"))' 2>/dev/null)"
+do
+    if [ -f "$loc" ]; then
+        MLX_METALLIB="$loc"
+        break
+    fi
+done
 
 echo "🔨 Building $APP_NAME..."
 echo ""
@@ -111,24 +127,38 @@ fi
 # Create PkgInfo
 echo -n "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
 
-# Step 3: Code sign the app bundle with Developer ID (stable identity)
+# Step 3: Code sign the app bundle
 echo ""
-echo "🔏 Code signing with Developer ID..."
+echo "🔏 Code signing..."
 
-codesign --force --deep --sign "$SIGNING_IDENTITY" \
-    --entitlements "$SCRIPT_DIR/GoosePerception/GoosePerception.entitlements" \
-    --options runtime \
-    "$APP_BUNDLE" 2>&1 || {
-        echo "⚠️  Developer ID signing failed, falling back to ad-hoc..."
-        codesign --force --deep --sign - \
-            --entitlements "$SCRIPT_DIR/GoosePerception/GoosePerception.entitlements" \
-            --options runtime \
-            "$APP_BUNDLE" 2>&1 || true
-    }
+# Check if our signing identity exists
+if security find-identity -v -p codesigning 2>/dev/null | grep -q "$SIGNING_IDENTITY"; then
+    echo "  Using identity: $SIGNING_IDENTITY"
+    codesign --force --deep --sign "$SIGNING_IDENTITY" \
+        --entitlements "$SCRIPT_DIR/GoosePerception/GoosePerception.entitlements" \
+        --options runtime \
+        "$APP_BUNDLE" 2>&1
+    SIGN_STATUS=$?
+else
+    echo "⚠️  Signing identity '$SIGNING_IDENTITY' not found."
+    echo "   Run: ./scripts/create-signing-cert.sh to create one"
+    echo "   Falling back to ad-hoc signing (permissions will reset on each build)..."
+    codesign --force --deep --sign - \
+        --entitlements "$SCRIPT_DIR/GoosePerception/GoosePerception.entitlements" \
+        --options runtime \
+        "$APP_BUNDLE" 2>&1 || true
+    SIGN_STATUS=1
+fi
 
 # Verify signature
 echo "  Verifying signature..."
 codesign -dv --verbose=2 "$APP_BUNDLE" 2>&1 | grep -E "(Identifier|Format|Signature|Authority)" || true
+
+if [ "$SIGN_STATUS" -eq 0 ]; then
+    echo "  ✅ Signed with stable identity - permissions will persist across rebuilds"
+else
+    echo "  ⚠️  Ad-hoc signed - you'll need to re-grant permissions after each rebuild"
+fi
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
