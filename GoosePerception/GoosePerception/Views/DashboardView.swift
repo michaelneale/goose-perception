@@ -945,6 +945,11 @@ struct InsightsListView: View {
 struct ActionsListView: View {
     let actions: [Action]
     let database: Database?
+    @State private var testQuery: String = ""
+    @State private var showTestSheet = false
+    @State private var testAction: Action?
+    @State private var permissionTestResult: String = ""
+    @State private var isTestingPermissions = false
     
     var pendingActions: [Action] {
         actions.filter { $0.isPending }.sorted { $0.createdAt > $1.createdAt }
@@ -969,7 +974,94 @@ struct ActionsListView: View {
             
             Divider()
             
-            if actions.isEmpty {
+            // Test TinyAgent section
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "wand.and.stars")
+                        .foregroundStyle(.purple)
+                    Text("Test TinyAgent")
+                        .font(.headline)
+                    Spacer()
+                }
+                
+                HStack {
+                    TextField("Try: \"Send a text to John about the meeting\" or \"Create a reminder for tomorrow\"", text: $testQuery)
+                        .textFieldStyle(.roundedBorder)
+                    
+                    Button {
+                        testAction = Action(
+                            type: "automation",
+                            title: "Test Query",
+                            message: testQuery,
+                            source: "Manual Test",
+                            priority: 5
+                        )
+                        showTestSheet = true
+                    } label: {
+                        Image(systemName: "play.fill")
+                    }
+                    .disabled(testQuery.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .keyboardShortcut(.return, modifiers: [])
+                }
+                
+                Text("Examples: \"Get John's phone number\", \"Create a calendar event for lunch tomorrow\", \"Open Maps to San Francisco\"")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                Divider().padding(.vertical, 4)
+                
+                // Direct permission test
+                HStack {
+                    Text("Test Permissions:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    Button("Contacts") {
+                        testPermission(app: "Contacts", script: "tell application \"Contacts\" to get name of first person")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    
+                    Button("Reminders") {
+                        testPermission(app: "Reminders", script: "tell application \"Reminders\" to get name of first list")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    
+                    Button("Calendar") {
+                        testPermission(app: "Calendar", script: "tell application \"Calendar\" to get name of first calendar")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    
+                    Button("Notes") {
+                        testPermission(app: "Notes", script: "tell application \"Notes\" to get name of first note")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    
+                    if isTestingPermissions {
+                        ProgressView().controlSize(.small)
+                    }
+                    
+                    Spacer()
+                }
+                
+                if !permissionTestResult.isEmpty {
+                    Text(permissionTestResult)
+                        .font(.caption)
+                        .foregroundStyle(permissionTestResult.contains("✅") ? .green : .orange)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding()
+            .background(Color.purple.opacity(0.05))
+            
+            Divider()
+            
+            if actions.isEmpty && testQuery.isEmpty {
+                ContentUnavailableView("No Actions Yet", systemImage: "checklist", description: Text("Actions from wellness checks and analysis will appear here.\n\nOr try typing a query above to test TinyAgent!"))
+            } else if actions.isEmpty {
                 ContentUnavailableView("No Actions Yet", systemImage: "checklist", description: Text("Actions from wellness checks and analysis will appear here"))
             } else {
                 List {
@@ -996,6 +1088,59 @@ struct ActionsListView: View {
                             }
                         }
                     }
+                }
+            }
+        }
+        .sheet(isPresented: $showTestSheet) {
+            if let action = testAction {
+                AutomationResultSheet(action: action, database: database)
+            }
+        }
+    }
+    
+    private func testPermission(app: String, script: String) {
+        isTestingPermissions = true
+        permissionTestResult = "Testing \(app)..."
+        
+        Task {
+            // Use osascript via shell - more reliable for triggering permission prompts
+            let result = await runOsascript(script)
+            await MainActor.run {
+                permissionTestResult = result
+                isTestingPermissions = false
+            }
+        }
+    }
+    
+    private func runOsascript(_ script: String) async -> String {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                process.arguments = ["-e", script]
+                
+                let stdout = Pipe()
+                let stderr = Pipe()
+                process.standardOutput = stdout
+                process.standardError = stderr
+                
+                do {
+                    try process.run()
+                    process.waitUntilExit()
+                    
+                    let outputData = stdout.fileHandleForReading.readDataToEndOfFile()
+                    let errorData = stderr.fileHandleForReading.readDataToEndOfFile()
+                    
+                    let output = String(data: outputData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    let error = String(data: errorData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    
+                    if process.terminationStatus == 0 {
+                        continuation.resume(returning: "✅ \(output.isEmpty ? "OK" : String(output.prefix(50)))")
+                    } else {
+                        continuation.resume(returning: "⚠️ \(error.prefix(100))")
+                    }
+                } catch {
+                    continuation.resume(returning: "❌ \(error.localizedDescription)")
                 }
             }
         }

@@ -1,7 +1,8 @@
 //
 // ActionService.swift
 //
-// Orchestrates: Context → LLM prompt → Parse DSL → Execute commands
+// Thin wrapper around TinyAgentService for backward compatibility.
+// This delegates all work to the TinyAgent system.
 //
 
 import Foundation
@@ -33,92 +34,106 @@ struct ActionLLMContext {
     var recentProjects: [String] = []
     var pendingTodos: [String] = []
     var recentInsights: [String] = []
-    var recentFiles: [String] = []  // From directory activity
+    var recentFiles: [String] = []
     var trigger: ActionTrigger
 }
 
-/// Result of an automated action run
+/// Result of an automated action run (wraps TinyAgentResult)
 struct ActionRunResult {
     let trigger: ActionTrigger
     let systemPrompt: String
     let userPrompt: String
     let llmResponse: String
-    let commands: [ActionCommand]
-    let results: [CommandResult]
+    let tinyAgentResult: TinyAgentResult?
     let timestamp: Date
     
     var allSucceeded: Bool {
-        results.allSatisfy { $0.success }
+        tinyAgentResult?.success ?? false
     }
     
     var summary: String {
-        let succeeded = results.filter { $0.success }.count
-        let failed = results.count - succeeded
-        if failed == 0 {
-            return "Executed \(succeeded) command(s) successfully"
-        } else {
-            return "Executed \(succeeded) command(s), \(failed) failed"
+        guard let result = tinyAgentResult else {
+            return "No result"
         }
+        if result.success {
+            let taskCount = result.executionResult?.taskResults.count ?? 0
+            return "Executed \(taskCount) task(s) successfully"
+        } else {
+            return "Failed: \(result.finalAnswer)"
+        }
+    }
+    
+    /// Tasks that were executed
+    var executedTasks: [TaskExecutionResult] {
+        tinyAgentResult?.executionResult?.taskResults ?? []
+    }
+    
+    /// Parsed tasks from the plan
+    var parsedTasks: [ParsedTask] {
+        tinyAgentResult?.parsedTasks ?? []
     }
 }
 
-/// Main service for automated actions
-actor ActionService {
+/// Main service for automated actions - delegates to TinyAgentService
+@MainActor
+class ActionService: ObservableObject {
     /// Shared singleton instance
     static var shared: ActionService!
     
     /// Initialize the shared instance (call from AppDelegate)
-    static func initialize(llmService: LLMService) {
-        shared = ActionService(llmService: llmService)
+    static func initialize(tinyAgentService: TinyAgentService) {
+        shared = ActionService(tinyAgentService: tinyAgentService)
     }
     
-    private let llmService: LLMService
-    private let parser = ActionDSLParser()
-    private let executor = ActionExecutor()
-    
-    /// Default execution options (safe mode)
-    var executionOptions: ExecutionOptions = .safe
+    private let tinyAgentService: TinyAgentService
     
     /// History of action runs
-    private(set) var history: [ActionRunResult] = []
+    @Published private(set) var history: [ActionRunResult] = []
     
-    init(llmService: LLMService) {
-        self.llmService = llmService
+    /// Whether the service is ready
+    var isReady: Bool {
+        tinyAgentService.isLoaded
+    }
+    
+    /// Current load state
+    var loadState: TinyAgentService.LoadState {
+        tinyAgentService.loadState
+    }
+    
+    init(tinyAgentService: TinyAgentService) {
+        self.tinyAgentService = tinyAgentService
     }
     
     // MARK: - Public API
     
+    /// Ensure model is loaded
+    func ensureLoaded() async throws {
+        if !tinyAgentService.isLoaded {
+            try await tinyAgentService.loadModel()
+        }
+    }
+    
     /// Generate and execute actions for a trigger
     func run(context: ActionLLMContext) async throws -> ActionRunResult {
-        // 1. Build prompts
-        let systemPrompt = buildSystemPrompt()
-        let userPrompt = buildPrompt(context: context)
+        try await ensureLoaded()
         
-        // 2. Call LLM
-        let llmResponse = try await llmService.quickQuery(
-            system: systemPrompt,
-            prompt: userPrompt,
-            title: "Action Generation"
-        )
+        // Build query from context
+        let query = buildQuery(from: context)
         
-        // 3. Parse commands
-        let commands = parser.parseValid(llmResponse)
+        // Run TinyAgent
+        let tinyResult = try await tinyAgentService.run(query: query)
         
-        // 4. Execute
-        let results = await executor.execute(commands, options: executionOptions)
-        
-        // 5. Build result
+        // Wrap in ActionRunResult
         let result = ActionRunResult(
             trigger: context.trigger,
-            systemPrompt: systemPrompt,
-            userPrompt: userPrompt,
-            llmResponse: llmResponse,
-            commands: commands,
-            results: results,
+            systemPrompt: tinyResult.systemPrompt,
+            userPrompt: query,
+            llmResponse: tinyResult.plannerOutput,
+            tinyAgentResult: tinyResult,
             timestamp: Date()
         )
         
-        // 6. Store in history
+        // Store in history
         history.append(result)
         if history.count > 100 {
             history.removeFirst(history.count - 100)
@@ -128,134 +143,48 @@ actor ActionService {
     }
     
     /// Get the prompts that would be sent (for debugging/preview)
-    func getPrompts(context: ActionLLMContext) -> (system: String, user: String) {
-        (buildSystemPrompt(), buildPrompt(context: context))
+    func getPrompts(context: ActionLLMContext) async -> (system: String, user: String) {
+        let query = buildQuery(from: context)
+        let selectedTools = await ToolRAGService.shared.selectTools(for: query)
+        let toolsToUse = selectedTools.isEmpty 
+            ? await ToolRegistry.shared.getEnabledToolNames() 
+            : selectedTools
+        let systemPrompt = await ToolRAGService.shared.buildSystemPrompt(for: toolsToUse)
+        return (systemPrompt, query)
     }
     
-    /// Preview what commands would be generated (dry run)
-    func preview(context: ActionLLMContext) async throws -> [ActionCommand] {
-        let prompt = buildPrompt(context: context)
-        let systemPrompt = buildSystemPrompt()
-        
-        let llmResponse = try await llmService.quickQuery(
-            system: systemPrompt,
-            prompt: prompt,
-            title: "Action Preview"
-        )
-        
-        return parser.parseValid(llmResponse)
+    /// Run with a simple text prompt
+    func runSimple(_ prompt: String) async throws -> String {
+        try await ensureLoaded()
+        return try await tinyAgentService.runSimple(prompt)
     }
     
-    /// Execute pre-parsed commands directly
-    func executeCommands(_ commands: [ActionCommand]) async -> [CommandResult] {
-        await executor.execute(commands, options: executionOptions)
-    }
+    // MARK: - Private Methods
     
-    /// Parse DSL text without executing
-    func parseCommands(_ text: String) -> [ActionCommand] {
-        parser.parse(text)
-    }
-    
-    // MARK: - Prompt Building
-    
-    private func buildSystemPrompt() -> String {
-        """
-        You are a helpful assistant that automates macOS tasks.
+    private func buildQuery(from context: ActionLLMContext) -> String {
+        var parts: [String] = []
         
-        AVAILABLE COMMANDS:
+        // Main trigger/request
+        parts.append(context.trigger.description)
         
-        File Operations:
-        - MOVE_FILE "from" "to"
-        - COPY_FILE "from" "to"  
-        - DELETE_FILE "path"
-        - CREATE_FOLDER "path"
-        - OPEN_FILE "path" ["App Name"]
-        - REVEAL_IN_FINDER "path"
-        
-        Document Creation:
-        - WRITE_FILE "path" "content"
-        - WRITE_DOC "path" <<END
-          multi-line content
-          END
-        - APPEND_FILE "path" "content"
-        
-        Communication:
-        - SEND_EMAIL "to@email.com" "Subject" "Body"
-        - OPEN_URL "https://..."
-        - COPY_TO_CLIPBOARD "text"
-        
-        Apps:
-        - OPEN_APP "App Name"
-        - QUIT_APP "App Name"
-        - ACTIVATE_APP "App Name"
-        
-        Notifications:
-        - NOTIFY "Title" "Message"
-        - SPEAK "Text to speak"
-        
-        Shortcuts:
-        - RUN_SHORTCUT "Shortcut Name" ["input"]
-        
-        RULES:
-        1. Output ONLY commands, one per line
-        2. Use # for comments
-        3. Use quotes around arguments with spaces
-        4. Use ~ for home directory paths
-        5. If no action needed, output: # No action needed
-        6. Be conservative - only suggest actions that are clearly helpful
-        7. Prefer non-destructive actions (NOTIFY, OPEN_FILE) over destructive ones
-        """
-    }
-    
-    private func buildPrompt(context: ActionLLMContext) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d 'at' h:mm a"
-        let timeStr = formatter.string(from: context.currentTime)
-        
-        var lines: [String] = []
-        
-        lines.append("CONTEXT:")
-        lines.append("Time: \(timeStr)")
-        
+        // Add context as additional info
         if let mood = context.currentMood {
-            lines.append("User mood: \(mood)")
+            parts.append("User mood: \(mood)")
         }
         
         if context.workDurationMinutes > 0 {
-            lines.append("Work session: \(context.workDurationMinutes) minutes")
+            parts.append("Work duration: \(context.workDurationMinutes) minutes")
         }
         
         if !context.recentProjects.isEmpty {
-            lines.append("Recent projects: \(context.recentProjects.prefix(5).joined(separator: ", "))")
+            parts.append("Working on: \(context.recentProjects.prefix(3).joined(separator: ", "))")
         }
         
         if !context.pendingTodos.isEmpty {
-            lines.append("Pending tasks:")
-            for todo in context.pendingTodos.prefix(5) {
-                lines.append("  - \(todo)")
-            }
+            parts.append("Pending tasks: \(context.pendingTodos.prefix(3).joined(separator: "; "))")
         }
         
-        if !context.recentInsights.isEmpty {
-            lines.append("Recent observations:")
-            for insight in context.recentInsights.prefix(3) {
-                lines.append("  - \(insight)")
-            }
-        }
-        
-        if !context.recentFiles.isEmpty {
-            lines.append("Recently modified files:")
-            for file in context.recentFiles.prefix(5) {
-                lines.append("  - \(file)")
-            }
-        }
-        
-        lines.append("")
-        lines.append("TRIGGER: \(context.trigger.description)")
-        lines.append("")
-        lines.append("What actions should be taken? Output only the commands.")
-        
-        return lines.joined(separator: "\n")
+        return parts.joined(separator: ". ")
     }
 }
 

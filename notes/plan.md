@@ -2,13 +2,24 @@
 
 Working document for tracking implementation progress and next steps.
 
-## Current Status: Core Pipeline Complete
+## Current Status: TinyAgent Integration Complete
 
 The main capture → refine → insight → action pipeline is fully functional.
+TinyAgent (Mac automation via LLMCompiler) has been integrated and tested.
 
 ---
 
 ## Completed Features
+
+### TinyAgent Mac Automation (NEW)
+- [x] TinyAgentService - main orchestrator for Mac automation
+- [x] ToolRegistry - actor-based registry for 16 Mac automation tools
+- [x] LLMCompilerParser - parses numbered action format with dependencies
+- [x] ToolRAGService - keyword-based tool selection
+- [x] TaskExecutor - parallel execution with dependency resolution
+- [x] AppleScriptBridge - osascript integration for macOS APIs
+- [x] 16 tools: Contacts, Calendar, Reminders, Mail, Notes, Messages, Maps, Files, Zoom
+- [x] Self-test coverage (Tests 6-8: Registry, ToolRAG, Parser)
 
 ### Data Capture Layer
 - [x] Screen capture with ScreenCaptureKit (every 20s)
@@ -77,12 +88,20 @@ The main capture → refine → insight → action pipeline is fully functional.
 2. **Data retention** - Auto-cleanup old captures/events
 3. **Export** - Export knowledge to markdown/JSON
 
-### Future (Phase 2)
+### Phase 2: Agent Actions (In Progress)
 See `notes/agent-actions-implementation.md` for the full plan:
 1. **Recipe System** - User-configurable triggers and actions
-2. **Agent Runner** - CLI bridge to goose/claude/amp
+2. **Agent Runner** - CLI bridge to goose/claude/amp  
 3. **Context Compiler** - Rich prompt templates with knowledge injection
 4. **Scheduled Actions** - Cron-like triggers for recurring tasks
+
+**TinyAgent Integration Status:**
+- ✅ Tool Registry and 16 Mac tools implemented
+- ✅ LLMCompiler parser for plan parsing
+- ✅ ToolRAG for tool selection
+- ✅ TaskExecutor for parallel execution
+- ⏳ End-to-end testing with actual AppleScript execution
+- ⏳ UI integration for automation results
 
 ---
 
@@ -121,8 +140,14 @@ Analysis (every 20min) → Refiners → Knowledge tables
 | `Services/LLM/LLMService.swift` | MLX model runner |
 | `Services/LLM/Refiners/*.swift` | Knowledge extractors |
 | `Services/LLM/Generators/*.swift` | Insight & Action generators |
+| `Services/TinyAgent/TinyAgentService.swift` | Mac automation orchestrator |
+| `Services/TinyAgent/TinyAgentTool.swift` | Tool protocol + registry |
+| `Services/TinyAgent/LLMCompilerParser.swift` | Plan parser |
+| `Services/TinyAgent/TaskExecutor.swift` | Parallel task execution |
+| `Services/TinyAgent/Tools/*.swift` | 16 Mac automation tools |
 | `Views/DashboardView.swift` | Main UI |
 | `Views/InsightPopupManager.swift` | Popups and toasts |
+| `Views/AutomationResultSheet.swift` | TinyAgent results UI |
 | `Database/Database.swift` | GRDB wrapper |
 
 ---

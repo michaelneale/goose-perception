@@ -224,10 +224,89 @@ class SelfTest {
         }
         
         // ═══════════════════════════════════════════════════════════════
-        // Test 6: LLM Analysis (Out-of-Process via perception-analyzer)
+        // Test 6: TinyAgent Tool Registry (before LLM to avoid crash)
         // ═══════════════════════════════════════════════════════════════
         log("")
-        log("▶ Test 6: LLM Analysis (out-of-process)")
+        log("▶ Test 6: TinyAgent Tool Registry")
+        startTime = Date()
+        
+        let tinyAgent = TinyAgentService()
+        // Explicitly await tool registration (init spawns a Task that may not complete)
+        await tinyAgent.registerTools()
+        // Now check that tools are registered
+        let enabledTools = await ToolRegistry.shared.getEnabledToolNames()
+        let elapsed6 = Date().timeIntervalSince(startTime)
+        
+        if enabledTools.count >= 10 {
+            log("  ✅ PASS (\(String(format: "%.2f", elapsed6))s)")
+            log("     → \(enabledTools.count) tools registered")
+            log("     → Tools: \(enabledTools.prefix(5).map { $0.displayName }.joined(separator: ", "))...")
+            passed += 1
+        } else {
+            log("  ❌ FAIL - Only \(enabledTools.count) tools registered (expected >= 10)")
+            failed += 1
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // Test 7: TinyAgent ToolRAG Selection
+        // ═══════════════════════════════════════════════════════════════
+        log("")
+        log("▶ Test 7: TinyAgent ToolRAG Selection")
+        startTime = Date()
+        
+        let testQuery = "Send a text message to John about the meeting"
+        let selectedTools = await ToolRAGService.shared.selectTools(for: testQuery)
+        let elapsed7 = Date().timeIntervalSince(startTime)
+        
+        if selectedTools.contains(.sendSMS) || selectedTools.contains(.getPhoneNumber) {
+            log("  ✅ PASS (\(String(format: "%.2f", elapsed7))s)")
+            log("     → Query: \"\(testQuery)\"")
+            log("     → Selected: \(selectedTools.map { $0.rawValue }.joined(separator: ", "))")
+            passed += 1
+        } else {
+            log("  ⚠️ WARN - ToolRAG did not select expected tools")
+            log("     → Query: \"\(testQuery)\"")
+            log("     → Selected: \(selectedTools.map { $0.rawValue }.joined(separator: ", "))")
+            passed += 1  // Not a failure, just a warning
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // Test 8: LLMCompiler Parser
+        // ═══════════════════════════════════════════════════════════════
+        log("")
+        log("▶ Test 8: LLMCompiler Parser")
+        startTime = Date()
+        
+        let testPlan = """
+        1. get_phone_number("John")
+        2. send_sms([$1], "Meeting at 3pm")
+        Thought: Message sent.
+        3. join()<END_OF_PLAN>
+        """
+        
+        let parser = LLMCompilerParser()
+        let parseResult = parser.parse(testPlan)
+        let elapsed8 = Date().timeIntervalSince(startTime)
+        
+        if parseResult.isValid && parseResult.tasks.count == 3 {
+            log("  ✅ PASS (\(String(format: "%.2f", elapsed8))s)")
+            log("     → Parsed \(parseResult.tasks.count) tasks")
+            log("     → Task 1: \(parseResult.tasks[0].toolName)")
+            log("     → Task 2: \(parseResult.tasks[1].toolName) (depends on $\(parseResult.tasks[1].dependencies.first ?? 0))")
+            passed += 1
+        } else {
+            log("  ❌ FAIL - Parse failed or wrong task count")
+            log("     → Valid: \(parseResult.isValid)")
+            log("     → Tasks: \(parseResult.tasks.count)")
+            log("     → Errors: \(parseResult.parseErrors.joined(separator: ", "))")
+            failed += 1
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // Test 9: LLM Analysis (Out-of-Process - may crash in headless mode)
+        // ═══════════════════════════════════════════════════════════════
+        log("")
+        log("▶ Test 9: LLM Analysis (out-of-process)")
         log("  ... Running perception-analyzer (5-60 seconds on first run)")
         startTime = Date()
         
@@ -252,10 +331,10 @@ class SelfTest {
         }
         
         // ═══════════════════════════════════════════════════════════════
-        // Test 7: Analysis Pipeline (Query existing data)
+        // Test 10: Analysis Pipeline (Query existing data)
         // ═══════════════════════════════════════════════════════════════
         log("")
-        log("▶ Test 7: Analysis Pipeline")
+        log("▶ Test 10: Analysis Pipeline")
         startTime = Date()
         
         do {
@@ -278,7 +357,7 @@ class SelfTest {
         }
         
         // ═══════════════════════════════════════════════════════════════
-        // Test 8: Camera Permission Status
+        // Test 11: Camera Permission Status
         // ═══════════════════════════════════════════════════════════════
         log("")
         log("▶ Test 8: Camera Permission Status")

@@ -1,7 +1,7 @@
 //
 // AutomationResultSheet.swift
 //
-// Shows the result of running automation: LLM response, parsed commands, execution results
+// Shows the result of running TinyAgent automation
 //
 
 import SwiftUI
@@ -15,10 +15,13 @@ class AutomationViewModel: ObservableObject {
     @Published var systemPrompt: String?
     @Published var userPrompt: String?
     @Published var llmResponse: String?
-    @Published var parsedCommands: [ActionCommand] = []
-    @Published var executionResults: [CommandResult] = []
+    @Published var parsedTasks: [ParsedTask] = []
+    @Published var executionResults: [TaskExecutionResult] = []
+    @Published var finalAnswer: String?
     @Published var error: String?
     @Published var contextSummary: ContextSummary?
+    @Published var selectedTools: Set<TinyAgentToolName> = []
+    @Published var replanCount: Int = 0
     
     // Store the built context for reuse when running
     private var builtContext: ActionLLMContext?
@@ -36,9 +39,10 @@ class AutomationViewModel: ObservableObject {
     enum Stage: String {
         case idle = "Ready"
         case buildingContext = "Building context..."
-        case callingLLM = "Asking LLM..."
-        case parsingCommands = "Parsing commands..."
+        case selectingTools = "Selecting tools..."
+        case callingLLM = "Planning..."
         case executing = "Executing..."
+        case evaluating = "Evaluating..."
         case complete = "Complete"
         case failed = "Failed"
     }
@@ -73,6 +77,12 @@ class AutomationViewModel: ObservableObject {
             systemPrompt = prompts.system
             userPrompt = prompts.user
             
+            // Get selected tools
+            selectedTools = await ToolRAGService.shared.selectTools(for: prompts.user)
+            if selectedTools.isEmpty {
+                selectedTools = await ToolRegistry.shared.getEnabledToolNames()
+            }
+            
         } catch {
             self.error = error.localizedDescription
         }
@@ -85,8 +95,10 @@ class AutomationViewModel: ObservableObject {
         isRunning = true
         error = nil
         llmResponse = nil
-        parsedCommands = []
+        parsedTasks = []
         executionResults = []
+        finalAnswer = nil
+        replanCount = 0
         
         do {
             // Use pre-built context or build fresh
@@ -112,7 +124,7 @@ class AutomationViewModel: ObservableObject {
                 }
             }
             
-            // Call LLM
+            // Run via ActionService (which delegates to TinyAgent)
             stage = .callingLLM
             guard let actionService = ActionService.shared else {
                 throw AutomationError.serviceNotInitialized
@@ -124,10 +136,13 @@ class AutomationViewModel: ObservableObject {
             systemPrompt = result.systemPrompt
             userPrompt = result.userPrompt
             llmResponse = result.llmResponse
-            parsedCommands = result.commands
-            executionResults = result.results
+            parsedTasks = result.parsedTasks
+            executionResults = result.executedTasks
+            finalAnswer = result.tinyAgentResult?.finalAnswer
+            replanCount = result.tinyAgentResult?.replanCount ?? 0
+            selectedTools = result.tinyAgentResult?.selectedTools ?? []
             
-            stage = .complete
+            stage = result.allSucceeded ? .complete : .failed
             
         } catch {
             self.error = error.localizedDescription
@@ -216,7 +231,7 @@ struct AutomationResultSheet: View {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Automation")
+                    Text("TinyAgent Automation")
                         .font(.headline)
                     Text(action.title)
                         .font(.subheadline)
@@ -319,6 +334,29 @@ struct AutomationResultSheet: View {
                         .cornerRadius(8)
                     }
                     
+                    // Selected Tools
+                    if !viewModel.selectedTools.isEmpty {
+                        DisclosureGroup {
+                            FlowLayout(spacing: 6) {
+                                ForEach(Array(viewModel.selectedTools).sorted(by: { $0.rawValue < $1.rawValue }), id: \.self) { tool in
+                                    Text(tool.displayName)
+                                        .font(.caption)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.blue.opacity(0.1))
+                                        .cornerRadius(4)
+                                }
+                            }
+                            .padding(.top, 4)
+                        } label: {
+                            Label("Selected Tools (\(viewModel.selectedTools.count))", systemImage: "wrench.and.screwdriver")
+                                .font(.headline)
+                        }
+                        .padding(12)
+                        .background(Color.purple.opacity(0.05))
+                        .cornerRadius(8)
+                    }
+                    
                     // System Prompt (available commands)
                     if let system = viewModel.systemPrompt {
                         DisclosureGroup {
@@ -328,7 +366,7 @@ struct AutomationResultSheet: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.top, 4)
                         } label: {
-                            Label("System Prompt (Available Commands)", systemImage: "terminal")
+                            Label("System Prompt", systemImage: "terminal")
                                 .font(.headline)
                         }
                         .padding(12)
@@ -345,7 +383,7 @@ struct AutomationResultSheet: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.top, 4)
                         } label: {
-                            Label("User Prompt (Sent to LLM)", systemImage: "arrow.up.circle")
+                            Label("Query", systemImage: "arrow.up.circle")
                                 .font(.headline)
                         }
                         .padding(12)
@@ -353,12 +391,20 @@ struct AutomationResultSheet: View {
                         .cornerRadius(8)
                     }
                     
-                    // LLM Response
+                    // LLM Response (Plan)
                     if let response = viewModel.llmResponse {
                         GroupBox {
                             VStack(alignment: .leading, spacing: 8) {
-                                Label("LLM Response", systemImage: "arrow.down.circle")
-                                    .font(.headline)
+                                HStack {
+                                    Label("Plan Output", systemImage: "list.number")
+                                        .font(.headline)
+                                    Spacer()
+                                    if viewModel.replanCount > 0 {
+                                        Text("Replanned \(viewModel.replanCount)x")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                    }
+                                }
                                 
                                 Text(response)
                                     .font(.system(.body, design: .monospaced))
@@ -368,36 +414,39 @@ struct AutomationResultSheet: View {
                         }
                     }
                     
-                    // Parsed Commands
-                    if !viewModel.parsedCommands.isEmpty {
+                    // Parsed Tasks
+                    if !viewModel.parsedTasks.isEmpty {
                         GroupBox {
                             VStack(alignment: .leading, spacing: 8) {
-                                Label("Parsed Commands (\(viewModel.parsedCommands.count))", systemImage: "list.bullet.rectangle")
+                                Label("Parsed Tasks (\(viewModel.parsedTasks.count))", systemImage: "list.bullet.rectangle")
                                     .font(.headline)
                                 
-                                ForEach(Array(viewModel.parsedCommands.enumerated()), id: \.offset) { index, command in
-                                    HStack {
-                                        Text("\(index + 1).")
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 24, alignment: .trailing)
-                                        
-                                        Text(command.description)
-                                            .font(.system(.body, design: .monospaced))
-                                        
-                                        Spacer()
-                                        
-                                        // Safety indicator
-                                        if command.isDestructive {
-                                            Image(systemName: "exclamationmark.triangle.fill")
-                                                .foregroundStyle(.orange)
-                                                .help("Destructive operation")
-                                        } else if command.isSafeToAutoExecute {
-                                            Image(systemName: "checkmark.shield.fill")
-                                                .foregroundStyle(.green)
-                                                .help("Safe to auto-execute")
+                                ForEach(viewModel.parsedTasks, id: \.id) { task in
+                                    if !task.isJoin {
+                                        HStack {
+                                            Text("\(task.id).")
+                                                .foregroundStyle(.secondary)
+                                                .frame(width: 24, alignment: .trailing)
+                                            
+                                            Text(task.toolName)
+                                                .font(.system(.body, design: .monospaced))
+                                                .foregroundStyle(.blue)
+                                            
+                                            Text("(\(task.arguments.map { argDescription($0) }.joined(separator: ", ")))")
+                                                .font(.system(.caption, design: .monospaced))
+                                                .foregroundStyle(.secondary)
+                                            
+                                            Spacer()
+                                            
+                                            // Dependencies
+                                            if !task.dependencies.isEmpty {
+                                                Text("← $\(task.dependencies.map { String($0) }.joined(separator: ", $"))")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.purple)
+                                            }
                                         }
+                                        .padding(.vertical, 2)
                                     }
-                                    .padding(.vertical, 2)
                                 }
                             }
                         }
@@ -432,13 +481,14 @@ struct AutomationResultSheet: View {
                                             .foregroundStyle(result.success ? .green : .red)
                                         
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text(result.command.description)
+                                            Text(result.toolName)
                                                 .font(.system(.body, design: .monospaced))
                                             
-                                            if let message = result.message {
-                                                Text(message)
+                                            if !result.output.isEmpty {
+                                                Text(result.output)
                                                     .font(.caption)
                                                     .foregroundStyle(.secondary)
+                                                    .lineLimit(3)
                                             }
                                             
                                             if let error = result.error {
@@ -462,6 +512,19 @@ struct AutomationResultSheet: View {
                         }
                     }
                     
+                    // Final Answer
+                    if let answer = viewModel.finalAnswer {
+                        GroupBox {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Result", systemImage: "sparkles")
+                                    .font(.headline)
+                                Text(answer)
+                                    .font(.body)
+                            }
+                        }
+                        .background(Color.green.opacity(0.05))
+                    }
+                    
                     // Prompt to run (shown after context loaded, before execution)
                     if viewModel.stage == .idle && viewModel.systemPrompt != nil && viewModel.llmResponse == nil {
                         GroupBox {
@@ -471,7 +534,7 @@ struct AutomationResultSheet: View {
                                     .foregroundStyle(.purple)
                                 Text("Ready to Run")
                                     .font(.headline)
-                                Text("Review the prompts above, then click Run to execute.")
+                                Text("Review the context and prompts above, then click Run to execute.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -536,6 +599,60 @@ struct AutomationResultSheet: View {
             Text(value)
                 .font(.caption)
         }
+    }
+    
+    private func argDescription(_ arg: TaskArgument) -> String {
+        switch arg {
+        case .string(let s): return "\"\(s.prefix(20))\(s.count > 20 ? "..." : "")\""
+        case .int(let i): return String(i)
+        case .double(let d): return String(format: "%.2f", d)
+        case .bool(let b): return b ? "true" : "false"
+        case .null: return "null"
+        case .array(let arr): return "[\(arr.count) items]"
+        case .reference(let id): return "$\(id)"
+        }
+    }
+}
+
+// MARK: - Flow Layout for tool chips
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+    
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+    
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
+        }
+    }
+    
+    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (positions: [CGPoint], size: CGSize) {
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        let maxWidth = proposal.width ?? .infinity
+        
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            
+            if x + size.width > maxWidth && x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            
+            positions.append(CGPoint(x: x, y: y))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+        
+        return (positions, CGSize(width: maxWidth, height: y + rowHeight))
     }
 }
 

@@ -89,6 +89,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var database: Database!
     private var llmService: LLMService!
     private var analysisScheduler: AnalysisScheduler!
+    private var tinyAgentService: TinyAgentService!
     
     private var vlmService: VLMService!
     private var whisperService: WhisperService!
@@ -147,8 +148,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         cameraCaptureService = CameraCaptureService(database: database)
         directoryActivityService = DirectoryActivityService(database: database)
         
-        // Initialize ActionService for automation
-        ActionService.initialize(llmService: llmService)
+        // Initialize TinyAgent and ActionService for automation
+        tinyAgentService = TinyAgentService()
+        ActionService.initialize(tinyAgentService: tinyAgentService)
         
         NSLog("✅ All services initialized")
         
