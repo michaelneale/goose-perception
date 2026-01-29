@@ -1,68 +1,76 @@
-# GoosePerception Development Commands
+# Goose Perception Development Tasks
+# Usage: just <recipe>
 
-# Default: build and run
-default: run
+# Default recipe - show available commands
+default:
+    @just --list
 
-# Build the app bundle
+# Build the app using existing build-app.sh (creates proper .app bundle with signing)
 build:
     cd GoosePerception && ./build-app.sh
 
-# Build and run the app
-run: build
-    @echo ""
-    @echo "🚀 Launching GoosePerception..."
-    open GoosePerception/build/GoosePerception.app
+# Build with xcodebuild (faster, for dev iteration - no app bundle)
+build-dev:
+    cd GoosePerception && xcodebuild -scheme GoosePerception -destination 'platform=macOS' build 2>&1 | tail -20
 
-# Run without rebuilding (uses existing build)
-launch:
-    open GoosePerception/build/GoosePerception.app
+# Run the app using existing run.sh
+run *ARGS:
+    cd GoosePerception && ./run.sh {{ARGS}}
 
-# Quick rebuild with swift build only (no app bundle)
-quick:
-    cd GoosePerception && swift build -c release
+# Run fast tests (unit + integration with mocks)
+test:
+    cd GoosePerception && ./run.sh --test
+
+# Run all tests including LLM (slow, loads model)
+test-full:
+    cd GoosePerception && ./run.sh --test --full
+
+# Run only TinyAgent integration tests
+test-tinyagent:
+    cd GoosePerception && ./run.sh --test-tinyagent
+
+# Run integration tests with real LLM
+test-llm:
+    cd GoosePerception && ./run.sh --test-tinyagent-llm
+
+# Run E2E tests (database, pipeline)
+test-e2e:
+    cd GoosePerception && ./run.sh --test --e2e
+
+# Run the existing self-test harness
+test-harness:
+    cd GoosePerception && ./run.sh --test-harness
+
+# Self-test (existing)
+self-test:
+    cd GoosePerception && ./run.sh --self-test
 
 # Clean build artifacts
 clean:
     rm -rf GoosePerception/.build
     rm -rf GoosePerception/build
-    @echo "✅ Build artifacts cleaned"
+    rm -rf ~/Library/Developer/Xcode/DerivedData/GoosePerception-*
 
-# Reset the perception database (fresh start)
-reset-db:
-    rm -rf ~/Library/Application\ Support/GoosePerception
-    @echo "✅ Perception database reset"
+# Open in Xcode
+xcode:
+    open GoosePerception/GoosePerception.xcodeproj
 
-# Reset screen capture permissions (requires restart after)
-reset-permissions:
-    tccutil reset ScreenCapture com.block.goose.perception
-    @echo "✅ Screen capture permissions reset"
-    @echo "   Restart the app to re-grant permissions"
+# Grant permissions (existing script)
+permissions:
+    cd GoosePerception && ./grant-permissions.sh
 
-# Full reset: database + permissions
-reset-all: reset-db reset-permissions
+# Check git status
+status:
+    @git status --short
     @echo ""
-    @echo "✅ Full reset complete"
+    @git diff --stat
 
-# Install to /Applications
-install: build
-    cp -R GoosePerception/build/GoosePerception.app /Applications/
-    @echo "✅ Installed to /Applications/GoosePerception.app"
-
-# View app logs
-logs:
-    log stream --predicate 'subsystem == "com.block.goose.perception"' --level debug
-
-# Show app bundle info
-info:
-    @echo "=== App Bundle ==="
-    @ls -lah GoosePerception/build/GoosePerception.app/Contents/MacOS/ 2>/dev/null || echo "App not built yet"
+# Show test coverage summary
+coverage:
+    @echo "Test Suites:"
+    @echo "  - Unit: Parser tests (5 tests)"
+    @echo "  - Integration: Mock execution tests (7 tests)"
+    @echo "  - E2E: Database, pipeline tests"
+    @echo "  - LLM: Real model inference tests"
     @echo ""
-    @echo "=== Code Signature ==="
-    @codesign -dv --verbose=2 GoosePerception/build/GoosePerception.app 2>&1 | grep -E "(Identifier|Format|Signature)" || echo "App not signed"
-    @echo ""
-    @echo "=== Database ==="
-    @ls -lah ~/Library/Application\ Support/GoosePerception/ 2>/dev/null || echo "No database yet"
-
-# Kill any running GoosePerception processes
-kill:
-    @pkill -f GoosePerception || echo "No GoosePerception processes running"
+    @echo "Run 'just test' for fast tests, 'just test-full' for all"

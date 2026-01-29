@@ -93,6 +93,53 @@ struct LLMCompilerParser {
     
     private static let endOfPlanMarker = "<END_OF_PLAN>"
     
+    /// Split output into logical lines, respecting quoted strings
+    /// This handles cases where string arguments contain newlines
+    private func splitIntoLogicalLines(_ text: String) -> [String] {
+        var lines: [String] = []
+        var currentLine = ""
+        var inQuote = false
+        var escapeNext = false
+        
+        for char in text {
+            if escapeNext {
+                currentLine.append(char)
+                escapeNext = false
+                continue
+            }
+            
+            if char == "\\" {
+                currentLine.append(char)
+                escapeNext = true
+                continue
+            }
+            
+            if char == "\"" {
+                inQuote = !inQuote
+                currentLine.append(char)
+                continue
+            }
+            
+            if char == "\n" && !inQuote {
+                // End of logical line (outside quotes)
+                if !currentLine.isEmpty {
+                    lines.append(currentLine)
+                }
+                currentLine = ""
+                continue
+            }
+            
+            currentLine.append(char)
+        }
+        
+        // Don't forget the last line
+        if !currentLine.isEmpty {
+            lines.append(currentLine)
+        }
+        
+        return lines
+    }
+    
     /// Parse LLMCompiler output into tasks
     func parse(_ output: String) -> ParseResult {
         var tasks: [ParsedTask] = []
@@ -107,7 +154,8 @@ struct LLMCompilerParser {
             .replacingOccurrences(of: Self.endOfPlanMarker, with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         
-        let lines = cleanedOutput.components(separatedBy: .newlines)
+        // Use logical line splitting that respects quoted strings
+        let lines = splitIntoLogicalLines(cleanedOutput)
         
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)

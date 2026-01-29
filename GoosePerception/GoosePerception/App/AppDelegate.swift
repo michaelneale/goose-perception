@@ -487,7 +487,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Goose Perception Dashboard"
+        window.title = "Goose Perception"
         window.contentViewController = hostingController
         window.minSize = NSSize(width: 800, height: 500)
         window.setContentSize(NSSize(width: 1000, height: 700))

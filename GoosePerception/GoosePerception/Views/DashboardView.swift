@@ -1058,7 +1058,7 @@ struct ActionsListView: View {
                 HStack {
                     Image(systemName: "wand.and.stars")
                         .foregroundStyle(.purple)
-                    Text("Test TinyAgent")
+                    Text("Run Automation")
                         .font(.headline)
                     Spacer()
                 }
@@ -1139,7 +1139,7 @@ struct ActionsListView: View {
             Divider()
             
             if actions.isEmpty && testQuery.isEmpty {
-                ContentUnavailableView("No Actions Yet", systemImage: "checklist", description: Text("Actions from wellness checks and analysis will appear here.\n\nOr try typing a query above to test TinyAgent!"))
+                ContentUnavailableView("No Actions Yet", systemImage: "checklist", description: Text("Actions from wellness checks and analysis will appear here.\n\nOr try typing a query above to run automation!"))
             } else if actions.isEmpty {
                 ContentUnavailableView("No Actions Yet", systemImage: "checklist", description: Text("Actions from wellness checks and analysis will appear here"))
             } else {

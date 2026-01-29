@@ -231,7 +231,7 @@ struct AutomationResultSheet: View {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("TinyAgent Automation")
+                    Text("Mac Automation")
                         .font(.headline)
                     Text(action.title)
                         .font(.subheadline)

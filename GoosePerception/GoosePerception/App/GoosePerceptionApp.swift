@@ -12,6 +12,32 @@ struct GoosePerceptionApp: App {
             }
             // Note: TestHarness.run() calls exit() when done
         }
+        
+        // AppleScript-specific tests (escaping, date formatting, per-app tests)
+        if CommandLine.arguments.contains("--test-applescript") {
+            Task { @MainActor in
+                await AppleScriptTests.run()
+            }
+            // Note: AppleScriptTests.run() calls exit() when done
+        }
+        
+        // TinyAgent integration tests (parser + mock executor)
+        if CommandLine.arguments.contains("--test-tinyagent") {
+            let includeLLM = CommandLine.arguments.contains("--test-tinyagent-llm")
+            Task { @MainActor in
+                await TinyAgentIntegrationTests.run(includeLLM: includeLLM)
+            }
+            // Note: TinyAgentIntegrationTests.run() calls exit() when done
+        }
+        
+        // Unified test runner (unit + integration + e2e)
+        if CommandLine.arguments.contains("--test") {
+            Task { @MainActor in
+                await AllTests.run()
+            }
+            // Note: AllTests.run() calls exit() when done
+        }
+        
         // --self-test is handled in AppDelegate.applicationDidFinishLaunching
     }
     
