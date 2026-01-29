@@ -175,16 +175,16 @@ class TinyAgentService: ObservableObject {
         var joinnerOutput: String? = nil
         
         // 1. Select relevant tools using ToolRAG
-        let selectedTools = await ToolRAGService.shared.selectTools(for: query)
-        logger.info("Selected \(selectedTools.count) tools for query")
+        let ragResult = await ToolRAGService.shared.selectTools(for: query)
+        logger.info("Selected \(ragResult.selectedTools.count) tools for query: \(ragResult.selectedTools.map { $0.rawValue })")
         
         // If no tools selected, use all enabled tools
-        let toolsToUse = selectedTools.isEmpty 
+        let toolsToUse = ragResult.selectedTools.isEmpty 
             ? await ToolRegistry.shared.getEnabledToolNames() 
-            : selectedTools
+            : ragResult.selectedTools
         
-        // 2. Build system prompt with selected tools
-        let systemPrompt = await ToolRAGService.shared.buildSystemPrompt(for: toolsToUse)
+        // 2. Build system prompt with selected tools and relevant examples
+        let systemPrompt = await ToolRAGService.shared.buildSystemPrompt(for: ragResult)
         
         // 3. Planning and execution loop (with replanning)
         var currentQuery = query

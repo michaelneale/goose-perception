@@ -1,300 +1,344 @@
 //
 // ToolRAGService.swift
 //
-// Tool selection service using keyword heuristics.
-// Designed to be swappable with a real classifier later.
+// Embedding-based tool selection using curated examples.
+// Uses BM25-style scoring for fast, accurate tool retrieval.
 //
 
 import Foundation
+import os.log
 
-/// Service for selecting relevant tools based on user query
+private let logger = Logger(subsystem: "com.goose.perception", category: "ToolRAG")
+
+// MARK: - Data Structures
+
+/// A curated example for tool selection
+struct ToolExample: Codable {
+    let question: String
+    let tools: [String]
+    let full_example: String
+    
+    /// Tokenized question for BM25 matching
+    var tokens: [String] {
+        tokenize(question)
+    }
+}
+
+/// Result of tool RAG retrieval
+struct ToolRAGResult {
+    var selectedTools: Set<TinyAgentToolName>
+    let examples: [ToolExample]
+    let scores: [(TinyAgentToolName, Float)]
+}
+
+// MARK: - Tokenization
+
+/// Simple tokenizer for BM25
+private func tokenize(_ text: String) -> [String] {
+    let lowercased = text.lowercased()
+    // Remove punctuation and split
+    let cleaned = lowercased.components(separatedBy: CharacterSet.alphanumerics.inverted)
+    return cleaned.filter { $0.count > 1 }  // Remove single chars
+}
+
+// MARK: - ToolRAG Service
+
+/// Service for selecting relevant tools based on user query using example matching
 actor ToolRAGService {
     static let shared = ToolRAGService()
     
-    /// Minimum confidence threshold for tool selection
-    var threshold: Float = 0.5
+    /// Number of top examples to retrieve
+    var topK: Int = 6
+    
+    /// Minimum score threshold for tool selection
+    var threshold: Float = 0.1
+    
+    /// Loaded examples from JSON
+    private var examples: [ToolExample] = []
+    
+    /// Precomputed IDF values for BM25
+    private var idfValues: [String: Float] = [:]
+    
+    /// Average document length for BM25
+    private var avgDocLength: Float = 0
+    
+    /// BM25 parameters
+    private let k1: Float = 1.5
+    private let b: Float = 0.75
     
     private init() {}
     
-    // MARK: - Keyword Mappings
+    // MARK: - Loading
     
-    /// Keywords that indicate specific tools should be selected
-    private let toolKeywords: [TinyAgentToolName: [String]] = [
-        // Contacts
-        .getPhoneNumber: [
-            "phone", "call", "number", "mobile", "cell", "contact", "dial",
-            "telephone", "reach", "phone number", "get number"
-        ],
-        .getEmailAddress: [
-            "email", "mail", "address", "contact", "e-mail", "email address",
-            "send email", "get email", "email of"
-        ],
+    /// Load examples from bundled JSON
+    func loadExamples() async throws {
+        guard examples.isEmpty else { return }  // Already loaded
         
-        // Calendar
-        .createCalendarEvent: [
-            "calendar", "event", "meeting", "schedule", "appointment", "book",
-            "create event", "add event", "set up meeting", "schedule meeting",
-            "invite", "block time", "mark calendar"
-        ],
+        // Try to load from bundle
+        guard let url = Bundle.main.url(forResource: "tool_rag_examples", withExtension: "json") else {
+            logger.warning("tool_rag_examples.json not found in bundle, using fallback")
+            loadFallbackExamples()
+            return
+        }
         
-        // Reminders
-        .createReminder: [
-            "reminder", "remind", "todo", "task", "remember", "don't forget",
-            "set reminder", "create reminder", "remind me", "to-do"
-        ],
+        let data = try Data(contentsOf: url)
+        examples = try JSONDecoder().decode([ToolExample].self, from: data)
         
-        // Mail
-        .composeNewEmail: [
-            "email", "mail", "send", "write", "compose", "draft",
-            "send email", "write email", "compose email", "new email",
-            "message to", "reach out"
-        ],
-        .replyToEmail: [
-            "reply", "respond", "answer", "reply to", "respond to",
-            "reply email", "email back"
-        ],
-        .forwardEmail: [
-            "forward", "share email", "pass along", "forward to",
-            "send forward", "forward email"
-        ],
+        // Compute IDF values
+        computeIDF()
         
-        // Notes
-        .createNote: [
-            "note", "write", "jot", "record", "document", "create note",
-            "new note", "take note", "write down", "save note"
-        ],
-        .openNote: [
-            "open note", "find note", "show note", "view note",
-            "look at note", "read note"
-        ],
-        .appendNoteContent: [
-            "append", "add to note", "update note", "extend note",
-            "add content", "append to"
-        ],
+        logger.info("Loaded \(self.examples.count) tool RAG examples")
+    }
+    
+    /// Compute IDF values for all terms
+    private func computeIDF() {
+        var documentFrequency: [String: Int] = [:]
+        var totalLength = 0
         
-        // Messages
-        .sendSMS: [
-            "sms", "text", "message", "imessage", "send text", "text message",
-            "send message", "send sms", "notify", "let know", "tell"
-        ],
+        for example in examples {
+            let tokens = Set(example.tokens)  // Unique tokens per doc
+            for token in tokens {
+                documentFrequency[token, default: 0] += 1
+            }
+            totalLength += example.tokens.count
+        }
         
-        // Maps
-        .mapsOpenLocation: [
-            "location", "place", "where", "find", "map", "show on map",
-            "open location", "navigate to", "find place", "search location"
-        ],
-        .mapsShowDirections: [
-            "directions", "route", "how to get", "navigate", "drive to",
-            "walk to", "get directions", "show directions", "way to",
-            "from", "to"  // Common in "directions from X to Y"
-        ],
+        let n = Float(examples.count)
+        avgDocLength = Float(totalLength) / n
         
-        // Files
-        .openAndGetFilePath: [
-            "file", "document", "find file", "open file", "search file",
-            "locate", "where is", "look for file", "find document",
-            "open document"
-        ],
-        .summarizePDF: [
-            "pdf", "summarize", "summary", "read pdf", "extract",
-            "summarize pdf", "pdf summary", "what's in"
-        ],
-        
-        // Zoom
-        .getZoomMeetingLink: [
-            "zoom", "video call", "meeting link", "create zoom",
-            "zoom meeting", "video meeting", "start zoom", "zoom link"
+        for (term, df) in documentFrequency {
+            // IDF with smoothing
+            idfValues[term] = log((n - Float(df) + 0.5) / (Float(df) + 0.5) + 1)
+        }
+    }
+    
+    /// Fallback examples when JSON not available
+    private func loadFallbackExamples() {
+        examples = [
+            ToolExample(
+                question: "Get John's phone number",
+                tools: ["get_phone_number"],
+                full_example: "Question: Get John's phone number.\n1. get_phone_number(\"John\")\n2. join()<END_OF_PLAN>"
+            ),
+            ToolExample(
+                question: "Create a note titled Meeting Notes with bullet points",
+                tools: ["create_note"],
+                full_example: "Question: Create a note titled Meeting Notes.\n1. create_note(\"Meeting Notes\", \"- Item 1\\n- Item 2\", None)\n2. join()<END_OF_PLAN>"
+            ),
+            ToolExample(
+                question: "Create a reminder to call mom tomorrow",
+                tools: ["create_reminder"],
+                full_example: "Question: Remind me to call mom tomorrow.\n1. create_reminder(\"Call mom\", \"tomorrow\", None, None)\n2. join()<END_OF_PLAN>"
+            ),
+            ToolExample(
+                question: "Schedule a meeting with the team tomorrow at 2 PM",
+                tools: ["create_calendar_event"],
+                full_example: "Question: Schedule a meeting tomorrow at 2 PM.\n1. create_calendar_event(\"Team Meeting\", \"2024-01-15 14:00:00\", \"2024-01-15 15:00:00\", \"\", [], \"\", None)\n2. join()<END_OF_PLAN>"
+            ),
+            ToolExample(
+                question: "Text Sarah about the meeting change",
+                tools: ["get_phone_number", "send_sms"],
+                full_example: "Question: Text Sarah about the meeting.\n1. get_phone_number(\"Sarah\")\n2. send_sms([$1], \"Meeting time changed\")\n3. join()<END_OF_PLAN>"
+            ),
+            ToolExample(
+                question: "Show me directions to Apple Park",
+                tools: ["maps_show_directions"],
+                full_example: "Question: Show directions to Apple Park.\n1. maps_show_directions(\"\", \"Apple Park\", \"d\")\n2. join()<END_OF_PLAN>"
+            ),
+            ToolExample(
+                question: "Find the nearest coffee shop",
+                tools: ["maps_open_location"],
+                full_example: "Question: Find nearest coffee shop.\n1. maps_open_location(\"coffee shop\")\n2. join()<END_OF_PLAN>"
+            ),
+            ToolExample(
+                question: "Open the note called Project Ideas",
+                tools: ["open_note"],
+                full_example: "Question: Open the note Project Ideas.\n1. open_note(\"Project Ideas\", None)\n2. join()<END_OF_PLAN>"
+            ),
+            ToolExample(
+                question: "Add more items to my shopping list note",
+                tools: ["append_note_content"],
+                full_example: "Question: Add to shopping list note.\n1. append_note_content(\"Shopping List\", \"- More items\", None)\n2. join()<END_OF_PLAN>"
+            ),
+            ToolExample(
+                question: "Email the project update to the team",
+                tools: ["compose_new_email"],
+                full_example: "Question: Email project update.\n1. compose_new_email([\"team@example.com\"], [], \"Project Update\", \"Here is the update.\", [])\n2. join()<END_OF_PLAN>"
+            ),
         ]
-    ]
-    
-    /// Negative keywords that reduce confidence
-    private let negativeKeywords: [TinyAgentToolName: [String]] = [
-        .sendSMS: ["email", "mail"],  // If email is mentioned, probably not SMS
-        .composeNewEmail: ["sms", "text message"],  // If SMS is mentioned, probably not email
-        .getPhoneNumber: ["email address"],
-        .getEmailAddress: ["phone number", "call"],
-    ]
-    
-    /// Context boosters - keywords that boost confidence when combined
-    private let contextBoosters: [String: Set<TinyAgentToolName>] = [
-        "urgent": [.sendSMS, .composeNewEmail],
-        "asap": [.sendSMS, .composeNewEmail],
-        "tomorrow": [.createCalendarEvent, .createReminder],
-        "next week": [.createCalendarEvent],
-        "meeting": [.createCalendarEvent, .getZoomMeetingLink],
-        "work": [.createCalendarEvent, .composeNewEmail, .createNote],
-    ]
+        computeIDF()
+    }
     
     // MARK: - Tool Selection
     
-    /// Select relevant tools for a query
-    func selectTools(for query: String) -> Set<TinyAgentToolName> {
-        let scores = computeScores(for: query)
-        return Set(scores.filter { $0.value >= threshold }.map { $0.key })
-    }
-    
-    /// Select tools with scores (for debugging)
-    func selectToolsWithScores(for query: String) -> [(TinyAgentToolName, Float)] {
-        let scores = computeScores(for: query)
-        return scores
-            .filter { $0.value >= threshold }
-            .sorted { $0.value > $1.value }
-            .map { ($0.key, $0.value) }
-    }
-    
-    /// Compute confidence scores for each tool
-    private func computeScores(for query: String) -> [TinyAgentToolName: Float] {
-        let queryLower = query.lowercased()
-        let queryWords = Set(queryLower.components(separatedBy: .whitespaces))
-        
-        var scores: [TinyAgentToolName: Float] = [:]
-        
-        for tool in TinyAgentToolName.allCases {
-            var score: Float = 0.0
-            
-            // Check positive keywords
-            if let keywords = toolKeywords[tool] {
-                for keyword in keywords {
-                    if queryLower.contains(keyword) {
-                        // Multi-word keywords get higher scores
-                        let wordCount = keyword.components(separatedBy: " ").count
-                        score += Float(wordCount) * 0.3
-                    }
-                }
-            }
-            
-            // Apply negative keywords
-            if let negatives = negativeKeywords[tool] {
-                for negative in negatives {
-                    if queryLower.contains(negative) {
-                        score -= 0.4
-                    }
-                }
-            }
-            
-            // Apply context boosters
-            for (booster, boostedTools) in contextBoosters {
-                if queryLower.contains(booster) && boostedTools.contains(tool) {
-                    score += 0.15
-                }
-            }
-            
-            // Cap score at 1.0
-            scores[tool] = min(max(score, 0), 1.0)
+    /// Select relevant tools for a query using BM25 example matching
+    func selectTools(for query: String) async -> ToolRAGResult {
+        // Ensure examples are loaded
+        if examples.isEmpty {
+            try? await loadExamples()
         }
         
-        return scores
+        let queryTokens = tokenize(query)
+        
+        // Score all examples using BM25
+        var exampleScores: [(ToolExample, Float)] = []
+        
+        for example in examples {
+            let score = bm25Score(queryTokens: queryTokens, docTokens: example.tokens)
+            if score > 0 {
+                exampleScores.append((example, score))
+            }
+        }
+        
+        // Sort by score and take top K
+        exampleScores.sort { $0.1 > $1.1 }
+        let topExamples = Array(exampleScores.prefix(topK))
+        
+        // Aggregate tool scores from top examples
+        var toolScores: [TinyAgentToolName: Float] = [:]
+        var toolCounts: [TinyAgentToolName: Int] = [:]
+        
+        for (example, score) in topExamples {
+            for toolName in example.tools {
+                if let tool = TinyAgentToolName(rawValue: toolName) {
+                    toolScores[tool, default: 0] += score
+                    toolCounts[tool, default: 0] += 1
+                }
+            }
+        }
+        
+        // Normalize scores
+        let maxScore = toolScores.values.max() ?? 1.0
+        for (tool, score) in toolScores {
+            toolScores[tool] = score / maxScore
+        }
+        
+        // Apply intent-based filtering
+        let filteredScores = applyIntentFiltering(query: query, scores: toolScores)
+        
+        // Select tools above threshold
+        let selectedTools = Set(filteredScores.filter { $0.value >= threshold }.map { $0.key })
+        
+        // Get sorted scores for debugging
+        let sortedScores = filteredScores
+            .sorted { $0.value > $1.value }
+            .map { ($0.key, $0.value) }
+        
+        logger.debug("Query: \(query)")
+        logger.debug("Top tools: \(sortedScores.prefix(5).map { "\($0.0.rawValue): \(String(format: "%.2f", $0.1))" }.joined(separator: ", "))")
+        
+        return ToolRAGResult(
+            selectedTools: selectedTools,
+            examples: topExamples.map { $0.0 },
+            scores: sortedScores
+        )
+    }
+    
+    /// Compute BM25 score between query and document
+    private func bm25Score(queryTokens: [String], docTokens: [String]) -> Float {
+        let docLength = Float(docTokens.count)
+        let docTokenCounts = Dictionary(grouping: docTokens) { $0 }.mapValues { $0.count }
+        
+        var score: Float = 0
+        
+        for token in Set(queryTokens) {
+            guard let tf = docTokenCounts[token] else { continue }
+            let idf = idfValues[token] ?? 0
+            
+            let tfNorm = (Float(tf) * (k1 + 1)) / (Float(tf) + k1 * (1 - b + b * docLength / avgDocLength))
+            score += idf * tfNorm
+        }
+        
+        return score
+    }
+    
+    /// Apply intent-based filtering to handle ambiguous cases
+    private func applyIntentFiltering(query: String, scores: [TinyAgentToolName: Float]) -> [TinyAgentToolName: Float] {
+        var filtered = scores
+        let queryLower = query.lowercased()
+        
+        // Intent detection patterns
+        let createIntent = queryLower.contains("create") || queryLower.contains("new") || 
+                          queryLower.contains("make") || queryLower.contains("write")
+        let openIntent = queryLower.contains("open") || queryLower.contains("show") || 
+                        queryLower.contains("view") || queryLower.contains("read")
+        let appendIntent = queryLower.contains("add to") || queryLower.contains("append") || 
+                          queryLower.contains("update") || queryLower.contains("extend")
+        
+        // Notes: disambiguate create vs open vs append
+        if createIntent && !openIntent && !appendIntent {
+            // Boost create_note, suppress open_note and append_note_content
+            filtered[.createNote] = (filtered[.createNote] ?? 0) + 0.3
+            filtered[.openNote] = (filtered[.openNote] ?? 0) * 0.3
+            filtered[.appendNoteContent] = (filtered[.appendNoteContent] ?? 0) * 0.3
+        } else if openIntent && !createIntent && !appendIntent {
+            filtered[.openNote] = (filtered[.openNote] ?? 0) + 0.3
+            filtered[.createNote] = (filtered[.createNote] ?? 0) * 0.5
+        } else if appendIntent {
+            filtered[.appendNoteContent] = (filtered[.appendNoteContent] ?? 0) + 0.3
+            filtered[.createNote] = (filtered[.createNote] ?? 0) * 0.5
+        }
+        
+        // SMS vs Email disambiguation
+        let smsIntent = queryLower.contains("text") || queryLower.contains("sms") || 
+                       queryLower.contains("message") || queryLower.contains("imessage")
+        let emailIntent = queryLower.contains("email") || queryLower.contains("mail")
+        
+        if smsIntent && !emailIntent {
+            filtered[.sendSMS] = (filtered[.sendSMS] ?? 0) + 0.2
+            filtered[.composeNewEmail] = (filtered[.composeNewEmail] ?? 0) * 0.3
+        } else if emailIntent && !smsIntent {
+            filtered[.composeNewEmail] = (filtered[.composeNewEmail] ?? 0) + 0.2
+            filtered[.sendSMS] = (filtered[.sendSMS] ?? 0) * 0.3
+        }
+        
+        // Directions vs Location
+        let directionsIntent = queryLower.contains("direction") || queryLower.contains("how to get") ||
+                              queryLower.contains("route") || queryLower.contains("navigate")
+        let locationIntent = queryLower.contains("find") || queryLower.contains("where") ||
+                            queryLower.contains("nearest") || queryLower.contains("locate")
+        
+        if directionsIntent && !locationIntent {
+            filtered[.mapsShowDirections] = (filtered[.mapsShowDirections] ?? 0) + 0.2
+            filtered[.mapsOpenLocation] = (filtered[.mapsOpenLocation] ?? 0) * 0.5
+        } else if locationIntent && !directionsIntent {
+            filtered[.mapsOpenLocation] = (filtered[.mapsOpenLocation] ?? 0) + 0.2
+        }
+        
+        return filtered
     }
     
     // MARK: - In-Context Examples
     
-    /// Get relevant in-context examples for selected tools
-    func getExamples(for tools: Set<TinyAgentToolName>, maxExamples: Int = 3) -> String {
-        var examples: [String] = []
-        
-        for tool in tools {
-            if let example = toolExamples[tool], examples.count < maxExamples {
-                examples.append(example)
+    /// Get formatted in-context examples for the selected tools
+    func getExamplesPrompt(for result: ToolRAGResult, maxExamples: Int = 3) -> String {
+        let relevantExamples = result.examples
+            .filter { example in
+                // Only include examples that use selected tools
+                example.tools.contains { toolName in
+                    result.selectedTools.contains { $0.rawValue == toolName }
+                }
             }
-        }
+            .prefix(maxExamples)
         
-        if examples.isEmpty {
+        if relevantExamples.isEmpty {
             return ""
         }
         
-        return examples.joined(separator: "\n###\n")
+        return relevantExamples.map { $0.full_example }.joined(separator: "\n###\n")
     }
     
-    /// In-context examples for each tool
-    private let toolExamples: [TinyAgentToolName: String] = [
-        .getPhoneNumber: """
-            Question: Get John's phone number.
-            1. get_phone_number("John")
-            Thought: I have successfully found the phone number.
-            2. join()<END_OF_PLAN>
-            """,
-        
-        .getEmailAddress: """
-            Question: What is Sarah's email address?
-            1. get_email_address("Sarah")
-            Thought: I have successfully found the email address.
-            2. join()<END_OF_PLAN>
-            """,
-        
-        .createCalendarEvent: """
-            Question: Schedule a meeting with the team tomorrow at 2 PM.
-            1. create_calendar_event("Team Meeting", "2024-01-15 14:00:00", "2024-01-15 15:00:00", "", [], "", None)
-            Thought: I have successfully created the calendar event.
-            2. join()<END_OF_PLAN>
-            """,
-        
-        .createReminder: """
-            Question: Remind me to call mom tomorrow.
-            1. create_reminder("Call mom", "2024-01-15 09:00:00", None, None)
-            Thought: I have successfully created the reminder.
-            2. join()<END_OF_PLAN>
-            """,
-        
-        .composeNewEmail: """
-            Question: Send an email to john@example.com about the project update.
-            1. compose_new_email(["john@example.com"], [], "Project Update", "", [])
-            Thought: I have successfully composed the email.
-            2. join()<END_OF_PLAN>
-            """,
-        
-        .sendSMS: """
-            Question: Text Sarah about the meeting change.
-            1. get_phone_number("Sarah")
-            2. send_sms([$1], "Hey, just wanted to let you know the meeting time has changed.")
-            Thought: I have successfully sent the message.
-            3. join()<END_OF_PLAN>
-            """,
-        
-        .mapsShowDirections: """
-            Question: Show me directions to Apple Park.
-            1. maps_show_directions("", "Apple Park", "d")
-            Thought: I have successfully shown the directions.
-            2. join()<END_OF_PLAN>
-            """,
-        
-        .mapsOpenLocation: """
-            Question: Find the nearest coffee shop.
-            1. maps_open_location("coffee shop")
-            Thought: I have opened the location in Maps.
-            2. join()<END_OF_PLAN>
-            """,
-        
-        .createNote: """
-            Question: Create a note with my meeting notes.
-            1. create_note("Meeting Notes", "Notes from today's meeting:\\n- Action items discussed\\n- Next steps planned", None)
-            Thought: I have successfully created the note.
-            2. join()<END_OF_PLAN>
-            """,
-        
-        .openAndGetFilePath: """
-            Question: Find the project proposal document.
-            1. open_and_get_file_path("project proposal")
-            Thought: I have found and opened the file.
-            2. join()<END_OF_PLAN>
-            """,
-        
-        .getZoomMeetingLink: """
-            Question: Create a Zoom meeting for the team sync.
-            1. get_zoom_meeting_link("Team Sync", "2024-01-15 10:00:00", 60, [])
-            Thought: I have created the Zoom meeting.
-            2. join()<END_OF_PLAN>
-            """
-    ]
 }
+
 
 // MARK: - Prompt Building Extension
 
 extension ToolRAGService {
     
-    /// Build the system prompt with selected tools
-    func buildSystemPrompt(for tools: Set<TinyAgentToolName>) async -> String {
-        let toolsPrompt = await ToolRegistry.shared.generateToolsPrompt(for: tools)
-        let examples = getExamples(for: tools)
+    /// Build the system prompt with selected tools and examples
+    func buildSystemPrompt(for result: ToolRAGResult) async -> String {
+        let toolsPrompt = await ToolRegistry.shared.generateToolsPrompt(for: result.selectedTools)
+        let examples = getExamplesPrompt(for: result)
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let currentDate = dateFormatter.string(from: Date())

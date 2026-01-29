@@ -255,7 +255,8 @@ class SelfTest {
         startTime = Date()
         
         let testQuery = "Send a text message to John about the meeting"
-        let selectedTools = await ToolRAGService.shared.selectTools(for: testQuery)
+        let ragResult = await ToolRAGService.shared.selectTools(for: testQuery)
+        let selectedTools = ragResult.selectedTools
         let elapsed7 = Date().timeIntervalSince(startTime)
         
         if selectedTools.contains(.sendSMS) || selectedTools.contains(.getPhoneNumber) {

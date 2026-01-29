@@ -78,7 +78,8 @@ class AutomationViewModel: ObservableObject {
             userPrompt = prompts.user
             
             // Get selected tools
-            selectedTools = await ToolRAGService.shared.selectTools(for: prompts.user)
+            let ragResult = await ToolRAGService.shared.selectTools(for: prompts.user)
+            selectedTools = ragResult.selectedTools
             if selectedTools.isEmpty {
                 selectedTools = await ToolRegistry.shared.getEnabledToolNames()
             }

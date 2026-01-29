@@ -145,11 +145,14 @@ class ActionService: ObservableObject {
     /// Get the prompts that would be sent (for debugging/preview)
     func getPrompts(context: ActionLLMContext) async -> (system: String, user: String) {
         let query = buildQuery(from: context)
-        let selectedTools = await ToolRAGService.shared.selectTools(for: query)
-        let toolsToUse = selectedTools.isEmpty 
-            ? await ToolRegistry.shared.getEnabledToolNames() 
-            : selectedTools
-        let systemPrompt = await ToolRAGService.shared.buildSystemPrompt(for: toolsToUse)
+        var ragResult = await ToolRAGService.shared.selectTools(for: query)
+        
+        // If no tools selected, use all enabled tools
+        if ragResult.selectedTools.isEmpty {
+            ragResult.selectedTools = await ToolRegistry.shared.getEnabledToolNames()
+        }
+        
+        let systemPrompt = await ToolRAGService.shared.buildSystemPrompt(for: ragResult)
         return (systemPrompt, query)
     }
     
