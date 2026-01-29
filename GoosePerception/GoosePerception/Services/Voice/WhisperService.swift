@@ -7,6 +7,7 @@
 
 import Foundation
 import AVFoundation
+import AudioToolbox
 import WhisperKit
 
 // MARK: - Whisper Transcription Service
@@ -176,11 +177,14 @@ final class AudioCaptureService: @unchecked Sendable {
     private var audioEngine: AVAudioEngine?
     private var audioFile: AVAudioFile?
     private var tempAudioURL: URL?
-    
+    private var captureSession: AVCaptureSession?
+    private var audioOutput: AVCaptureAudioDataOutput?
+
     private let whisperService: WhisperService
     private let database: Database
-    
+
     private var _isCapturing = false
+    private var _selectedDeviceID: String?
     
     /// Duration of audio chunks to transcribe (in seconds)
     private let chunkDuration: TimeInterval = 10.0
@@ -209,6 +213,12 @@ final class AudioCaptureService: @unchecked Sendable {
         self.whisperService = whisperService
         self.database = database
     }
+
+    func setAudioDevice(_ deviceID: String?) {
+        lock.lock()
+        _selectedDeviceID = deviceID
+        lock.unlock()
+    }
     
     func setTranscriptionCallback(_ callback: @escaping @Sendable (String) -> Void) {
         lock.lock()
@@ -222,8 +232,9 @@ final class AudioCaptureService: @unchecked Sendable {
             lock.unlock()
             return
         }
+        let selectedDevice = _selectedDeviceID
         lock.unlock()
-        
+
         // Check microphone permission
         let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
         if micStatus == .notDetermined {
@@ -234,7 +245,7 @@ final class AudioCaptureService: @unchecked Sendable {
         } else if micStatus != .authorized {
             throw WhisperError.microphonePermissionDenied
         }
-        
+
         // Initialize WhisperKit if needed
         if await !whisperService.isLoaded {
             print("🎤 Loading WhisperKit model (first time may download ~150MB)...")
@@ -243,39 +254,94 @@ final class AudioCaptureService: @unchecked Sendable {
             }
             try await whisperService.initialize()
         }
-        
+
+        // Find the audio device to use
+        let audioDevice: AVCaptureDevice?
+        if let deviceID = selectedDevice {
+            audioDevice = AVCaptureDevice.devices(for: .audio).first { $0.uniqueID == deviceID }
+        } else {
+            audioDevice = AVCaptureDevice.default(for: .audio)
+        }
+
+        guard let device = audioDevice else {
+            throw WhisperError.audioProcessingFailed("No audio device available")
+        }
+
+        NSLog("🎤 Using audio device: %@", device.localizedName)
+
         // Setup audio engine on dedicated queue
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             audioQueue.async { [self] in
                 do {
                     let engine = AVAudioEngine()
+
+                    // Set the input device
+                    #if os(macOS)
+                    if let audioUnit = engine.inputNode.audioUnit {
+                        var deviceID = device.uniqueID
+                        if let cfDeviceUID = deviceID as CFString? {
+                            var address = AudioObjectPropertyAddress(
+                                mSelector: kAudioHardwarePropertyTranslateUIDToDevice,
+                                mScope: kAudioObjectPropertyScopeGlobal,
+                                mElement: kAudioObjectPropertyElementMain
+                            )
+                            var audioDeviceID: AudioDeviceID = 0
+                            var propSize = UInt32(MemoryLayout<AudioDeviceID>.size)
+                            var uid = cfDeviceUID
+
+                            let status = AudioObjectGetPropertyData(
+                                AudioObjectID(kAudioObjectSystemObject),
+                                &address,
+                                UInt32(MemoryLayout<CFString>.size),
+                                &uid,
+                                &propSize,
+                                &audioDeviceID
+                            )
+
+                            if status == noErr {
+                                let setStatus = AudioUnitSetProperty(
+                                    audioUnit,
+                                    kAudioOutputUnitProperty_CurrentDevice,
+                                    kAudioUnitScope_Global,
+                                    0,
+                                    &audioDeviceID,
+                                    UInt32(MemoryLayout<AudioDeviceID>.size)
+                                )
+                                if setStatus == noErr {
+                                    NSLog("🎤 Set audio input device to: %@", device.localizedName)
+                                }
+                            }
+                        }
+                    }
+                    #endif
+
                     let inputNode = engine.inputNode
                     let recordingFormat = inputNode.outputFormat(forBus: 0)
-                    
+
                     // Create temp directory for audio files
                     let tempDir = FileManager.default.temporaryDirectory
                         .appendingPathComponent("GoosePerception", isDirectory: true)
                     try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                    
+
                     // Start new audio file
                     try self.startNewAudioFileSync(in: tempDir, format: recordingFormat)
-                    
+
                     self.lock.lock()
                     self.recordingStartTime = Date()
                     self.lastTranscriptionTime = Date()
                     self.lock.unlock()
-                    
+
                     // Track audio levels for UI feedback
                     var frameCount = 0
                     var lastLevelLog = Date()
-                    
+
                     // Install audio tap
                     inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, time in
                         guard let self = self else { return }
-                        
+
                         // Write buffer to file synchronously on audio queue
                         self.writeBufferSync(buffer)
-                        
+
                         // Calculate RMS level for feedback
                         let channelData = buffer.floatChannelData?[0]
                         let frameLength = Int(buffer.frameLength)
@@ -286,7 +352,7 @@ final class AudioCaptureService: @unchecked Sendable {
                             }
                             rms = sqrt(rms / Float(frameLength))
                         }
-                        
+
                         // Update UI audio level (throttled)
                         frameCount += 1
                         if frameCount % 5 == 0 {
@@ -295,7 +361,7 @@ final class AudioCaptureService: @unchecked Sendable {
                                 ServiceStateManager.shared.audioLevel = level
                             }
                         }
-                        
+
                         // Log periodically
                         let now = Date()
                         if now.timeIntervalSince(lastLevelLog) >= 15 && rms > 0.001 {
@@ -304,24 +370,24 @@ final class AudioCaptureService: @unchecked Sendable {
                                 ActivityLogStore.shared.log(.voice, "🎤 Listening... (level: \(String(format: "%.0f", rms * 1000)))")
                             }
                         }
-                        
+
                         // Check if we should transcribe the chunk
                         self.checkAndTranscribeChunkSync()
                     }
-                    
+
                     engine.prepare()
                     try engine.start()
-                    
+
                     self.lock.lock()
                     self.audioEngine = engine
                     self._isCapturing = true
                     self.lock.unlock()
-                    
-                    print("🎤 Audio capture started (WhisperKit)")
+
+                    print("🎤 Audio capture started (WhisperKit) using: \(device.localizedName)")
                     Task { @MainActor in
-                        ActivityLogStore.shared.log(.voice, "🎤 Voice capture started - listening with WhisperKit")
+                        ActivityLogStore.shared.log(.voice, "🎤 Voice capture started - \(device.localizedName)")
                     }
-                    
+
                     continuation.resume()
                 } catch {
                     continuation.resume(throwing: error)

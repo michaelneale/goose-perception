@@ -131,6 +131,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(forName: .runAnalysisNow, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.runAnalysis() }
         }
+        NotificationCenter.default.addObserver(forName: .startFaceCalibration, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                // Reduce detection interval during calibration for faster samples
+                await self?.cameraCaptureService?.setDetectionInterval(0.5)
+            }
+        }
+        // Update calibration when it completes
+        NotificationCenter.default.addObserver(forName: .updateFaceCalibration, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                await self?.cameraCaptureService?.updateCalibration(FaceCalibrationManager.shared.calibrationData)
+                await self?.cameraCaptureService?.setDetectionInterval(2.0)
+            }
+        }
     }
     
     private func initializeServices() async {
@@ -230,7 +243,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
               prefs.screenCaptureEnabled ? "ON" : "OFF",
               prefs.voiceCaptureEnabled ? "ON" : "OFF",
               prefs.faceCaptureEnabled ? "ON" : "OFF")
-        
+
+        // Load device preferences
+        let deviceManager = DeviceManager.shared
+        NSLog("🔧 RESTORE: audio device=%@, video device=%@",
+              deviceManager.selectedAudioDeviceID ?? "default",
+              deviceManager.selectedVideoDeviceID ?? "default")
+
         // Screen
         if prefs.screenCaptureEnabled {
             do {
@@ -243,10 +262,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 prefs.screenCaptureEnabled = false
             }
         }
-        
-        // Voice
+
+        // Voice - apply saved device preference
         if prefs.voiceCaptureEnabled {
             do {
+                audioCaptureService.setAudioDevice(deviceManager.selectedAudioDeviceID)
                 try await audioCaptureService.startCapturing()
                 stateManager.isVoiceCaptureRunning = true
                 menuBarController.updateVoiceState(isCapturing: true)
@@ -256,10 +276,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 prefs.voiceCaptureEnabled = false
             }
         }
-        
-        // Face
+
+        // Face - apply saved device preference and calibration
         if prefs.faceCaptureEnabled {
             do {
+                await cameraCaptureService.setVideoDevice(deviceManager.selectedVideoDeviceID)
+                await cameraCaptureService.updateCalibration(FaceCalibrationManager.shared.calibrationData)
                 try await cameraCaptureService.startCapturing()
                 stateManager.isFaceCaptureRunning = true
                 menuBarController.updateFaceState(isCapturing: true)
@@ -359,19 +381,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ToastNotificationManager.shared.showError("Services not ready yet")
             return
         }
-        
+
         let newState = !stateManager.isVoiceCaptureRunning
-        
+
         // Update UI immediately
         stateManager.isVoiceCaptureRunning = newState
         menuBarController.updateVoiceState(isCapturing: newState)
-        
+
         // Save preference immediately
         prefs.voiceCaptureEnabled = newState
-        
+
         Task {
             if newState {
                 do {
+                    // Set the selected audio device before starting
+                    audioCaptureService.setAudioDevice(DeviceManager.shared.selectedAudioDeviceID)
                     try await audioCaptureService.startCapturing()
                     ActivityLogStore.shared.log(.voice, "Voice capture started")
                     ToastNotificationManager.shared.showSuccess("Voice capture started")
@@ -390,25 +414,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
-    
+
     private func toggleFaceCapture() {
         guard stateManager.servicesReady else {
             ToastNotificationManager.shared.showError("Services not ready yet")
             return
         }
-        
+
         let newState = !stateManager.isFaceCaptureRunning
-        
+
         // Update UI immediately
         stateManager.isFaceCaptureRunning = newState
         menuBarController.updateFaceState(isCapturing: newState)
-        
+
         // Save preference immediately
         prefs.faceCaptureEnabled = newState
-        
+
         Task {
             if newState {
                 do {
+                    // Set the selected camera device before starting
+                    await cameraCaptureService.setVideoDevice(DeviceManager.shared.selectedVideoDeviceID)
                     try await cameraCaptureService.startCapturing()
                     ActivityLogStore.shared.log(.face, "Face detection started")
                     ToastNotificationManager.shared.showSuccess("Face detection started")
@@ -431,18 +457,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Dashboard
     
     private var dashboardWindow: NSWindow?
-    
+    private var dashboardWindowDelegate: DashboardWindowDelegate?
+
     private func openDashboard() {
-        if let window = dashboardWindow {
+        // Guard against opening before services are initialized
+        guard stateManager.servicesReady, database != nil else {
+            ToastNotificationManager.shared.showError("Services still loading, please wait...")
+            return
+        }
+
+        // Check if window exists and is valid
+        if let window = dashboardWindow, window.isVisible {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        
+
+        // Clear any stale reference
+        dashboardWindow = nil
+        dashboardWindowDelegate = nil
+
         let dashboardView = DashboardView(database: database)
         let hostingController = NSHostingController(rootView: dashboardView)
         hostingController.preferredContentSize = NSSize(width: 1000, height: 700)
-        
+
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -454,9 +492,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.minSize = NSSize(width: 800, height: 500)
         window.setContentSize(NSSize(width: 1000, height: 700))
         window.center()
+        window.isReleasedWhenClosed = false
+
+        // Set up delegate to clear reference when window closes
+        let delegate = DashboardWindowDelegate { [weak self] in
+            self?.dashboardWindow = nil
+            self?.dashboardWindowDelegate = nil
+        }
+        window.delegate = delegate
+        dashboardWindowDelegate = delegate
+
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        
+
         dashboardWindow = window
     }
     
@@ -473,6 +521,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        // Don't quit when dashboard window is closed - this is a menu bar app
+        return false
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         NSLog("👋 Shutting down...")
         Task {
@@ -481,5 +534,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             cameraCaptureService?.stopCapturing()
             await directoryActivityService?.stopCapturing()
         }
+    }
+}
+
+// MARK: - Dashboard Window Delegate
+
+class DashboardWindowDelegate: NSObject, NSWindowDelegate {
+    private let onClose: () -> Void
+
+    init(onClose: @escaping () -> Void) {
+        self.onClose = onClose
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        onClose()
     }
 }
