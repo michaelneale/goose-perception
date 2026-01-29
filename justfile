@@ -17,33 +17,9 @@ build-dev:
 run *ARGS:
     cd GoosePerception && ./run.sh {{ARGS}}
 
-# Run fast tests (unit + integration with mocks)
+# Run all tests (unit + integration + LLM)
 test:
     cd GoosePerception && ./run.sh --test
-
-# Run all tests including LLM (slow, loads model)
-test-full:
-    cd GoosePerception && ./run.sh --test --full
-
-# Run only TinyAgent integration tests
-test-tinyagent:
-    cd GoosePerception && ./run.sh --test-tinyagent
-
-# Run integration tests with real LLM
-test-llm:
-    cd GoosePerception && ./run.sh --test-tinyagent-llm
-
-# Run E2E tests (database, pipeline)
-test-e2e:
-    cd GoosePerception && ./run.sh --test --e2e
-
-# Run the existing self-test harness
-test-harness:
-    cd GoosePerception && ./run.sh --test-harness
-
-# Self-test (existing)
-self-test:
-    cd GoosePerception && ./run.sh --self-test
 
 # Clean build artifacts
 clean:

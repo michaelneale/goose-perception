@@ -22,7 +22,9 @@ struct GoosePerceptionApp: App {
         }
         
         // TinyAgent integration tests (parser + mock executor)
-        if CommandLine.arguments.contains("--test-tinyagent") {
+        // --test-tinyagent = fast mock tests only
+        // --test-tinyagent-llm = includes real LLM tests
+        if CommandLine.arguments.contains("--test-tinyagent") || CommandLine.arguments.contains("--test-tinyagent-llm") {
             let includeLLM = CommandLine.arguments.contains("--test-tinyagent-llm")
             Task { @MainActor in
                 await TinyAgentIntegrationTests.run(includeLLM: includeLLM)
