@@ -787,8 +787,6 @@ class TinyAgentIntegrationTests {
             )
         ]
         
-        let parser = LLMCompilerParser()
-        
         for testCase in llmTestCases {
             log("Testing: \(testCase.name)")
             log("  Query: \(testCase.query)")

@@ -1,12 +1,22 @@
 import Foundation
 import GRDB
 
-struct VoiceSegment: Codable, FetchableRecord, MutablePersistableRecord {
+struct VoiceSegment: Codable, FetchableRecord, MutablePersistableRecord, Hashable {
+    static func == (lhs: VoiceSegment, rhs: VoiceSegment) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
     var id: Int64?
     var timestamp: Date
     var endTimestamp: Date?
     var transcript: String
     var confidence: Double?
+    var collaboratorsExtracted: Bool
+    var todosExtracted: Bool
     
     static let databaseTableName = "voice_segments"
     
@@ -16,6 +26,8 @@ struct VoiceSegment: Codable, FetchableRecord, MutablePersistableRecord {
         case endTimestamp = "end_timestamp"
         case transcript
         case confidence
+        case collaboratorsExtracted = "collaborators_extracted"
+        case todosExtracted = "todos_extracted"
     }
     
     mutating func didInsert(_ inserted: InsertionSuccess) {
@@ -27,13 +39,17 @@ struct VoiceSegment: Codable, FetchableRecord, MutablePersistableRecord {
         timestamp: Date = Date(),
         endTimestamp: Date? = nil,
         transcript: String,
-        confidence: Double? = nil
+        confidence: Double? = nil,
+        collaboratorsExtracted: Bool = false,
+        todosExtracted: Bool = false
     ) {
         self.id = id
         self.timestamp = timestamp
         self.endTimestamp = endTimestamp
         self.transcript = transcript
         self.confidence = confidence
+        self.collaboratorsExtracted = collaboratorsExtracted
+        self.todosExtracted = todosExtracted
     }
     
     var duration: TimeInterval? {

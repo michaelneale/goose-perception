@@ -1,7 +1,15 @@
 import Foundation
 import GRDB
 
-struct ScreenCapture: Codable, FetchableRecord, MutablePersistableRecord {
+struct ScreenCapture: Codable, FetchableRecord, MutablePersistableRecord, Hashable {
+    static func == (lhs: ScreenCapture, rhs: ScreenCapture) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
     var id: Int64?
     var timestamp: Date
     var focusedApp: String?
@@ -10,6 +18,10 @@ struct ScreenCapture: Codable, FetchableRecord, MutablePersistableRecord {
     var ocrText: String?
     var vlmDescription: String?
     var processed: Bool
+    var collaboratorsExtracted: Bool
+    var projectsExtracted: Bool
+    var interestsExtracted: Bool
+    var todosExtracted: Bool
     
     static let databaseTableName = "screen_captures"
     
@@ -22,6 +34,10 @@ struct ScreenCapture: Codable, FetchableRecord, MutablePersistableRecord {
         case ocrText = "ocr_text"
         case vlmDescription = "vlm_description"
         case processed
+        case collaboratorsExtracted = "collaborators_extracted"
+        case projectsExtracted = "projects_extracted"
+        case interestsExtracted = "interests_extracted"
+        case todosExtracted = "todos_extracted"
     }
     
     mutating func didInsert(_ inserted: InsertionSuccess) {
@@ -36,7 +52,11 @@ struct ScreenCapture: Codable, FetchableRecord, MutablePersistableRecord {
         allWindows: String? = nil,
         ocrText: String? = nil,
         vlmDescription: String? = nil,
-        processed: Bool = false
+        processed: Bool = false,
+        collaboratorsExtracted: Bool = false,
+        projectsExtracted: Bool = false,
+        interestsExtracted: Bool = false,
+        todosExtracted: Bool = false
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -46,6 +66,10 @@ struct ScreenCapture: Codable, FetchableRecord, MutablePersistableRecord {
         self.ocrText = ocrText
         self.vlmDescription = vlmDescription
         self.processed = processed
+        self.collaboratorsExtracted = collaboratorsExtracted
+        self.projectsExtracted = projectsExtracted
+        self.interestsExtracted = interestsExtracted
+        self.todosExtracted = todosExtracted
     }
 }
 

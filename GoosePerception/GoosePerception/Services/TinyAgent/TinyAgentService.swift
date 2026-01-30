@@ -129,12 +129,10 @@ class TinyAgentService: ObservableObject {
         logger.info("Loading TinyAgent model: \(model)")
         
         do {
-            let container = try await Task.detached { [weak self] in
+            let container = try await Task.detached {
                 let config = ModelConfiguration(id: model)
-                let container = try await LLMModelFactory.shared.loadContainer(configuration: config) { progress in
-                    Task { @MainActor in
-                        self?.loadState = .loading(progress: progress.fractionCompleted)
-                    }
+                let container = try await LLMModelFactory.shared.loadContainer(configuration: config) { _ in
+                    // Progress updates handled by caller
                 }
                 return container
             }.value
@@ -187,7 +185,7 @@ class TinyAgentService: ObservableObject {
         let systemPrompt = await ToolRAGService.shared.buildSystemPrompt(for: ragResult)
         
         // 3. Planning and execution loop (with replanning)
-        var currentQuery = query
+        let currentQuery = query
         var previousObservations = ""
         
         while replanCount <= maxReplans {

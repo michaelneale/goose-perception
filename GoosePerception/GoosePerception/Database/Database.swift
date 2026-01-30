@@ -1,6 +1,23 @@
 import Foundation
 import GRDB
 
+/// Types of refiners that can process captures
+enum RefinerType: String, CaseIterable {
+    case collaborators
+    case projects
+    case interests
+    case todos
+    
+    var columnName: String {
+        switch self {
+        case .collaborators: return "collaborators_extracted"
+        case .projects: return "projects_extracted"
+        case .interests: return "interests_extracted"
+        case .todos: return "todos_extracted"
+        }
+    }
+}
+
 /// Main database manager for Goose Perception
 actor Database {
     static let shared: Database = {
@@ -180,6 +197,34 @@ actor Database {
             try db.create(index: "actions_source", on: "actions", columns: ["source"])
         }
         
+        // MARK: - Migration v4: Per-refiner processing flags
+        migrator.registerMigration("v4_refiner_flags") { db in
+            // Add columns to track which refiners have processed each capture
+            try db.alter(table: "screen_captures") { t in
+                t.add(column: "collaborators_extracted", .integer).notNull().defaults(to: 0)
+            }
+            // Mark all existing processed captures as also having collaborators extracted
+            try db.execute(sql: "UPDATE screen_captures SET collaborators_extracted = processed")
+        }
+        
+        // MARK: - Migration v5: Additional refiner flags
+        migrator.registerMigration("v5_all_refiner_flags") { db in
+            // Add flags for all refiner types
+            try db.alter(table: "screen_captures") { t in
+                t.add(column: "projects_extracted", .integer).notNull().defaults(to: 0)
+                t.add(column: "interests_extracted", .integer).notNull().defaults(to: 0)
+                t.add(column: "todos_extracted", .integer).notNull().defaults(to: 0)
+            }
+            // Mark all existing processed captures as extracted
+            try db.execute(sql: "UPDATE screen_captures SET projects_extracted = processed, interests_extracted = processed, todos_extracted = processed")
+            
+            // Add flags for voice segments too
+            try db.alter(table: "voice_segments") { t in
+                t.add(column: "collaborators_extracted", .integer).notNull().defaults(to: 0)
+                t.add(column: "todos_extracted", .integer).notNull().defaults(to: 0)
+            }
+        }
+        
         return migrator
     }
     
@@ -207,6 +252,74 @@ actor Database {
         try await dbQueue.write { db in
             try db.execute(sql: "UPDATE screen_captures SET processed = 1 WHERE id = ?", arguments: [id])
         }
+    }
+    
+    // MARK: - Per-Refiner Capture Queries
+    
+    /// Get captures that haven't had a specific refiner run yet
+    func getCapturesForRefiner(_ refinerType: RefinerType, limit: Int = 100) async throws -> [ScreenCapture] {
+        try await dbQueue.read { db in
+            try ScreenCapture
+                .filter(Column(refinerType.columnName) == 0)
+                .filter(Column("ocr_text") != nil)
+                .order(Column("timestamp").desc)
+                .limit(limit)
+                .fetchAll(db)
+        }
+    }
+    
+    /// Mark captures as having had a specific refiner run
+    func markCapturesRefined(ids: [Int64], refinerType: RefinerType) async throws {
+        guard !ids.isEmpty else { return }
+        try await dbQueue.write { db in
+            try db.execute(
+                sql: "UPDATE screen_captures SET \(refinerType.columnName) = 1 WHERE id IN (\(ids.map { String($0) }.joined(separator: ",")))"
+            )
+        }
+    }
+    
+    /// Get voice segments that haven't had a specific refiner run yet
+    func getVoiceSegmentsForRefiner(_ refinerType: RefinerType, limit: Int = 100) async throws -> [VoiceSegment] {
+        guard refinerType == .collaborators || refinerType == .todos else { return [] }
+        return try await dbQueue.read { db in
+            try VoiceSegment
+                .filter(Column(refinerType.columnName) == 0)
+                .order(Column("timestamp").desc)
+                .limit(limit)
+                .fetchAll(db)
+        }
+    }
+    
+    /// Get voice segments within a time range (for temporal correlation with captures)
+    func getVoiceSegmentsInTimeRange(start: Date, end: Date, buffer: TimeInterval = 300) async throws -> [VoiceSegment] {
+        let bufferedStart = start.addingTimeInterval(-buffer)
+        let bufferedEnd = end.addingTimeInterval(buffer)
+        return try await dbQueue.read { db in
+            try VoiceSegment
+                .filter(Column("timestamp") >= bufferedStart && Column("timestamp") <= bufferedEnd)
+                .order(Column("timestamp"))
+                .fetchAll(db)
+        }
+    }
+    
+    /// Mark voice segments as having had a specific refiner run
+    func markVoiceSegmentsRefined(ids: [Int64], refinerType: RefinerType) async throws {
+        guard !ids.isEmpty else { return }
+        guard refinerType == .collaborators || refinerType == .todos else { return }
+        try await dbQueue.write { db in
+            try db.execute(
+                sql: "UPDATE voice_segments SET \(refinerType.columnName) = 1 WHERE id IN (\(ids.map { String($0) }.joined(separator: ",")))"
+            )
+        }
+    }
+    
+    // Legacy convenience methods
+    func getCapturesForCollaboratorExtraction(limit: Int = 100) async throws -> [ScreenCapture] {
+        try await getCapturesForRefiner(.collaborators, limit: limit)
+    }
+    
+    func markCollaboratorsExtracted(ids: [Int64]) async throws {
+        try await markCapturesRefined(ids: ids, refinerType: .collaborators)
     }
     
     func updateCaptureOCR(id: Int64, ocrText: String) async throws {

@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import AVFoundation
+@preconcurrency import CoreMedia
 import CoreImage
 import os.log
 
@@ -99,7 +100,8 @@ actor CameraCaptureService {
             // Get camera - use selected device or fall back to default front camera
             let camera: AVCaptureDevice?
             if let deviceID = selectedDeviceID {
-                camera = AVCaptureDevice.devices(for: .video).first { $0.uniqueID == deviceID }
+                let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .external], mediaType: .video, position: .unspecified)
+                camera = discoverySession.devices.first { $0.uniqueID == deviceID }
             } else {
                 camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front)
                     ?? AVCaptureDevice.default(for: .video)
@@ -130,10 +132,13 @@ actor CameraCaptureService {
             // Create frame handler with callback - use nonisolated handler
             let handler = CameraFrameHandler { [weak self] sampleBuffer in
                 guard let self = self else { return }
+                // Extract pixel buffer synchronously before crossing isolation boundary
+                guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+                let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
                 // Process on a separate queue to avoid blocking camera
                 self.processingQueue.async {
                     Task {
-                        await self.handleFrame(sampleBuffer)
+                        await self.handleFrameImage(ciImage)
                     }
                 }
             }
@@ -235,7 +240,7 @@ actor CameraCaptureService {
     }
     
     /// Handle frame - called on actor
-    private func handleFrame(_ sampleBuffer: CMSampleBuffer) async {
+    private func handleFrameImage(_ ciImage: CIImage) async {
         // Rate limit detection
         let now = Date()
         
@@ -245,9 +250,9 @@ actor CameraCaptureService {
         
         self.lastDetectionTime = now
         
-        // Convert to CGImage
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
-              let cgImage = createCGImage(from: pixelBuffer) else {
+        // Convert CIImage to CGImage
+        let context = CIContext()
+        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
             return
         }
         

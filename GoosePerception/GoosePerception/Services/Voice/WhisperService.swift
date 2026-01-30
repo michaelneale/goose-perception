@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import AVFoundation
+@preconcurrency import AVFoundation
 import AudioToolbox
 import WhisperKit
 
@@ -204,9 +204,7 @@ final class AudioCaptureService: @unchecked Sendable {
     private let lock = NSLock()
     
     var isCapturing: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return _isCapturing
+        lock.withLock { _isCapturing }
     }
     
     init(whisperService: WhisperService, database: Database) {
@@ -215,25 +213,24 @@ final class AudioCaptureService: @unchecked Sendable {
     }
 
     func setAudioDevice(_ deviceID: String?) {
-        lock.lock()
-        _selectedDeviceID = deviceID
-        lock.unlock()
+        lock.withLock {
+            _selectedDeviceID = deviceID
+        }
     }
     
     func setTranscriptionCallback(_ callback: @escaping @Sendable (String) -> Void) {
-        lock.lock()
-        defer { lock.unlock() }
-        self.transcriptionCallback = callback
+        lock.withLock {
+            self.transcriptionCallback = callback
+        }
     }
     
     func startCapturing() async throws {
-        lock.lock()
-        if _isCapturing {
-            lock.unlock()
+        let (alreadyCapturing, selectedDevice) = lock.withLock {
+            (_isCapturing, _selectedDeviceID)
+        }
+        if alreadyCapturing {
             return
         }
-        let selectedDevice = _selectedDeviceID
-        lock.unlock()
 
         // Check microphone permission
         let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
@@ -258,7 +255,8 @@ final class AudioCaptureService: @unchecked Sendable {
         // Find the audio device to use
         let audioDevice: AVCaptureDevice?
         if let deviceID = selectedDevice {
-            audioDevice = AVCaptureDevice.devices(for: .audio).first { $0.uniqueID == deviceID }
+            let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified)
+            audioDevice = discoverySession.devices.first { $0.uniqueID == deviceID }
         } else {
             audioDevice = AVCaptureDevice.default(for: .audio)
         }
@@ -278,8 +276,8 @@ final class AudioCaptureService: @unchecked Sendable {
                     // Set the input device
                     #if os(macOS)
                     if let audioUnit = engine.inputNode.audioUnit {
-                        var deviceID = device.uniqueID
-                        if let cfDeviceUID = deviceID as CFString? {
+                        let deviceUID = device.uniqueID
+                        if let cfDeviceUID = deviceUID as CFString? {
                             var address = AudioObjectPropertyAddress(
                                 mSelector: kAudioHardwarePropertyTranslateUIDToDevice,
                                 mScope: kAudioObjectPropertyScopeGlobal,
@@ -287,16 +285,17 @@ final class AudioCaptureService: @unchecked Sendable {
                             )
                             var audioDeviceID: AudioDeviceID = 0
                             var propSize = UInt32(MemoryLayout<AudioDeviceID>.size)
-                            var uid = cfDeviceUID
 
-                            let status = AudioObjectGetPropertyData(
-                                AudioObjectID(kAudioObjectSystemObject),
-                                &address,
-                                UInt32(MemoryLayout<CFString>.size),
-                                &uid,
-                                &propSize,
-                                &audioDeviceID
-                            )
+                            let status = withUnsafePointer(to: cfDeviceUID) { uidPtr in
+                                AudioObjectGetPropertyData(
+                                    AudioObjectID(kAudioObjectSystemObject),
+                                    &address,
+                                    UInt32(MemoryLayout<CFString>.size),
+                                    uidPtr,
+                                    &propSize,
+                                    &audioDeviceID
+                                )
+                            }
 
                             if status == noErr {
                                 let setStatus = AudioUnitSetProperty(
@@ -446,10 +445,9 @@ final class AudioCaptureService: @unchecked Sendable {
     }
     
     private func transcribeCurrentChunk() async {
-        lock.lock()
-        let audioURL = tempAudioURL
-        let engine = audioEngine
-        lock.unlock()
+        let (audioURL, engine) = lock.withLock {
+            (tempAudioURL, audioEngine)
+        }
         
         guard let audioURL = audioURL, let engine = engine else { return }
         
@@ -457,9 +455,9 @@ final class AudioCaptureService: @unchecked Sendable {
         
         // Close current file and start a new one
         let urlToTranscribe = audioURL
-        lock.lock()
-        audioFile = nil
-        lock.unlock()
+        lock.withLock {
+            audioFile = nil
+        }
         
         // Start new file for continued recording
         let tempDir = FileManager.default.temporaryDirectory
@@ -472,9 +470,9 @@ final class AudioCaptureService: @unchecked Sendable {
             return
         }
         
-        lock.lock()
-        lastTranscriptionTime = Date()
-        lock.unlock()
+        lock.withLock {
+            lastTranscriptionTime = Date()
+        }
         
         // Transcribe the completed chunk
         do {

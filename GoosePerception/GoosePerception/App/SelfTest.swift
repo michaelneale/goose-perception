@@ -198,7 +198,7 @@ class SelfTest {
                 let frontApp = NSWorkspace.shared.frontmostApplication
                 let appName = frontApp?.localizedName ?? "SelfTest"
                 
-                var capture = ScreenCapture(
+                let capture = ScreenCapture(
                     timestamp: Date(),
                     focusedApp: appName,
                     focusedWindow: "Self Test Window",

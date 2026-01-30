@@ -495,7 +495,28 @@ Be helpful but not annoying. Only suggest a break if genuinely warranted.
     
     // MARK: - Full Analysis
     
-    func analyzeCaptures(_ captures: [ScreenCapture], voiceSegments: [VoiceSegment] = [], faceEvents: [FaceEvent] = [], accumulated: AccumulatedContext = AccumulatedContext()) async throws -> AnalysisResult {
+    /// Input for each refiner - captures and voice segments that haven't been processed for that refiner
+    struct RefinerInput {
+        var captures: [ScreenCapture]
+        var voiceSegments: [VoiceSegment]
+        
+        var isEmpty: Bool { captures.isEmpty && voiceSegments.isEmpty }
+    }
+    
+    /// Per-refiner inputs - each refiner gets its own set of unprocessed data
+    struct PerRefinerInputs {
+        var collaborators: RefinerInput = RefinerInput(captures: [], voiceSegments: [])
+        var projects: RefinerInput = RefinerInput(captures: [], voiceSegments: [])
+        var interests: RefinerInput = RefinerInput(captures: [], voiceSegments: [])
+        var todos: RefinerInput = RefinerInput(captures: [], voiceSegments: [])
+    }
+    
+    /// Analyze captures and extract structured data
+    /// - Parameters:
+    ///   - refinerInputs: Per-refiner inputs (unprocessed data for each refiner type)
+    ///   - faceEvents: Face/mood events (used for general context)
+    ///   - accumulated: Previously extracted data for context
+    func analyzeWithRefinerInputs(_ refinerInputs: PerRefinerInputs, faceEvents: [FaceEvent] = [], accumulated: AccumulatedContext = AccumulatedContext()) async throws -> AnalysisResult {
         guard modelContainer != nil else {
             throw LLMError.modelNotLoaded
         }
@@ -511,47 +532,86 @@ Be helpful but not annoying. Only suggest a break if genuinely warranted.
         isGenerating = true
         defer { isGenerating = false }
         
-        // Build context with all available data
-        let context = AnalysisContext(
-            captures: captures,
-            voiceTranscripts: voiceSegments,
-            faceEvents: faceEvents
-        )
-        
-        NSLog("🧠 Analyzing: %d captures, %d voice segments, %d face events, mood: %@",
-              captures.count, voiceSegments.count, faceEvents.count, context.moodSummary)
-        
         var result = AnalysisResult()
         
-        // Run each analysis type separately, passing existing items for context
-        do {
-            result.projects = try await extractProjects(context, existing: accumulated.projects)
-        } catch {
-            NSLog("🧠 Projects extraction failed: %@", error.localizedDescription)
+        // Projects
+        if !refinerInputs.projects.isEmpty {
+            do {
+                let context = AnalysisContext(
+                    captures: refinerInputs.projects.captures,
+                    voiceTranscripts: refinerInputs.projects.voiceSegments,
+                    faceEvents: faceEvents
+                )
+                NSLog("🧠 Extracting projects from %d captures", refinerInputs.projects.captures.count)
+                result.projects = try await extractProjects(context, existing: accumulated.projects)
+            } catch {
+                NSLog("🧠 Projects extraction failed: %@", error.localizedDescription)
+            }
         }
         
-        do {
-            result.collaborators = try await extractCollaborators(context, existing: accumulated.collaborators)
-        } catch {
-            NSLog("🧠 Collaborators extraction failed: %@", error.localizedDescription)
+        // Collaborators
+        if !refinerInputs.collaborators.isEmpty {
+            do {
+                let context = AnalysisContext(
+                    captures: refinerInputs.collaborators.captures,
+                    voiceTranscripts: refinerInputs.collaborators.voiceSegments,
+                    faceEvents: []  // Don't need mood for collaborator extraction
+                )
+                NSLog("🧠 Extracting collaborators from %d captures, %d voice", 
+                      refinerInputs.collaborators.captures.count, refinerInputs.collaborators.voiceSegments.count)
+                result.collaborators = try await extractCollaborators(context, existing: accumulated.collaborators)
+            } catch {
+                NSLog("🧠 Collaborators extraction failed: %@", error.localizedDescription)
+            }
         }
         
-        do {
-            result.interests = try await extractInterests(context, existing: accumulated.interests)
-        } catch {
-            NSLog("🧠 Interests extraction failed: %@", error.localizedDescription)
+        // Interests
+        if !refinerInputs.interests.isEmpty {
+            do {
+                let context = AnalysisContext(
+                    captures: refinerInputs.interests.captures,
+                    voiceTranscripts: refinerInputs.interests.voiceSegments,
+                    faceEvents: faceEvents
+                )
+                NSLog("🧠 Extracting interests from %d captures", refinerInputs.interests.captures.count)
+                result.interests = try await extractInterests(context, existing: accumulated.interests)
+            } catch {
+                NSLog("🧠 Interests extraction failed: %@", error.localizedDescription)
+            }
         }
         
-        do {
-            result.todos = try await extractTodos(context, existing: accumulated.pendingTodos)
-        } catch {
-            NSLog("🧠 TODOs extraction failed: %@", error.localizedDescription)
+        // TODOs
+        if !refinerInputs.todos.isEmpty {
+            do {
+                let context = AnalysisContext(
+                    captures: refinerInputs.todos.captures,
+                    voiceTranscripts: refinerInputs.todos.voiceSegments,
+                    faceEvents: faceEvents
+                )
+                NSLog("🧠 Extracting todos from %d captures, %d voice", 
+                      refinerInputs.todos.captures.count, refinerInputs.todos.voiceSegments.count)
+                result.todos = try await extractTodos(context, existing: accumulated.pendingTodos)
+            } catch {
+                NSLog("🧠 TODOs extraction failed: %@", error.localizedDescription)
+            }
         }
         
         NSLog("🧠 Refinement complete: %d projects, %d collaborators, %d interests, %d todos",
               result.projects.count, result.collaborators.count, result.interests.count, result.todos.count)
         
         return result
+    }
+    
+    /// Legacy method - analyze with same captures for all refiners
+    func analyzeCaptures(_ captures: [ScreenCapture], voiceSegments: [VoiceSegment] = [], faceEvents: [FaceEvent] = [], accumulated: AccumulatedContext = AccumulatedContext()) async throws -> AnalysisResult {
+        let input = RefinerInput(captures: captures, voiceSegments: voiceSegments)
+        let inputs = PerRefinerInputs(
+            collaborators: input,
+            projects: input,
+            interests: input,
+            todos: input
+        )
+        return try await analyzeWithRefinerInputs(inputs, faceEvents: faceEvents, accumulated: accumulated)
     }
     
     // MARK: - Quick Query (for insights and simple checks)
