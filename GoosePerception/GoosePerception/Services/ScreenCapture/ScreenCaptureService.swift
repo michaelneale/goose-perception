@@ -50,15 +50,96 @@ actor ScreenCaptureService {
     
     // MARK: - Capture Loop
     
+    /// Interval for full window scan (all windows OCR'd)
+    private var fullScanInterval: TimeInterval = 600 // 10 minutes
+    private var lastFullScanTime: Date?
+    
     private func startCaptureLoop() async {
+        // Do a full scan on startup
+        await performFullWindowScan()
+        
         while isCapturing {
             do {
                 try await captureScreen()
+                
+                // Check if it's time for a full scan
+                if shouldPerformFullScan() {
+                    await performFullWindowScan()
+                }
             } catch {
                 NSLog("❌ Capture failed: \(error)")
             }
             
             try? await Task.sleep(for: .seconds(captureInterval))
+        }
+    }
+    
+    private func shouldPerformFullScan() -> Bool {
+        guard let lastScan = lastFullScanTime else { return true }
+        return Date().timeIntervalSince(lastScan) >= fullScanInterval
+    }
+    
+    /// OCR all visible windows - provides comprehensive context
+    private func performFullWindowScan() async {
+        NSLog("📸 Starting full window scan...")
+        lastFullScanTime = Date()
+        
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            
+            // Filter to reasonable windows
+            let excludeApps = ["Dock", "Window Server", "Spotlight", "Notification Center", "Control Center"]
+            let windows = content.windows.filter { window in
+                guard let title = window.title, !title.isEmpty else { return false }
+                guard window.frame.width > 200 && window.frame.height > 200 else { return false }
+                let appName = window.owningApplication?.applicationName ?? ""
+                return !excludeApps.contains(appName)
+            }
+            
+            NSLog("📸 Full scan: found \(windows.count) windows to OCR")
+            
+            var ocrResults: [String] = []
+            
+            for window in windows.prefix(15) { // Limit to 15 windows max
+                let config = SCStreamConfiguration()
+                let filter = SCContentFilter(desktopIndependentWindow: window)
+                config.width = min(Int(window.frame.width), 1920)
+                config.height = min(Int(window.frame.height), 1080)
+                
+                do {
+                    let cgImage = try await SCScreenshotManager.captureImage(
+                        contentFilter: filter,
+                        configuration: config
+                    )
+                    let windowOCR = try await ocrProcessor.performOCR(on: cgImage)
+                    if !windowOCR.isEmpty {
+                        let appName = window.owningApplication?.applicationName ?? "Unknown"
+                        let windowTitle = window.title ?? ""
+                        ocrResults.append("[\(appName) - \(windowTitle)]\n\(windowOCR)")
+                    }
+                } catch {
+                    // Skip windows that fail to capture
+                }
+            }
+            
+            // Store as a single "full scan" capture
+            if !ocrResults.isEmpty {
+                let combinedOCR = ocrResults.joined(separator: "\n\n---\n\n")
+                let capture = ScreenCapture(
+                    timestamp: Date(),
+                    focusedApp: "Full Scan",
+                    focusedWindow: "\(ocrResults.count) windows",
+                    ocrText: combinedOCR
+                )
+                let captureId = try await database.insertScreenCapture(capture)
+                NSLog("📸 Full scan complete: \(ocrResults.count) windows, \(combinedOCR.count) chars (capture #\(captureId))")
+                
+                Task { @MainActor in
+                    ActivityLogStore.shared.log(.screen, "📸 Full scan: \(ocrResults.count) windows", detail: "OCR'd all visible windows")
+                }
+            }
+        } catch {
+            NSLog("❌ Full window scan failed: \(error)")
         }
     }
     

@@ -120,11 +120,32 @@ protocol Refiner {
 
 // MARK: - JSON Parsing Helpers
 
-func parseJSONStringArray(_ response: String) -> [String] {
-    guard let jsonStart = response.firstIndex(of: "["),
-          let jsonEnd = response.lastIndex(of: "]") else { return [] }
+/// Strip markdown code block wrapper if present (```json ... ```)
+private func stripMarkdownCodeBlock(_ response: String) -> String {
+    var text = response.trimmingCharacters(in: .whitespacesAndNewlines)
     
-    let jsonString = String(response[jsonStart...jsonEnd])
+    // Remove ```json or ``` at start
+    if text.hasPrefix("```json") {
+        text = String(text.dropFirst(7))
+    } else if text.hasPrefix("```") {
+        text = String(text.dropFirst(3))
+    }
+    
+    // Remove ``` at end
+    if text.hasSuffix("```") {
+        text = String(text.dropLast(3))
+    }
+    
+    return text.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+func parseJSONStringArray(_ response: String) -> [String] {
+    let cleaned = stripMarkdownCodeBlock(response)
+    
+    guard let jsonStart = cleaned.firstIndex(of: "["),
+          let jsonEnd = cleaned.lastIndex(of: "]") else { return [] }
+    
+    let jsonString = String(cleaned[jsonStart...jsonEnd])
     guard let data = jsonString.data(using: .utf8),
           let array = try? JSONSerialization.jsonObject(with: data) as? [String] else { return [] }
     
@@ -132,10 +153,12 @@ func parseJSONStringArray(_ response: String) -> [String] {
 }
 
 func parseJSONObjectArray(_ response: String) -> [[String: Any]] {
-    guard let jsonStart = response.firstIndex(of: "["),
-          let jsonEnd = response.lastIndex(of: "]") else { return [] }
+    let cleaned = stripMarkdownCodeBlock(response)
     
-    let jsonString = String(response[jsonStart...jsonEnd])
+    guard let jsonStart = cleaned.firstIndex(of: "["),
+          let jsonEnd = cleaned.lastIndex(of: "]") else { return [] }
+    
+    let jsonString = String(cleaned[jsonStart...jsonEnd])
     guard let data = jsonString.data(using: .utf8),
           let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
     
@@ -143,10 +166,12 @@ func parseJSONObjectArray(_ response: String) -> [[String: Any]] {
 }
 
 func parseJSONObject(_ response: String) -> [String: Any]? {
-    guard let jsonStart = response.firstIndex(of: "{"),
-          let jsonEnd = response.lastIndex(of: "}") else { return nil }
+    let cleaned = stripMarkdownCodeBlock(response)
     
-    let jsonString = String(response[jsonStart...jsonEnd])
+    guard let jsonStart = cleaned.firstIndex(of: "{"),
+          let jsonEnd = cleaned.lastIndex(of: "}") else { return nil }
+    
+    let jsonString = String(cleaned[jsonStart...jsonEnd])
     guard let data = jsonString.data(using: .utf8),
           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
     
