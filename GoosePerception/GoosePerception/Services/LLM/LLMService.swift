@@ -259,7 +259,7 @@ class LLMService: ObservableObject {
     
     // MARK: - Text Formatting
     
-    private func formatContextForLLM(_ context: AnalysisContext) -> String {
+    private func formatContextForLLM(_ context: AnalysisContext, includeOtherWindows: Bool = true) -> String {
         var lines: [String] = []
         
         // Voice transcripts
@@ -278,12 +278,12 @@ class LLMService: ObservableObject {
         
         // Screen activity
         lines.append("=== SCREEN ACTIVITY ===")
-        lines.append(formatCapturesForLLM(context.captures))
+        lines.append(formatCapturesForLLM(context.captures, includeOtherWindows: includeOtherWindows))
         
         return lines.joined(separator: "\n")
     }
     
-    private func formatCapturesForLLM(_ captures: [ScreenCapture]) -> String {
+    private func formatCapturesForLLM(_ captures: [ScreenCapture], includeOtherWindows: Bool = true) -> String {
         var lines: [String] = []
         var allOtherWindows: Set<String> = []
         
@@ -310,10 +310,12 @@ class LLMService: ObservableObject {
                 windowGroups[key] = (count: 1, latest: capture, firstTime: capture.timestamp, lastTime: capture.timestamp)
             }
             
-            // Collect other windows
-            for windowInfo in capture.getAllWindowsDecoded() {
-                if !windowInfo.isActive && !windowInfo.windowTitle.isEmpty {
-                    allOtherWindows.insert("\(windowInfo.appName): \(windowInfo.windowTitle)")
+            // Collect other windows (only if we'll include them)
+            if includeOtherWindows {
+                for windowInfo in capture.getAllWindowsDecoded() {
+                    if !windowInfo.isActive && !windowInfo.windowTitle.isEmpty {
+                        allOtherWindows.insert("\(windowInfo.appName): \(windowInfo.windowTitle)")
+                    }
                 }
             }
         }
@@ -340,8 +342,8 @@ class LLMService: ObservableObject {
             lines.append("")
         }
         
-        // Show consolidated list of other windows seen
-        if !allOtherWindows.isEmpty {
+        // Show consolidated list of other windows seen (only if requested)
+        if includeOtherWindows && !allOtherWindows.isEmpty {
             lines.append("---")
             lines.append("OTHER WINDOWS SEEN:")
             for window in allOtherWindows.sorted().prefix(15) {
@@ -387,8 +389,8 @@ class LLMService: ObservableObject {
     // MARK: - Refiners
     
     /// Run a refiner and return its output
-    private func runRefiner<R: Refiner>(_ refiner: R, context: AnalysisContext) async throws -> R.Output {
-        let contextText = formatContextForLLM(context)
+    private func runRefiner<R: Refiner>(_ refiner: R, context: AnalysisContext, includeOtherWindows: Bool = true) async throws -> R.Output {
+        let contextText = formatContextForLLM(context, includeOtherWindows: includeOtherWindows)
         let response = try await runLLMCall(
             title: refiner.name,
             system: refiner.systemPrompt,
@@ -406,7 +408,8 @@ class LLMService: ObservableObject {
     func extractCollaborators(_ context: AnalysisContext, existing: [String] = []) async throws -> [String] {
         var refiner = CollaboratorsRefiner()
         refiner.existingItems = existing
-        return try await runRefiner(refiner, context: context)
+        // Collaborators refiner focuses on OCR content, not window titles
+        return try await runRefiner(refiner, context: context, includeOtherWindows: false)
     }
     
     func extractInterests(_ context: AnalysisContext, existing: [String] = []) async throws -> [String] {

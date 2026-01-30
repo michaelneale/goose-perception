@@ -39,6 +39,9 @@ class AllTests {
     func runAll() async {
         header("GOOSE PERCEPTION TEST SUITE")
         
+        // Run refiner/formatting tests first (fast, no LLM needed)
+        await RefinerTests.run()
+        
         // Run TinyAgent tests with LLM enabled
         // This includes: unit tests (parser), integration tests (mock execution), and LLM tests
         await TinyAgentIntegrationTests.run(includeLLM: true)

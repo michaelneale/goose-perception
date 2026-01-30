@@ -85,29 +85,35 @@ actor ScreenCaptureService {
             return true
         }
         
-        let config = SCStreamConfiguration()
-        let filter: SCContentFilter
+        // Get top 3 windows to OCR (focused + 2 more visible windows)
+        let topWindows = getTopWindowsForOCR(from: content, focusedPID: focusedPID, limit: 3)
         
-        if let window = focusedWindow {
-            // Capture just the focused window
-            filter = SCContentFilter(desktopIndependentWindow: window)
+        // OCR each window and combine results
+        var allOCRText: [String] = []
+        
+        for window in topWindows {
+            let config = SCStreamConfiguration()
+            let filter = SCContentFilter(desktopIndependentWindow: window)
             config.width = min(Int(window.frame.width), 1920)
             config.height = min(Int(window.frame.height), 1080)
-        } else {
-            // Fallback to full screen if no focused window found
-            filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
-            config.width = 1024
-            config.height = Int(Double(display.height) * (1024.0 / Double(display.width)))
+            
+            do {
+                let cgImage = try await SCScreenshotManager.captureImage(
+                    contentFilter: filter,
+                    configuration: config
+                )
+                let windowOCR = try await ocrProcessor.performOCR(on: cgImage)
+                if !windowOCR.isEmpty {
+                    let appName = window.owningApplication?.applicationName ?? "Unknown"
+                    let windowTitle = window.title ?? ""
+                    allOCRText.append("[\(appName) - \(windowTitle)]\n\(windowOCR)")
+                }
+            } catch {
+                NSLog("📸 Failed to OCR window: \(window.title ?? "unknown") - \(error)")
+            }
         }
         
-        // Capture screenshot
-        let cgImage = try await SCScreenshotManager.captureImage(
-            contentFilter: filter,
-            configuration: config
-        )
-        
-        // Perform OCR on the captured image (now just focused window)
-        let ocrText = try await ocrProcessor.performOCR(on: cgImage)
+        let ocrText = allOCRText.joined(separator: "\n\n")
         
         // Create capture record
         var capture = ScreenCapture(
@@ -156,6 +162,45 @@ actor ScreenCaptureService {
         }
         
         return (appName, windowTitle)
+    }
+    
+    private func getTopWindowsForOCR(from content: SCShareableContent, focusedPID: pid_t?, limit: Int) -> [SCWindow] {
+        var result: [SCWindow] = []
+        
+        // First add focused window if found
+        if let focusedPID = focusedPID {
+            if let focusedWindow = content.windows.first(where: { window in
+                guard window.owningApplication?.processID == focusedPID else { return false }
+                guard let title = window.title, !title.isEmpty else { return false }
+                guard window.frame.width > 100 && window.frame.height > 100 else { return false }
+                return true
+            }) {
+                result.append(focusedWindow)
+            }
+        }
+        
+        // Add other visible windows (not from focused app, reasonable size)
+        let excludeApps = ["Dock", "Window Server", "Finder", "Spotlight", "Notification Center"]
+        for window in content.windows {
+            guard result.count < limit else { break }
+            guard let title = window.title, !title.isEmpty else { continue }
+            guard window.frame.width > 200 && window.frame.height > 200 else { continue }
+            
+            let appName = window.owningApplication?.applicationName ?? ""
+            guard !excludeApps.contains(appName) else { continue }
+            
+            // Don't add duplicates or windows from same app as focused
+            if let focusedPID = focusedPID, window.owningApplication?.processID == focusedPID {
+                continue
+            }
+            if result.contains(where: { $0.windowID == window.windowID }) {
+                continue
+            }
+            
+            result.append(window)
+        }
+        
+        return result
     }
     
     private func getOpenWindowsInfo(from content: SCShareableContent) -> [ScreenCapture.WindowInfo] {

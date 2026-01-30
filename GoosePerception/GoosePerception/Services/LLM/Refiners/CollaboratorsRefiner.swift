@@ -15,18 +15,19 @@ struct CollaboratorsRefiner: Refiner {
     
     var systemPrompt: String {
         var prompt = """
-Extract people's names from user activity. Look for names in:
-- Slack channels, DMs, message lists
-- Discord servers, channels, DMs
-- Gmail, email senders/recipients
-- iMessage, Messages app
-- Calendar invites, meeting participants
-- @mentions anywhere
-- Window titles showing conversations
-- Names spoken aloud
+Extract people's names from the screen content below. Names appear in:
+- Meeting titles and calendar entries (e.g., "Meeting with John Smith", "Alice / Bob")
+- Calendar attendee lists
+- Email sender/recipient names
+- Chat message headers showing who sent messages
+- @mentions in Slack, Discord, etc.
+- Video call participant names (Zoom, Meet, Teams)
+- Spoken names in voice transcription
 
-Return a JSON array of names only:
-["Alice Smith", "Bob Jones"]
+Look carefully at ALL the text content for any person names. Meeting titles like "Douwe / Mic" contain the names "Douwe" and "Mic".
+
+Return a JSON array of full names when possible, otherwise first names:
+["Douwe Osinga", "Alice Smith", "Bob"]
 
 If no names found, respond: []
 """
