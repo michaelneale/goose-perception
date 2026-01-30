@@ -424,6 +424,106 @@ class LLMService: ObservableObject {
         return try await runRefiner(refiner, context: context)
     }
     
+    /// Extract TODOs from screen content only (no voice, no other windows)
+    func extractScreenTodos(_ context: AnalysisContext, existing: [String] = []) async throws -> [String] {
+        var refiner = ScreenTodosRefiner()
+        refiner.existingItems = existing
+        // Screen TODOs don't need other windows metadata
+        return try await runRefiner(refiner, context: context, includeOtherWindows: false)
+    }
+    
+    /// Extract TODOs from voice transcripts only
+    func extractVoiceTodos(voiceSegments: [VoiceSegment], existing: [String] = []) async throws -> [String] {
+        guard !voiceSegments.isEmpty else { return [] }
+        
+        var refiner = VoiceTodosRefiner()
+        refiner.existingItems = existing
+        
+        // Build voice-only context
+        let transcript = voiceSegments.map { $0.transcript }.joined(separator: " ")
+        let response = try await runLLMCall(
+            title: refiner.name,
+            system: refiner.systemPrompt,
+            user: "SPOKEN WORDS:\n\(transcript)"
+        )
+        return refiner.parse(response: response)
+    }
+    
+    // MARK: - Single Capture Refinement
+    
+    /// Refine a single capture with all 4 refiners
+    /// Returns extracted items from all refiners
+    func refineSingleCapture(
+        _ capture: ScreenCapture,
+        voiceSegments: [VoiceSegment] = [],
+        faceEvents: [FaceEvent] = [],
+        accumulated: AccumulatedContext = AccumulatedContext()
+    ) async throws -> AnalysisResult {
+        guard modelContainer != nil else {
+            throw LLMError.modelNotLoaded
+        }
+        
+        if case .loading = loadState {
+            throw LLMError.loadingInProgress
+        }
+        
+        // Context with voice for collaborators
+        let fullContext = AnalysisContext(
+            captures: [capture],
+            voiceTranscripts: voiceSegments,
+            faceEvents: faceEvents
+        )
+        
+        // Context without voice for screen-only refiners
+        let screenContext = AnalysisContext(
+            captures: [capture],
+            voiceTranscripts: [],
+            faceEvents: faceEvents
+        )
+        
+        var result = AnalysisResult()
+        
+        // Projects: screen only
+        do {
+            result.projects = try await extractProjects(screenContext, existing: accumulated.projects)
+        } catch {
+            NSLog("⚠️ Projects extraction failed: %@", error.localizedDescription)
+        }
+        
+        // Collaborators: screen + voice (names can be spoken)
+        do {
+            result.collaborators = try await extractCollaborators(fullContext, existing: accumulated.collaborators)
+        } catch {
+            NSLog("⚠️ Collaborators extraction failed: %@", error.localizedDescription)
+        }
+        
+        // Interests: screen only
+        do {
+            result.interests = try await extractInterests(screenContext, existing: accumulated.interests)
+        } catch {
+            NSLog("⚠️ Interests extraction failed: %@", error.localizedDescription)
+        }
+        
+        // Screen TODOs: screen only, no other windows
+        do {
+            result.todos = try await extractScreenTodos(screenContext, existing: accumulated.pendingTodos)
+        } catch {
+            NSLog("⚠️ Screen TODOs extraction failed: %@", error.localizedDescription)
+        }
+        
+        // Voice TODOs: voice only (processed separately)
+        if !voiceSegments.isEmpty {
+            do {
+                let voiceTodos = try await extractVoiceTodos(voiceSegments: voiceSegments, existing: accumulated.pendingTodos)
+                result.todos.append(contentsOf: voiceTodos)
+            } catch {
+                NSLog("⚠️ Voice TODOs extraction failed: %@", error.localizedDescription)
+            }
+        }
+        
+        return result
+    }
+    
     struct AccumulatedContext {
         var projects: [String] = []
         var collaborators: [String] = []

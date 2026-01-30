@@ -57,7 +57,13 @@ struct DashboardView: View {
             case .services:
                 SimpleServicesView()
             case .knowledge:
-                KnowledgeView(projects: projects, collaborators: collaborators, interests: interests, todos: todos, directoryActivity: directoryActivity, appUsage: appUsage, moodSummary: moodSummary)
+                KnowledgeView(projects: projects, collaborators: collaborators, interests: interests, todos: todos, directoryActivity: directoryActivity, appUsage: appUsage, moodSummary: moodSummary) {
+                    Task {
+                        guard let db = database else { return }
+                        try? await db.clearAllData()
+                        await loadData()
+                    }
+                }
             case .insights:
                 InsightsListView(insights: insights, database: database)
             case .actions:
@@ -127,6 +133,9 @@ struct KnowledgeView: View {
     let directoryActivity: [DirectoryActivity]
     let appUsage: [AppUsage]
     let moodSummary: MoodSummary?
+    var onClearData: (() -> Void)?
+    
+    @State private var showClearConfirmation = false
     
     private var totalCount: Int {
         projects.count + collaborators.count + interests.count + directoryActivity.count + appUsage.count
@@ -165,9 +174,26 @@ struct KnowledgeView: View {
                     Spacer()
                     Text("\(totalCount) items")
                         .foregroundStyle(.secondary)
+                    
+                    Button {
+                        showClearConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear all data")
                 }
                 .padding(.horizontal)
                 .padding(.top)
+                .alert("Clear All Data?", isPresented: $showClearConfirmation) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Clear", role: .destructive) {
+                        onClearData?()
+                    }
+                } message: {
+                    Text("This will delete all captured data, knowledge, insights, and actions. This cannot be undone.")
+                }
                 
                 // Mood Summary
                 if let mood = moodSummary, !mood.isEmpty {
@@ -232,6 +258,9 @@ struct KnowledgeSection: View {
     
     @State private var isExpanded = true
     
+    private let maxVisibleItems = 8
+    private let itemHeight: CGFloat = 32
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
@@ -261,33 +290,36 @@ struct KnowledgeSection: View {
                         .padding(.horizontal)
                         .padding(.vertical, 8)
                 } else {
-                    LazyVStack(spacing: 4) {
-                        ForEach(items) { item in
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack {
-                                    Text(item.name)
-                                        .lineLimit(1)
-                                    Spacer()
-                                    if item.count > 1 {
-                                        Text("\(item.count)×")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                    ScrollView {
+                        LazyVStack(spacing: 4) {
+                            ForEach(items) { item in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack {
+                                        Text(item.name)
+                                            .lineLimit(1)
+                                        Spacer()
+                                        if item.count > 1 {
+                                            Text("\(item.count)×")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Text(formatRelativeTime(item.lastSeen))
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
                                     }
-                                    Text(formatRelativeTime(item.lastSeen))
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
+                                    if let subtitle = item.subtitle {
+                                        Text(subtitle)
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                            .lineLimit(1)
+                                    }
                                 }
-                                if let subtitle = item.subtitle {
-                                    Text(subtitle)
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                        .lineLimit(1)
-                                }
+                                .padding(.horizontal)
+                                .padding(.vertical, 4)
                             }
-                            .padding(.horizontal)
-                            .padding(.vertical, 4)
                         }
                     }
+                    .frame(maxHeight: items.count > maxVisibleItems ? CGFloat(maxVisibleItems) * itemHeight : nil)
                     .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
                     .cornerRadius(8)
                     .padding(.horizontal)
@@ -931,6 +963,24 @@ struct LogEntryRow: View {
 struct CapturesListView: View {
     let captures: [ScreenCapture]
     
+    // Compute diversity stats
+    private var uniqueApps: [String: Int] {
+        var counts: [String: Int] = [:]
+        for capture in captures {
+            let app = capture.focusedApp ?? "Unknown"
+            counts[app, default: 0] += 1
+        }
+        return counts
+    }
+    
+    private var uniqueWindows: Int {
+        Set(captures.compactMap { $0.focusedWindow }).count
+    }
+    
+    private var topApps: [(app: String, count: Int)] {
+        uniqueApps.sorted { $0.value > $1.value }.prefix(5).map { ($0.key, $0.value) }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -939,6 +989,48 @@ struct CapturesListView: View {
                 Text("\(captures.count) today").foregroundStyle(.secondary)
             }
             .padding()
+            
+            // Diversity summary
+            if !captures.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 16) {
+                        Label("\(uniqueApps.count) apps", systemImage: "app.fill")
+                            .foregroundStyle(.blue)
+                        Label("\(uniqueWindows) windows", systemImage: "macwindow")
+                            .foregroundStyle(.green)
+                    }
+                    .font(.caption)
+                    
+                    // App breakdown bar
+                    HStack(spacing: 2) {
+                        ForEach(topApps, id: \.app) { item in
+                            let fraction = CGFloat(item.count) / CGFloat(max(captures.count, 1))
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(appColor(item.app))
+                                .frame(width: max(fraction * 200, 8), height: 12)
+                                .help("\(item.app): \(item.count) captures (\(Int(fraction * 100))%)")
+                        }
+                        if uniqueApps.count > 5 {
+                            Text("+\(uniqueApps.count - 5)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    // Legend
+                    HStack(spacing: 12) {
+                        ForEach(topApps.prefix(4), id: \.app) { item in
+                            HStack(spacing: 4) {
+                                Circle().fill(appColor(item.app)).frame(width: 8, height: 8)
+                                Text(item.app).font(.caption2).lineLimit(1)
+                            }
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
             
             Divider()
             
@@ -950,6 +1042,13 @@ struct CapturesListView: View {
                 }
             }
         }
+    }
+    
+    private func appColor(_ app: String) -> Color {
+        // Generate consistent color from app name
+        let hash = app.hashValue
+        let hue = Double(abs(hash) % 360) / 360.0
+        return Color(hue: hue, saturation: 0.6, brightness: 0.8)
     }
 }
 

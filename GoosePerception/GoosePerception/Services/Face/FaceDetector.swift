@@ -12,6 +12,7 @@ struct FaceDetector {
         let emotion: EmotionResult?
         let boundingBox: CGRect?
         let rawMetrics: FaceMetrics?
+        let headPose: HeadPose?
     }
 
     struct EmotionResult {
@@ -24,6 +25,32 @@ struct FaceDetector {
         let mouthAspectRatio: Double
         let eyeAspectRatio: Double
         let browHeight: Double
+    }
+    
+    struct HeadPose {
+        let yaw: Double    // Left/right turn (-1 to 1, 0 = facing camera)
+        let pitch: Double  // Up/down tilt (-1 to 1, 0 = level)
+        let roll: Double   // Head tilt (-1 to 1, 0 = upright)
+        
+        /// True if head is turned away from screen (looking left/right/up)
+        var isLookingAway: Bool {
+            // Thresholds: ~30 degrees left/right or ~25 degrees up
+            abs(yaw) > 0.35 || pitch > 0.3
+        }
+        
+        /// Descriptive string for head orientation
+        var description: String {
+            if abs(yaw) > 0.5 {
+                return yaw > 0 ? "looking right" : "looking left"
+            } else if pitch > 0.4 {
+                return "looking up"
+            } else if pitch < -0.3 {
+                return "looking down"
+            } else if abs(yaw) > 0.35 {
+                return yaw > 0 ? "turned right" : "turned left"
+            }
+            return "facing screen"
+        }
     }
 
     var calibrationData: FaceCalibrationData?
@@ -38,9 +65,12 @@ struct FaceDetector {
         try handler.perform([faceRequest, landmarkRequest])
 
         guard let faceObservation = faceRequest.results?.first else {
-            return FaceDetection(isPresent: false, userHash: nil, emotion: nil, boundingBox: nil, rawMetrics: nil)
+            return FaceDetection(isPresent: false, userHash: nil, emotion: nil, boundingBox: nil, rawMetrics: nil, headPose: nil)
         }
 
+        // Extract head pose (yaw, pitch, roll)
+        let headPose = extractHeadPose(from: faceObservation)
+        
         // Get landmarks for emotion analysis
         var emotion: EmotionResult?
         var rawMetrics: FaceMetrics?
@@ -49,7 +79,14 @@ struct FaceDetector {
            let landmarks = landmarkObservation.landmarks {
             let metrics = extractMetrics(from: landmarks)
             rawMetrics = metrics
-            emotion = classifyEmotionWithCalibration(metrics: metrics)
+            
+            // If looking away, override emotion to "distracted"
+            if let pose = headPose, pose.isLookingAway {
+                NSLog("🎭 Head pose: yaw=%.2f pitch=%.2f -> %@", pose.yaw, pose.pitch, pose.description)
+                emotion = EmotionResult(emotion: "distracted", confidence: 0.8)
+            } else {
+                emotion = classifyEmotionWithCalibration(metrics: metrics)
+            }
         }
 
         // Generate anonymous hash from face bounding box (not truly identifying, just for session tracking)
@@ -60,8 +97,28 @@ struct FaceDetector {
             userHash: userHash,
             emotion: emotion,
             boundingBox: faceObservation.boundingBox,
-            rawMetrics: rawMetrics
+            rawMetrics: rawMetrics,
+            headPose: headPose
         )
+    }
+    
+    // MARK: - Head Pose Extraction
+    
+    private func extractHeadPose(from observation: VNFaceObservation) -> HeadPose? {
+        // VNFaceObservation provides yaw, pitch, roll as optional NSNumber
+        // Values are in radians, roughly -pi/2 to pi/2
+        // We normalize to -1 to 1 for easier thresholding
+        
+        guard let yawNumber = observation.yaw,
+              let pitchNumber = observation.pitch else {
+            return nil
+        }
+        
+        let yaw = yawNumber.doubleValue / (.pi / 2)  // Normalize to -1 to 1
+        let pitch = pitchNumber.doubleValue / (.pi / 2)
+        let roll = (observation.roll?.doubleValue ?? 0) / (.pi / 2)
+        
+        return HeadPose(yaw: yaw, pitch: pitch, roll: roll)
     }
 
     // MARK: - Metrics Extraction

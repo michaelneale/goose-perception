@@ -313,6 +313,38 @@ actor Database {
         }
     }
     
+    /// Get captures that haven't been fully refined by all refiners (any flag is 0)
+    func getUnrefinedCaptures(limit: Int = 50) async throws -> [ScreenCapture] {
+        try await dbQueue.read { db in
+            try ScreenCapture
+                .filter(Column("ocr_text") != nil)
+                .filter(
+                    Column("projects_extracted") == 0 ||
+                    Column("collaborators_extracted") == 0 ||
+                    Column("interests_extracted") == 0 ||
+                    Column("todos_extracted") == 0
+                )
+                .order(Column("timestamp").asc)  // Oldest first
+                .limit(limit)
+                .fetchAll(db)
+        }
+    }
+    
+    /// Mark a single capture as fully refined by all refiners
+    func markCaptureFullyRefined(id: Int64) async throws {
+        try await dbQueue.write { db in
+            try db.execute(
+                sql: """
+                    UPDATE screen_captures 
+                    SET projects_extracted = 1, collaborators_extracted = 1, 
+                        interests_extracted = 1, todos_extracted = 1, processed = 1
+                    WHERE id = ?
+                    """,
+                arguments: [id]
+            )
+        }
+    }
+    
     // Legacy convenience methods
     func getCapturesForCollaboratorExtraction(limit: Int = 100) async throws -> [ScreenCapture] {
         try await getCapturesForRefiner(.collaborators, limit: limit)
@@ -809,5 +841,24 @@ actor Database {
             try db.execute(sql: "DELETE FROM insights WHERE created_at < ? AND dismissed = 1", arguments: [cutoff])
             try db.execute(sql: "DELETE FROM actions WHERE created_at < ?", arguments: [cutoff])
         }
+    }
+    
+    /// Clear all data from all tables - complete reset
+    func clearAllData() async throws {
+        try await dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM screen_captures")
+            try db.execute(sql: "DELETE FROM voice_segments")
+            try db.execute(sql: "DELETE FROM face_events")
+            try db.execute(sql: "DELETE FROM work_patterns")
+            try db.execute(sql: "DELETE FROM projects")
+            try db.execute(sql: "DELETE FROM collaborators")
+            try db.execute(sql: "DELETE FROM interests")
+            try db.execute(sql: "DELETE FROM todos")
+            try db.execute(sql: "DELETE FROM insights")
+            try db.execute(sql: "DELETE FROM actions")
+            try db.execute(sql: "DELETE FROM directory_activity")
+            try db.execute(sql: "DELETE FROM app_usage")
+        }
+        NSLog("🗑️ All database data cleared")
     }
 }
