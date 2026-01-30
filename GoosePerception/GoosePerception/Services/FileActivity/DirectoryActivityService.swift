@@ -20,12 +20,18 @@ actor DirectoryActivityService {
         "Movies", "Music", "Pictures", "Projects", "code"
     ]
     
-    // Only track files with these extensions (common document types)
+    // Track files with these extensions (documents + code)
     private let trackedExtensions: Set<String> = [
+        // Documents
         "docx", "xlsx", "xls", "pptx", "ppt",
         "pdf", "md", "txt", "rtf",
         "pages", "numbers", "key",
-        "csv", "json"
+        "csv", "json", "yaml", "yml",
+        // Code
+        "swift", "ts", "tsx", "js", "jsx",
+        "py", "rb", "go", "rs", "java", "kt",
+        "c", "cpp", "h", "hpp", "cs",
+        "html", "css", "scss", "vue", "svelte"
     ]
     
     init(database: Database) {

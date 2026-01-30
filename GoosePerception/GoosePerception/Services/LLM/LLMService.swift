@@ -389,12 +389,33 @@ class LLMService: ObservableObject {
     /// Run a refiner and return its output
     private func runRefiner<R: Refiner>(_ refiner: R, context: AnalysisContext, includeOtherWindows: Bool = false) async throws -> R.Output {
         let contextText = formatContextForLLM(context, includeOtherWindows: includeOtherWindows)
+        
+        // Build title with time and size info
+        let timeInfo = formatCaptureTimeInfo(context.captures)
+        let sizeInfo = "\(contextText.count) chars"
+        let title = "\(refiner.name) [\(timeInfo), \(sizeInfo)]"
+        
         let response = try await runLLMCall(
-            title: refiner.name,
+            title: title,
             system: refiner.systemPrompt,
             user: contextText
         )
         return refiner.parse(response: response)
+    }
+    
+    /// Format time info for session title
+    private func formatCaptureTimeInfo(_ captures: [ScreenCapture]) -> String {
+        guard let first = captures.first else { return "no captures" }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        
+        if captures.count == 1 {
+            return formatter.string(from: first.timestamp)
+        } else if let last = captures.last {
+            return "\(formatter.string(from: first.timestamp))-\(formatter.string(from: last.timestamp))"
+        }
+        return formatter.string(from: first.timestamp)
     }
     
     func extractProjects(_ context: AnalysisContext, existing: [String] = []) async throws -> [String] {
