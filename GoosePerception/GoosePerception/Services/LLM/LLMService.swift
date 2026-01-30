@@ -192,12 +192,10 @@ class LLMService: ObservableObject {
         loadState = .loading(progress: 0)
         NSLog("🧠 Loading model: %@", model)
         
-        let container = try await Task.detached { [weak self] in
+        let container = try await Task.detached {
             let config = ModelConfiguration(id: model)
-            let container = try await LLMModelFactory.shared.loadContainer(configuration: config) { progress in
-                Task { @MainActor in
-                    self?.loadState = .loading(progress: progress.fractionCompleted)
-                }
+            let container = try await LLMModelFactory.shared.loadContainer(configuration: config) { _ in
+                // Progress updates handled by caller
             }
             return container
         }.value
@@ -389,7 +387,7 @@ class LLMService: ObservableObject {
     // MARK: - Refiners
     
     /// Run a refiner and return its output
-    private func runRefiner<R: Refiner>(_ refiner: R, context: AnalysisContext, includeOtherWindows: Bool = true) async throws -> R.Output {
+    private func runRefiner<R: Refiner>(_ refiner: R, context: AnalysisContext, includeOtherWindows: Bool = false) async throws -> R.Output {
         let contextText = formatContextForLLM(context, includeOtherWindows: includeOtherWindows)
         let response = try await runLLMCall(
             title: refiner.name,
@@ -408,8 +406,7 @@ class LLMService: ObservableObject {
     func extractCollaborators(_ context: AnalysisContext, existing: [String] = []) async throws -> [String] {
         var refiner = CollaboratorsRefiner()
         refiner.existingItems = existing
-        // Collaborators refiner focuses on OCR content, not window titles
-        return try await runRefiner(refiner, context: context, includeOtherWindows: false)
+        return try await runRefiner(refiner, context: context)
     }
     
     func extractInterests(_ context: AnalysisContext, existing: [String] = []) async throws -> [String] {
@@ -424,12 +421,11 @@ class LLMService: ObservableObject {
         return try await runRefiner(refiner, context: context)
     }
     
-    /// Extract TODOs from screen content only (no voice, no other windows)
+    /// Extract TODOs from screen content only
     func extractScreenTodos(_ context: AnalysisContext, existing: [String] = []) async throws -> [String] {
         var refiner = ScreenTodosRefiner()
         refiner.existingItems = existing
-        // Screen TODOs don't need other windows metadata
-        return try await runRefiner(refiner, context: context, includeOtherWindows: false)
+        return try await runRefiner(refiner, context: context)
     }
     
     /// Extract TODOs from voice transcripts only

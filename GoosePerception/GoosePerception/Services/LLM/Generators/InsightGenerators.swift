@@ -102,7 +102,6 @@ struct ProgressGenerator: InsightGenerator {
     
     func generate(context: GeneratorContext, llm: LLMService) async throws -> Insight? {
         let pendingCount = context.pendingTodos.count
-        let recentTodos = context.pendingTodos.prefix(5).map { $0.description }.joined(separator: "; ")
         
         // Simple progress summary without LLM
         let content: String
