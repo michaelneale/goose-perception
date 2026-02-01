@@ -462,6 +462,11 @@ actor Database {
         }
     }
     
+    func getRecentFaceEvents(hours: Int) async throws -> [FaceEvent] {
+        let since = Date().addingTimeInterval(-Double(hours * 3600))
+        return try await getRecentFaceEvents(since: since)
+    }
+    
     /// Get mood summary for the last N hours
     func getMoodSummary(hours: Int = 2) async throws -> MoodSummary {
         let since = Date().addingTimeInterval(-Double(hours * 3600))

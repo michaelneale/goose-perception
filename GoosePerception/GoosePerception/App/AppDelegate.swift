@@ -206,22 +206,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        cameraCaptureService.setPresenceCallback { present in
+        cameraCaptureService.setPresenceCallback { [weak self] present in
             Task { @MainActor in
+                let wasPresent = ServiceStateManager.shared.isFacePresent
                 ServiceStateManager.shared.isFacePresent = present
                 if !present {
                     ServiceStateManager.shared.currentEmotion = ""
                     ServiceStateManager.shared.emotionConfidence = 0
                 }
                 ActivityLogStore.shared.log(.face, present ? "Face detected" : "No face detected")
+                
+                // Trigger analysis when user steps away (was present, now gone)
+                if wasPresent && !present {
+                    NSLog("👀 User stepped away - triggering opportunistic analysis")
+                    self?.analysisScheduler.runAnalysisOpportunistically()
+                }
             }
         }
         
-        cameraCaptureService.setEmotionCallback { emotion, confidence in
+        cameraCaptureService.setEmotionCallback { [weak self] emotion, confidence in
             Task { @MainActor in
                 ServiceStateManager.shared.currentEmotion = emotion
                 ServiceStateManager.shared.emotionConfidence = confidence
                 ActivityLogStore.shared.log(.face, "Emotion: \(emotion) (\(Int(confidence * 100))%)")
+                
+                // Trigger analysis when user is distracted
+                if emotion == "distracted" {
+                    NSLog("👀 User distracted - triggering opportunistic analysis")
+                    self?.analysisScheduler.runAnalysisOpportunistically()
+                }
             }
         }
         

@@ -21,8 +21,9 @@ struct DashboardView: View {
     
     enum SidebarTab: String, CaseIterable {
         case services = "Services"
+        case visualization = "Insights"
         case knowledge = "Knowledge"
-        case insights = "Insights"
+        case insightsList = "History"
         case actions = "Actions"
         case activity = "Activity"
         case captures = "Captures"
@@ -39,8 +40,9 @@ struct DashboardView: View {
                 }
                 
                 Section("Output") {
+                    sidebarRow(.visualization, icon: "chart.xyaxis.line", count: nil)
                     sidebarRow(.knowledge, icon: "brain.head.profile", count: knowledgeCount)
-                    sidebarRow(.insights, icon: "lightbulb.fill", count: insightCount)
+                    sidebarRow(.insightsList, icon: "lightbulb.fill", count: insightCount)
                     sidebarRow(.actions, icon: "checklist", count: actions.filter { $0.isPending }.count)
                 }
                 
@@ -55,7 +57,14 @@ struct DashboardView: View {
         } detail: {
             switch selectedTab {
             case .services:
-                SimpleServicesView()
+                SimpleServicesView(
+                    collaborators: collaborators,
+                    appUsage: appUsage,
+                    moodSummary: moodSummary,
+                    captureCount: captureCount
+                )
+            case .visualization:
+                InsightsVisualizationView(database: database)
             case .knowledge:
                 KnowledgeView(projects: projects, collaborators: collaborators, interests: interests, todos: todos, directoryActivity: directoryActivity, appUsage: appUsage, moodSummary: moodSummary) {
                     Task {
@@ -64,7 +73,7 @@ struct DashboardView: View {
                         await loadData()
                     }
                 }
-            case .insights:
+            case .insightsList:
                 InsightsListView(insights: insights, database: database)
             case .actions:
                 ActionsListView(actions: actions, database: database)
@@ -544,66 +553,85 @@ struct LLMCallCard: View {
 struct SimpleServicesView: View {
     @ObservedObject private var state = ServiceStateManager.shared
     @ObservedObject private var deviceManager = DeviceManager.shared
+    
+    // Activity data
+    var collaborators: [Collaborator] = []
+    var appUsage: [AppUsage] = []
+    var moodSummary: MoodSummary?
+    var captureCount: Int = 0
 
     var body: some View {
-        VStack(spacing: 24) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Perception").font(.largeTitle).fontWeight(.bold)
-                    Text("Enable services to start capturing").font(.subheadline).foregroundStyle(.secondary)
-                }
-                Spacer()
-                statusBadge
-            }
-            .padding(.horizontal, 32)
-            .padding(.top, 24)
-
-            VStack(spacing: 16) {
-                ServiceCard(title: "Screen Capture", subtitle: "Screenshots every 20s with OCR", icon: "camera.fill", color: .blue, isEnabled: screenBinding, isReady: state.servicesReady)
-                VoiceServiceCard(isEnabled: voiceBinding, isReady: state.servicesReady, audioLevel: state.audioLevel, lastTranscription: state.lastTranscription, deviceManager: deviceManager)
-                FaceServiceCard(isEnabled: faceBinding, isReady: state.servicesReady, isPresent: state.isFacePresent, emotion: state.currentEmotion, confidence: state.emotionConfidence, deviceManager: deviceManager)
-            }
-            .padding(.horizontal, 32)
-            
-            Divider().padding(.horizontal, 32)
-            
-            HStack(spacing: 12) {
-                Image(systemName: "brain").font(.title2).foregroundStyle(.purple)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Analysis").fontWeight(.medium)
-                    Text(state.isAnalysisRunning ? "Running..." : "Auto every 20 min").font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                if state.isAnalysisRunning {
-                    ProgressView().scaleEffect(0.8)
-                } else {
-                    Button("Run Now") {
-                        NotificationCenter.default.post(name: .runAnalysisNow, object: nil)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.purple)
-                    .controlSize(.small)
-                }
-            }
-            .padding(16)
-            .background(Color.purple.opacity(0.05))
-            .cornerRadius(12)
-            .padding(.horizontal, 32)
-            
-            if let error = state.lastError {
+        ScrollView {
+            VStack(spacing: 24) {
                 HStack {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
-                    Text(error).font(.caption).lineLimit(2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Perception").font(.largeTitle).fontWeight(.bold)
+                        Text("Enable services to start capturing").font(.subheadline).foregroundStyle(.secondary)
+                    }
                     Spacer()
-                    Button("✕") { state.lastError = nil }.buttonStyle(.plain)
+                    statusBadge
                 }
-                .padding(12)
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(8)
                 .padding(.horizontal, 32)
+                .padding(.top, 24)
+
+                VStack(spacing: 16) {
+                    ServiceCard(title: "Screen Capture", subtitle: "Screenshots every 20s with OCR", icon: "camera.fill", color: .blue, isEnabled: screenBinding, isReady: state.servicesReady)
+                    VoiceServiceCard(isEnabled: voiceBinding, isReady: state.servicesReady, audioLevel: state.audioLevel, lastTranscription: state.lastTranscription, deviceManager: deviceManager)
+                    FaceServiceCard(isEnabled: faceBinding, isReady: state.servicesReady, isPresent: state.isFacePresent, emotion: state.currentEmotion, confidence: state.emotionConfidence, deviceManager: deviceManager)
+                }
+                .padding(.horizontal, 32)
+                
+                Divider().padding(.horizontal, 32)
+                
+                HStack(spacing: 12) {
+                    Image(systemName: "brain").font(.title2).foregroundStyle(.purple)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Analysis").fontWeight(.medium)
+                        Text(state.isAnalysisRunning ? "Running..." : "Auto every 20 min").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if state.isAnalysisRunning {
+                        ProgressView().scaleEffect(0.8)
+                    } else {
+                        Button("Run Now") {
+                            NotificationCenter.default.post(name: .runAnalysisNow, object: nil)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.purple)
+                        .controlSize(.small)
+                    }
+                }
+                .padding(16)
+                .background(Color.purple.opacity(0.05))
+                .cornerRadius(12)
+                .padding(.horizontal, 32)
+                
+                // Activity Summary
+                if captureCount > 0 || !collaborators.isEmpty || !appUsage.isEmpty {
+                    ActivitySummaryCard(
+                        collaborators: collaborators,
+                        appUsage: appUsage,
+                        moodSummary: moodSummary,
+                        captureCount: captureCount
+                    )
+                    .padding(.horizontal, 32)
+                }
+                
+                if let error = state.lastError {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                        Text(error).font(.caption).lineLimit(2)
+                        Spacer()
+                        Button("✕") { state.lastError = nil }.buttonStyle(.plain)
+                    }
+                    .padding(12)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(8)
+                    .padding(.horizontal, 32)
+                }
+                
+                Spacer(minLength: 20)
             }
-            
-            Spacer()
         }
     }
     
@@ -628,6 +656,150 @@ struct SimpleServicesView: View {
     
     private var faceBinding: Binding<Bool> {
         Binding(get: { state.isFaceCaptureRunning }, set: { _ in NotificationCenter.default.post(name: .toggleFaceCapture, object: nil) })
+    }
+}
+
+// MARK: - Activity Summary Card
+
+struct ActivitySummaryCard: View {
+    let collaborators: [Collaborator]
+    let appUsage: [AppUsage]
+    let moodSummary: MoodSummary?
+    let captureCount: Int
+    
+    private var recentCollaborators: [Collaborator] {
+        // Get collaborators seen in last 24 hours, sorted by most recent
+        let cutoff = Date().addingTimeInterval(-24 * 3600)
+        return collaborators
+            .filter { $0.lastSeen >= cutoff }
+            .sorted { $0.lastSeen > $1.lastSeen }
+    }
+    
+    private var topApps: [AppUsage] {
+        Array(appUsage.prefix(4))
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Today's Activity").font(.headline)
+            
+            HStack(spacing: 20) {
+                // Captures count
+                VStack(spacing: 4) {
+                    Text("\(captureCount)")
+                        .font(.title2.bold())
+                        .foregroundStyle(.blue)
+                    Text("Captures")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Divider().frame(height: 30)
+                
+                // Mood
+                if let mood = moodSummary, !mood.isEmpty {
+                    VStack(spacing: 4) {
+                        Text(moodEmoji(mood.dominantMood))
+                            .font(.title2)
+                        Text(mood.dominantMood.capitalized)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Divider().frame(height: 30)
+                }
+                
+                // Collaborators
+                if !recentCollaborators.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: -8) {
+                            ForEach(recentCollaborators.prefix(3), id: \.id) { collab in
+                                Circle()
+                                    .fill(collaboratorColor(collab.name))
+                                    .frame(width: 24, height: 24)
+                                    .overlay(
+                                        Text(String(collab.name.prefix(1)).uppercased())
+                                            .font(.caption2.bold())
+                                            .foregroundStyle(.white)
+                                    )
+                            }
+                            if recentCollaborators.count > 3 {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 24, height: 24)
+                                    .overlay(
+                                        Text("+\(recentCollaborators.count - 3)")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    )
+                            }
+                        }
+                        Text("Collaborators")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Divider().frame(height: 30)
+                }
+                
+                // Top apps
+                if !topApps.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            ForEach(topApps.prefix(3), id: \.id) { app in
+                                Text(appEmoji(app.appName))
+                                    .font(.caption)
+                            }
+                        }
+                        Text("Top Apps")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                Spacer()
+            }
+        }
+        .padding(16)
+        .background(Color.secondary.opacity(0.05))
+        .cornerRadius(12)
+    }
+    
+    private func moodEmoji(_ mood: String) -> String {
+        switch mood.lowercased() {
+        case "happy": return "😊"
+        case "content": return "🙂"
+        case "focused": return "🎯"
+        case "serious": return "😐"
+        case "tired": return "😴"
+        case "sad": return "😔"
+        case "frustrated": return "😤"
+        case "angry": return "😠"
+        case "surprised": return "😲"
+        case "distracted": return "👀"
+        default: return "😐"
+        }
+    }
+    
+    private func collaboratorColor(_ name: String) -> Color {
+        let hash = name.hashValue
+        let hue = Double(abs(hash) % 360) / 360.0
+        return Color(hue: hue, saturation: 0.6, brightness: 0.7)
+    }
+    
+    private func appEmoji(_ app: String) -> String {
+        let lower = app.lowercased()
+        if lower.contains("chrome") || lower.contains("safari") || lower.contains("firefox") { return "🌐" }
+        if lower.contains("code") || lower.contains("xcode") || lower.contains("cursor") { return "💻" }
+        if lower.contains("slack") { return "💬" }
+        if lower.contains("zoom") || lower.contains("meet") || lower.contains("teams") { return "📹" }
+        if lower.contains("mail") || lower.contains("outlook") { return "📧" }
+        if lower.contains("terminal") || lower.contains("iterm") { return "⬛" }
+        if lower.contains("finder") { return "📁" }
+        if lower.contains("notes") { return "📝" }
+        if lower.contains("calendar") { return "📅" }
+        if lower.contains("music") || lower.contains("spotify") { return "🎵" }
+        return "📱"
     }
 }
 
