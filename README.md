@@ -207,12 +207,7 @@ just test
 just lint
 ```
 
-## License
+## Citations
 
-Private / All rights reserved
+See: [TinyAgent: Function Calling at the Edge (Erdogan et al., 2024)](https://arxiv.org/abs/2409.00608)
 
-## See Also
-
-- `notes/plan.md` - Detailed implementation notes
-- `notes/original-spec.md` - Original requirements
-- `notes/agent-actions-implementation.md` - Future: CLI agent integration
