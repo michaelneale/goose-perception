@@ -1,0 +1,110 @@
+System Prompt:
+Extract people's names from user activity. Look for names in:
+- Slack channels, DMs, message lists
+- Discord servers, channels, DMs
+- Gmail, email senders/recipients
+- iMessage, Messages app
+- Calendar invites, meeting participants
+- @mentions anywhere
+- Window titles showing conversations
+- Names spoken aloud
+
+Return a JSON array of names only:
+["Alice Smith", "Bob Jones"]
+
+If no names found, respond: []
+
+Input (2,924 chars):
+
+=== SPOKEN (voice transcription) ===
+Is there anything that's behind me? [ Inaudible ] [ Inaudible ] [ Inaudible ] [ Inaudible ] [Sighs] Yeah, I just had to
+restart crime to get permissions. I did the whole enlisting thing, you know, where you got a, there's a deadline to press
+something on your computer that in line and then you, yeah. Yeah, I said, I could, yes, that's an enough that I'll do it.
+It's like, oh, then I went for a swim mullet. It was like a system of right. So this is I used on the, it was like a long
+weekend. here
+
+=== MOOD ===
+User appears: sad (33%), also: serious, content
+
+=== SCREEN ACTIVITY ===
+[1] Google Chrome — Meet — Douwe / Mic — Camera and microphone recording — Google Chrome — Mic (work) — 11x focused
+(10:01:18–10:07:49)
+>
+Meet - Douwe / Mic
+meet.google.com/vxh-h
+Block, Inc. — Calendar — Week x
+Block, Inc. — Calendar — Week of
+January 25, 2026
+calendar.google.com
+@ Memory usage: 199 MB
++
+*
+*
+Work
+Mic Neal
+Douwe Osinga
+10:07 AM | Douwe / Mic
+Captures
+6223
+LLM
+Voice Capture
+Speech-to-text transcription
+d a good job. I did like open codes planning mode though,
+
+[4] Google Chrome — Choose what to share with meet.google.com — 10:01:39
+th sie wil te the ta tee he torder d vout screen
+wone screen
+# Goose Perception 0.
+
+[5] System Settings — 10:00:57
+Q Privacy
+Privacy & Security
+Allow applications to
+access Bluetooth
+Allow applications to
+access Contacts
+Allow applications to
+access Home data
+Allow applications to
+access Media Library
+Allow applications to
+access Photos
+Allow applications to
+access the camera
+Allow applications to
+access the mic
+
+[6] iTerm2 — micn@BLKMQ0QXM3W7JQ:~/Documents/code/goose-perception — 10:00:36
+micn@BLKMQ0QXM3W7JQ:~/Documents/code/goose-perception
+T84
+App bundle created: /Users/micn/Documents/code/goose-perception/GoosePercepti
+on/build/GoosePerception.app
+Contents:
+total 286368
+drwxr-xr-x@ 4 micn
+drwxr-xr-x@ 7 micn
+micn
+-rw-r--r--@ 1 micn
+staff
+staff
+staff
+---
+OTHER WINDOWS SEEN:
+• Display 1 Backstop
+• Display 3 Backstop
+• underbelly
+• Activity Monitor: Activity Monitor
+• Discord: #general | greybeard sydney hackers — Discord
+• Discord: ✨ |goose-core-team | goose — Discord
+• Dock: Dock
+• Dock: Wallpaper-
+• Dock: Wallpaper-36336AB0-3048-4E1E-BDC8-898F464772A2
+• Docker Desktop: Containers — Docker Desktop
+• Finder: Desktop
+• Google Chrome: App Store Connect
+• Google Chrome: Block, Inc. — Calendar — Week of January 25, 2026
+• Google Chrome: Choose what to share with meet.google.com
+• Google Chrome: Google Chrome
+
+Response:
+Based on the provided text, no names have been identified.
