@@ -17,13 +17,13 @@ struct DashboardView: View {
     @State private var captureCount = 0
     @State private var insightCount = 0
     @State private var knowledgeCount = 0
-    @State private var selectedTab: SidebarTab = .services  // Default to Services
+    @State private var selectedTab: SidebarTab = .services
     
     enum SidebarTab: String, CaseIterable {
-        case services = "Services"
         case visualization = "Insights"
+        case services = "Services"
         case knowledge = "Knowledge"
-        case insightsList = "History"
+        case observations = "Observations"
         case actions = "Actions"
         case activity = "Activity"
         case captures = "Captures"
@@ -32,17 +32,24 @@ struct DashboardView: View {
     
     private let refreshTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     
+    private var hasEnoughDataForInsights: Bool {
+        // Show insights tab if we have meaningful data to visualize
+        captureCount >= 5 || !collaborators.isEmpty || !appUsage.isEmpty || insightCount > 0
+    }
+    
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedTab) {
-                Section("Control") {
+                Section("Perception") {
+                    if hasEnoughDataForInsights {
+                        sidebarRow(.visualization, icon: "chart.xyaxis.line", count: nil)
+                    }
                     sidebarRow(.services, icon: "power", count: nil)
                 }
                 
                 Section("Output") {
-                    sidebarRow(.visualization, icon: "chart.xyaxis.line", count: nil)
                     sidebarRow(.knowledge, icon: "brain.head.profile", count: knowledgeCount)
-                    sidebarRow(.insightsList, icon: "lightbulb.fill", count: insightCount)
+                    sidebarRow(.observations, icon: "lightbulb.fill", count: insightCount)
                     sidebarRow(.actions, icon: "checklist", count: actions.filter { $0.isPending }.count)
                 }
                 
@@ -73,7 +80,7 @@ struct DashboardView: View {
                         await loadData()
                     }
                 }
-            case .insightsList:
+            case .observations:
                 InsightsListView(insights: insights, database: database)
             case .actions:
                 ActionsListView(actions: actions, database: database)
@@ -87,6 +94,10 @@ struct DashboardView: View {
         }
         .task {
             await loadData()
+            // Switch to Insights view by default once we have enough data
+            if hasEnoughDataForInsights && selectedTab == .services {
+                selectedTab = .visualization
+            }
         }
         .onReceive(refreshTimer) { _ in
             Task { await loadData() }
@@ -605,17 +616,6 @@ struct SimpleServicesView: View {
                 .background(Color.purple.opacity(0.05))
                 .cornerRadius(12)
                 .padding(.horizontal, 32)
-                
-                // Activity Summary
-                if captureCount > 0 || !collaborators.isEmpty || !appUsage.isEmpty {
-                    ActivitySummaryCard(
-                        collaborators: collaborators,
-                        appUsage: appUsage,
-                        moodSummary: moodSummary,
-                        captureCount: captureCount
-                    )
-                    .padding(.horizontal, 32)
-                }
                 
                 if let error = state.lastError {
                     HStack {
@@ -1263,7 +1263,7 @@ struct InsightsListView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Insights").font(.title2).fontWeight(.semibold)
+                Text("Observation log and insights").font(.title2).fontWeight(.semibold)
                 Spacer()
                 Text("\(insights.count) total").foregroundStyle(.secondary)
             }
@@ -1272,7 +1272,7 @@ struct InsightsListView: View {
             Divider()
             
             if insights.isEmpty {
-                ContentUnavailableView("No Insights Yet", systemImage: "lightbulb", description: Text("Run analysis to generate insights"))
+                ContentUnavailableView("No Observations Yet", systemImage: "lightbulb", description: Text("Run analysis to generate observations"))
             } else {
                 List(insights, id: \.id) { insight in
                     VStack(alignment: .leading, spacing: 4) {
