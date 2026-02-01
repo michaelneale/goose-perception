@@ -4,12 +4,15 @@ Listens to you always, watches your screen and watches you via camera to learn f
 
 Totally local (really - all local models, all the time, no external LLMs)
 
-<img width="1024" height="1536" alt="image" src="https://github.com/user-attachments/assets/8d64aef1-29b5-4ae0-bc7c-b1e8a65c926e" />
+<img width="256" alt="image" src="https://github.com/user-attachments/assets/8d64aef1-29b5-4ae0-bc7c-b1e8a65c926e" />
 
 
 > **Experimental** - This project is actively evolving. The core capture and insight pipeline works, but the automated actions system (DSL-based macOS automation) is still being implemented and tested.
 
 A macOS menu bar app that acts as a personal ambient intelligence assistant. Captures screen, voice, and face data, analyzes it with on-device LLMs, and surfaces insights to help you stay aware of your work patterns, collaborators, and wellbeing.
+
+> **WIP**
+Much of this project is WIP, but especially the actions/agentic component: this is using work documented here: https://arxiv.org/abs/2409.00608 with a simplified "Tool Rag" approach for taking local actions with things like apple script, but barely works (am working on it!)
 
 **100% local. No cloud. No tracking.**
 
@@ -37,42 +40,55 @@ Requires macOS 14+ and Apple Silicon (M1/M2/M3).
 - **Wellness Monitoring** - Detects overwork, stress, and late-night patterns
 - **Smart Actions** - Popup notifications when you need a break or have pending tasks
 
+
+
+## Pics
+
+<img width="400" alt="image" src="https://github.com/user-attachments/assets/0167b265-51e7-4d35-b50c-4bb4f6631db7" />
+
+<img width="400" alt="image" src="https://github.com/user-attachments/assets/21ed26aa-7090-44c5-bbbf-575d0c3c47f3" />
+
+<img width="512" alt="image" src="https://github.com/user-attachments/assets/bb21a1e8-2cb2-4010-b441-7cea7356904b" />
+
+
+
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           DATA CAPTURE (continuous)                      │
-│                                                                          │
-│   Screen (20s) ──► OCR ───┐                                              │
-│   Voice ──► WhisperKit ───┼──► SQLite Database                           │
-│   Face ──► Vision ────────┘                                              │
+│                           DATA CAPTURE (continuous)                     │
+│                                                                         │
+│   Screen (20s) ──► OCR ───┐                                             │
+│   Voice ──► WhisperKit ───┼──► SQLite Database                          │
+│   Face ──► Vision ────────┘                                             │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    REFINERS (every 20 min)                               │
-│                                                                          │
-│   Raw data ──► LLM Refiners ──► Knowledge (projects, people, topics)     │
-│                                                                          │
+│                    REFINERS (every 20 min)                              │
+│                                                                         │
+│   Raw data ──► LLM Refiners ──► Knowledge (projects, people, topics)    │
+│                                                                         │
 │   ProjectsRefiner │ CollaboratorsRefiner │ InterestsRefiner │ TodosRefiner
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    INSIGHT GENERATORS                                    │
-│                                                                          │
-│   Knowledge + Mood ──► Generators ──► Insights (observations)            │
-│                                                                          │
-│   WorkSummary │ PatternDetector │ Progress │ Collaboration │ Wellness    │
+│                    INSIGHT GENERATORS                                   │
+│                                                                         │
+│   Knowledge + Mood ──► Generators ──► Insights (observations)           │
+│                                                                         │
+│   WorkSummary │ PatternDetector │ Progress │ Collaboration │ Wellness   │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    ACTION GENERATORS                                     │
-│                                                                          │
-│   Insights + Mood ──► Generators ──► Actions (popups/notifications)      │
-│                                                                          │
-│   WellnessAction │ ReminderAction │ FocusAction │ LateNightAction        │
+│                    ACTION GENERATORS                                    │
+│                                                                         │
+│   Insights + Mood ──► Generators ──► Actions (popups/notifications)     │
+│                                                                         │
+│   WellnessAction │ ReminderAction │ FocusAction │ LateNightAction       │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
